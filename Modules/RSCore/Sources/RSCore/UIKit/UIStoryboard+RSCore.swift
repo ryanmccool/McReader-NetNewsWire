@@ -14,23 +14,23 @@ extension UIStoryboard {
 	static let preferredContentSizeForFormSheetDisplay = CGSize(width: 460.0, height: 400.0)
 
 	public static var main: UIStoryboard {
-		UIStoryboard(name: "Main", bundle: nil)
+		UIStoryboard(name: "Main", bundle: .netNewsWire)
 	}
 
 	public static var add: UIStoryboard {
-		UIStoryboard(name: "Add", bundle: nil)
+		UIStoryboard(name: "Add", bundle: .netNewsWire)
 	}
 
 	public static var settings: UIStoryboard {
-		UIStoryboard(name: "Settings", bundle: nil)
+		UIStoryboard(name: "Settings", bundle: .netNewsWire)
 	}
 
 	public static var inspector: UIStoryboard {
-		UIStoryboard(name: "Inspector", bundle: nil)
+		UIStoryboard(name: "Inspector", bundle: .netNewsWire)
 	}
 
 	public static var account: UIStoryboard {
-		UIStoryboard(name: "Account", bundle: nil)
+		UIStoryboard(name: "Account", bundle: .netNewsWire)
 	}
 
 	public func instantiateController<T>(ofType type: T.Type = T.self) -> T where T: UIViewController {

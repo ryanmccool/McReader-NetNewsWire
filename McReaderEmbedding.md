@@ -15,3 +15,12 @@ Do not restyle, port to SwiftUI, replace NetNewsWire storage/sync, or change its
 ## Updating upstream
 
 Fetch `upstream`, check out the selected upstream SHA in a temporary branch, replay the small downstream patch series, inspect the resulting diff against upstream, run the NetNewsWire feature build and McReader containment tests, then advance McReader's submodule pointer in a separate reviewed commit.
+
+## Current downstream patch manifest
+
+- `NetNewsWire.xcodeproj/project.pbxproj`, `xcconfig/NetNewsWire_feature_target.xcconfig`: add `NetNewsWireFeature`, an iOS framework target that reuses the upstream iOS + Shared synchronized source/resource groups with the iOS bridging header and `MCREADER_EMBEDDED` compile condition.
+- `iOS/AppDelegate.swift`, `iOS/AppDefaults.swift`, `iOS/SceneDelegate.swift`: suppress `@main` in embedded builds, add embedded bootstrap/setup, extract root split/coordinator setup, and gate process-global ownership features when hosted.
+- `iOS/Embedding/NetNewsWireFeatureHost.swift`: public host/factory surface that boots the embedded app services and returns the upstream storyboard-backed root controller.
+- `Modules/RSCore/Sources/RSCore/Bundle+NetNewsWire.swift`, `Modules/RSCore/Sources/RSCore/UIKit/UIStoryboard+RSCore.swift`: resolve storyboards/resources from the framework bundle when hosted.
+- `Shared/Assets.swift`, `Shared/Article Rendering/*`, `Shared/ArticleStyles/*`, `Shared/Importers/DefaultFeedsImporter.swift`, `iOS/KeyboardManager.swift`, `iOS/Add/AddFeedViewController.swift`, `iOS/Settings/SettingsViewController.swift`: route upstream images, colors, HTML/CSS/JS, themes, OPML, keyboard plists, and nib loads through the feature bundle.
+- Generated `Modules/Secrets/Sources/Secrets/SecretKey.swift` remains development-only and untracked; builds regenerate it locally via `./buildscripts/updateSecrets.sh`.

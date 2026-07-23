@@ -24,14 +24,14 @@ typealias RSColor = UIColor
 
 struct Assets {
 	@MainActor struct Images {
-		static var accountBazQux: RSImage { RSImage(named: "accountBazQux")! }
-		static var accountCloudKit: RSImage { RSImage(named: "accountCloudKit")! }
-		static var accountFeedbin: RSImage { RSImage(named: "accountFeedbin")! }
-		static var accountFeedly: RSImage { RSImage(named: "accountFeedly")! }
-		static var accountFreshRSS: RSImage { RSImage(named: "accountFreshRSS")! }
-		static var accountInoreader: RSImage { RSImage(named: "accountInoreader")! }
-		static var accountNewsBlur: RSImage { RSImage(named: "accountNewsBlur")! }
-		static var accountTheOldReader: RSImage { RSImage(named: "accountTheOldReader")! }
+		static var accountBazQux: RSImage { image(named: "accountBazQux") }
+		static var accountCloudKit: RSImage { image(named: "accountCloudKit") }
+		static var accountFeedbin: RSImage { image(named: "accountFeedbin") }
+		static var accountFeedly: RSImage { image(named: "accountFeedly") }
+		static var accountFreshRSS: RSImage { image(named: "accountFreshRSS") }
+		static var accountInoreader: RSImage { image(named: "accountInoreader") }
+		static var accountNewsBlur: RSImage { image(named: "accountNewsBlur") }
+		static var accountTheOldReader: RSImage { image(named: "accountTheOldReader") }
 
 		static let starOpen = RSImage(symbol: "star")!
 		static let starClosed = RSImage(symbol: "star.fill")!
@@ -39,8 +39,8 @@ struct Assets {
 		static var markAllAsRead: RSImage { RSImage(named: "markAllAsRead")! }
 		static let nextUnread = RSImage(symbol: "chevron.down.circle")!
 
-		nonisolated static var nnwFeedIcon: RSImage { RSImage(named: "nnwFeedIcon")! }
-		static var faviconTemplate: RSImage { RSImage(named: "faviconTemplateImage")! }
+		nonisolated static var nnwFeedIcon: RSImage { image(named: "nnwFeedIcon") }
+		static var faviconTemplate: RSImage { image(named: "faviconTemplateImage") }
 
 		static let articleExtractorOff: RSImage = {
 			if #available(iOS 18, macOS 15, *) {
@@ -96,8 +96,8 @@ struct Assets {
 		static let unreadFeed = IconImage(RSImage(symbol: "largecircle.fill.circle")!, isSymbol: true, isBackgroundSuppressed: true, preferredColor: Assets.Colors.primaryAccent)
 
 #else // iOS
-		static var accountLocalPadImage: RSImage { RSImage(named: "accountLocalPad")! }
-		static var accountLocalPhoneImage: RSImage { RSImage(named: "accountLocalPhone")! }
+		static var accountLocalPadImage: RSImage { image(named: "accountLocalPad") }
+		static var accountLocalPhoneImage: RSImage { image(named: "accountLocalPhone") }
 
 		static let circleClosed = RSImage(symbol: "largecircle.fill.circle")!
 		static let markBelowAsRead = RSImage(symbol: "arrowtriangle.down.circle")!
@@ -105,7 +105,7 @@ struct Assets {
 		static let more = RSImage(symbol: "ellipsis.circle")!
 		static let nextArticle = RSImage(symbol: "chevron.down")!
 		static let circleOpen = RSImage(symbol: "circle")!
-		static var disclosure: RSImage { RSImage(named: "disclosure")! }
+		static var disclosure: RSImage { image(named: "disclosure") }
 		static let deactivate = RSImage(symbol: "minus.circle")!
 		static let currentActivity = RSImage(symbol: "text.pad.header")!
 		static let edit = RSImage(symbol: "square.and.pencil")!
@@ -172,17 +172,27 @@ struct Assets {
 		static let sidebarUnreadCountBackground = RSColor(named: "SidebarUnreadCountBackground")!
 		static let sidebarUnreadCountText = RSColor(named: "SidebarUnreadCountText")!
 #else // iOS
-		static let primaryAccent = RSColor(named: "primaryAccentColor")!
-		static let secondaryAccent = RSColor(named: "secondaryAccentColor")!
-		static let star = RSColor(named: "starColor")!
-		static let vibrantText = RSColor(named: "vibrantTextColor")!
-		static let controlBackground = RSColor(named: "controlBackgroundColor")!
-		static let iconBackground = RSColor(named: "iconBackgroundColor")!
-		static let fullScreenBackground = RSColor(named: "fullScreenBackgroundColor")!
-		static let sectionHeader = RSColor(named: "sectionHeaderColor")!
+		static let primaryAccent = color(named: "primaryAccentColor")
+		static let secondaryAccent = color(named: "secondaryAccentColor")
+		static let star = color(named: "starColor")
+		static let vibrantText = color(named: "vibrantTextColor")
+		static let controlBackground = color(named: "controlBackgroundColor")
+		static let iconBackground = color(named: "iconBackgroundColor")
+		static let fullScreenBackground = color(named: "fullScreenBackgroundColor")
+		static let sectionHeader = color(named: "sectionHeaderColor")
 #endif
 	}
 }
+
+#if os(iOS)
+private func image(named name: String) -> RSImage {
+	UIImage(named: name, in: .netNewsWire, compatibleWith: nil)!
+}
+
+private func color(named name: String) -> RSColor {
+	UIColor(named: name, in: .netNewsWire, compatibleWith: nil)!
+}
+#endif
 
 extension RSImage {
 

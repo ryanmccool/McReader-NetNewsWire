@@ -54,7 +54,7 @@ import WebKit
 	/// Compile content blocking rules. Call early at app startup.
 	static func compileContentBlockingRules() async {
 
-		guard let url = Bundle.main.url(forResource: "ContentRules", withExtension: "json") else {
+		guard let url = Bundle.netNewsWire.url(forResource: "ContentRules", withExtension: "json") else {
 			logger.warning("WebViewConfiguration: ContentRules.json not found in bundle")
 			return
 		}
@@ -121,7 +121,7 @@ private extension WebViewConfiguration {
 #endif
 
 		let scripts = filenames.map { filename in
-			let scriptURL = Bundle.main.url(forResource: filename, withExtension: ".js")!
+			let scriptURL = Bundle.netNewsWire.url(forResource: filename, withExtension: ".js")!
 			let scriptSource = try! String(contentsOf: scriptURL, encoding: .utf8)
 			return WKUserScript(source: scriptSource, injectionTime: .atDocumentStart, forMainFrameOnly: true)
 		}

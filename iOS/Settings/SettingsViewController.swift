@@ -89,8 +89,8 @@ final class SettingsViewController: UITableViewController {
 		NotificationCenter.default.addObserver(self, selector: #selector(accountsDidChange), name: .UserDidDeleteAccount, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(displayNameDidChange), name: .DisplayNameDidChange, object: nil)
 
-		tableView.register(UINib(nibName: "SettingsComboTableViewCell", bundle: nil), forCellReuseIdentifier: "SettingsComboTableViewCell")
-		tableView.register(UINib(nibName: "SettingsTableViewCell", bundle: nil), forCellReuseIdentifier: "SettingsTableViewCell")
+		tableView.register(UINib(nibName: "SettingsComboTableViewCell", bundle: .netNewsWire), forCellReuseIdentifier: "SettingsComboTableViewCell")
+		tableView.register(UINib(nibName: "SettingsTableViewCell", bundle: .netNewsWire), forCellReuseIdentifier: "SettingsTableViewCell")
 
 		tableView.rowHeight = UITableView.automaticDimension
 		tableView.estimatedRowHeight = 44

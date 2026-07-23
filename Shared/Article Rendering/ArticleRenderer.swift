@@ -24,7 +24,7 @@ import Account
 		let html: String
 
 		init(name: String) {
-			url = Bundle.main.url(forResource: name, withExtension: "html")!
+			url = Bundle.netNewsWire.url(forResource: name, withExtension: "html")!
 			baseURL = url.deletingLastPathComponent()
 			html = try! String(contentsOfFile: url.path, encoding: .utf8)
 		}
@@ -179,13 +179,13 @@ private extension ArticleRenderer {
 	}
 
 	static var defaultStyleSheet: String = {
-		let path = Bundle.main.path(forResource: "stylesheet", ofType: "css")!
+		let path = Bundle.netNewsWire.path(forResource: "stylesheet", ofType: "css")!
 		let s = try! String(contentsOfFile: path, encoding: .utf8)
 		return "\n\(s)\n"
 	}()
 
 	static let defaultTemplate: String = {
-		let path = Bundle.main.path(forResource: "template", ofType: "html")!
+		let path = Bundle.netNewsWire.path(forResource: "template", ofType: "html")!
 		let s = try! String(contentsOfFile: path, encoding: .utf8)
 		return s as String
 	}()

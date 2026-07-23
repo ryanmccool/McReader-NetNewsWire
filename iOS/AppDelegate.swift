@@ -20,7 +20,9 @@ import Images
 
 @MainActor var appDelegate: AppDelegate!
 
+#if !MCREADER_EMBEDDED
 @main
+#endif
 @MainActor final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, UnreadCountProvider {
 
 	private let backgroundTaskDispatchQueue = DispatchQueue.init(label: "BGTaskScheduler")
@@ -50,6 +52,8 @@ import Images
 	var isSyncArticleStatusRunning = false
 	var isWaitingForSyncTasks = false
 
+	private var didPerformLaunchSetup = false
+
 	override init() {
 		super.init()
 		appDelegate = self
@@ -60,60 +64,19 @@ import Images
 		NotificationCenter.default.addObserver(self, selector: #selector(accountRefreshDidFinish(_:)), name: .AccountRefreshDidFinish, object: nil)
 	}
 
+	static func bootstrapEmbeddedIfNeeded() -> AppDelegate {
+		if let appDelegate {
+			appDelegate.performLaunchSetupIfNeeded()
+			return appDelegate
+		}
+		let appDelegate = AppDelegate()
+		appDelegate.performLaunchSetupIfNeeded()
+		return appDelegate
+	}
+
 	func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-		FaviconGenerator.templateImage = Assets.Images.faviconTemplate
-
-		Task {
-			await WebViewConfiguration.compileContentBlockingRules()
-		}
-		AppDefaults.registerDefaults()
-
-		let isFirstRun = AppDefaults.shared.isFirstRun
-		if isFirstRun {
-			Self.logger.info("Is first run.")
-		}
-
-		if isFirstRun && !AccountManager.shared.anyAccountHasAtLeastOneFeed() {
-			let localAccount = AccountManager.shared.defaultAccount
-			DefaultFeedsImporter.importDefaultFeeds(account: localAccount)
-		}
-
-		registerBackgroundTasks()
-		CacheCleaner.purgeIfNecessary()
-		initializeDownloaders()
-		initializeHomeScreenQuickActions()
-
-		DispatchQueue.main.async {
-			self.unreadCount = AccountManager.shared.unreadCount
-			// Force the badge to update on launch.
-			self.updateBadge()
-		}
-
-		UNUserNotificationCenter.current().requestAuthorization(options: [.badge, .sound, .alert]) { (granted, _) in
-			if granted {
-				DispatchQueue.main.async {
-					UIApplication.shared.registerForRemoteNotifications()
-				}
-			}
-		}
-
-		UNUserNotificationCenter.current().delegate = self
-		UserNotificationManager.shared.start()
-
-		ArticleThemesManager.shared.start()
-		NetworkMonitor.shared.start()
-
-#if !SKIP_APP_GROUP_ACCESS
-		ExtensionContainersFile.shared.start()
-		ExtensionFeedAddRequestFile.shared.start()
-#endif
-
-		#if DEBUG
-		ArticleStatusSyncTimer.shared.update()
-		#endif
-
+		performLaunchSetupIfNeeded()
 		return true
-
 	}
 
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
@@ -138,6 +101,9 @@ import Images
 	}
 
 	private func updateBadge() {
+		guard !Bundle.isNetNewsWireEmbeddedHost else {
+			return
+		}
 		assert(unreadCount == AccountManager.shared.unreadCount)
 		UNUserNotificationCenter.current().setBadgeCount(unreadCount)
 	}
@@ -176,10 +142,16 @@ import Images
 		updateBadge()
 
 #if !SKIP_APP_GROUP_ACCESS
-		ExtensionFeedAddRequestFile.shared.suspend()
+		if !Bundle.isNetNewsWireEmbeddedHost {
+			ExtensionFeedAddRequestFile.shared.suspend()
+		}
 #endif
 
 		ArticleStatusSyncTimer.shared.invalidate()
+		guard !Bundle.isNetNewsWireEmbeddedHost else {
+			AccountManager.shared.saveAll()
+			return
+		}
 		scheduleBackgroundFeedRefresh()
 		syncArticleStatus()
 		WidgetDataEncoder.shared?.encode()
@@ -189,7 +161,9 @@ import Images
 	func prepareAccountsForForeground() {
 		updateBadge()
 #if !SKIP_APP_GROUP_ACCESS
-		ExtensionFeedAddRequestFile.shared.resume()
+		if !Bundle.isNetNewsWireEmbeddedHost {
+			ExtensionFeedAddRequestFile.shared.resume()
+		}
 #endif
 		ArticleStatusSyncTimer.shared.update()
 
@@ -243,6 +217,63 @@ import Images
 // MARK: App Initialization
 
 private extension AppDelegate {
+
+	func performLaunchSetupIfNeeded() {
+		guard !didPerformLaunchSetup else {
+			return
+		}
+		didPerformLaunchSetup = true
+
+		FaviconGenerator.templateImage = Assets.Images.faviconTemplate
+
+		Task {
+			await WebViewConfiguration.compileContentBlockingRules()
+		}
+		AppDefaults.registerDefaults()
+
+		let isFirstRun = AppDefaults.shared.isFirstRun
+		if isFirstRun {
+			Self.logger.info("Is first run.")
+		}
+
+		if isFirstRun && !AccountManager.shared.anyAccountHasAtLeastOneFeed() {
+			let localAccount = AccountManager.shared.defaultAccount
+			DefaultFeedsImporter.importDefaultFeeds(account: localAccount)
+		}
+
+		CacheCleaner.purgeIfNecessary()
+		initializeDownloaders()
+
+		DispatchQueue.main.async {
+			self.unreadCount = AccountManager.shared.unreadCount
+			self.updateBadge()
+		}
+
+		if !Bundle.isNetNewsWireEmbeddedHost {
+			registerBackgroundTasks()
+			initializeHomeScreenQuickActions()
+			UNUserNotificationCenter.current().requestAuthorization(options: [.badge, .sound, .alert]) { granted, _ in
+				if granted {
+					DispatchQueue.main.async {
+						UIApplication.shared.registerForRemoteNotifications()
+					}
+				}
+			}
+			UNUserNotificationCenter.current().delegate = self
+			UserNotificationManager.shared.start()
+#if !SKIP_APP_GROUP_ACCESS
+			ExtensionContainersFile.shared.start()
+			ExtensionFeedAddRequestFile.shared.start()
+#endif
+		}
+
+		ArticleThemesManager.shared.start()
+		NetworkMonitor.shared.start()
+
+#if DEBUG
+		ArticleStatusSyncTimer.shared.update()
+#endif
+	}
 
 	private func initializeDownloaders() {
 		let tempDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!

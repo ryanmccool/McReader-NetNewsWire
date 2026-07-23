@@ -1,0 +1,10 @@
+#include "./common/NetNewsWire_ios_target_common.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.ryanmccool.NetNewsWireFeature
+PRODUCT_NAME = NetNewsWireFeature
+PRODUCT_MODULE_NAME = NetNewsWireFeature
+SWIFT_OBJC_BRIDGING_HEADER = iOS/NetNewsWire-iOS-Bridging-Header.h
+SUPPORTED_PLATFORMS = iphoneos iphonesimulator
+SUPPORTS_MACCATALYST = NO
+SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO
+SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO
