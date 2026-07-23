@@ -35,12 +35,12 @@ enum KeyboardType: String, Sendable {
 			break
 		}
 
-		let globalFile = Bundle.main.path(forResource: KeyboardType.global.rawValue, ofType: "plist")!
+		let globalFile = Bundle.netNewsWire.path(forResource: KeyboardType.global.rawValue, ofType: "plist")!
 		let globalEntries = NSArray(contentsOfFile: globalFile)! as! [[String: Any]]
 		let globalCommands = globalEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) }
 		_keyCommands.append(contentsOf: globalCommands)
 
-		let specificFile = Bundle.main.path(forResource: type.rawValue, ofType: "plist")!
+		let specificFile = Bundle.netNewsWire.path(forResource: type.rawValue, ofType: "plist")!
 		let specificEntries = NSArray(contentsOfFile: specificFile)! as! [[String: Any]]
 		_keyCommands.append(contentsOf: specificEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) })
 	}

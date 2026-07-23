@@ -44,11 +44,11 @@ struct ArticleTheme: Equatable, Sendable {
 		self.url = nil
 		self.info = ArticleThemePlist(name: "Article Theme", themeIdentifier: "com.ranchero.netnewswire.theme.article", creatorHomePage: "https://netnewswire.com/", creatorName: "Ranchero Software", version: 1)
 
-		let corePath = Bundle.main.path(forResource: "core", ofType: "css")!
-		let stylesheetPath = Bundle.main.path(forResource: "stylesheet", ofType: "css")!
+		let corePath = Bundle.netNewsWire.path(forResource: "core", ofType: "css")!
+		let stylesheetPath = Bundle.netNewsWire.path(forResource: "stylesheet", ofType: "css")!
 		self.css = Self.stringAtPath(corePath)! + "\n" + Self.stringAtPath(stylesheetPath)!
 
-		let templatePath = Bundle.main.path(forResource: "template", ofType: "html")!
+		let templatePath = Bundle.netNewsWire.path(forResource: "template", ofType: "html")!
 		self.template = Self.stringAtPath(templatePath)!
 
 		self.isAppTheme = true
@@ -62,7 +62,7 @@ struct ArticleTheme: Equatable, Sendable {
 
 		self.url = url
 
-		let coreURL = Bundle.main.url(forResource: "core", withExtension: "css")!
+		let coreURL = Bundle.netNewsWire.url(forResource: "core", withExtension: "css")!
 		let styleSheetURL = url.appendingPathComponent("stylesheet.css")
 		if let stylesheetCSS = Self.stringAtPath(styleSheetURL.path) {
 			self.css = Self.stringAtPath(coreURL.path)! + "\n" + stylesheetCSS

@@ -10,6 +10,25 @@ import UIKit
 import UserNotifications
 import Account
 
+@MainActor enum NetNewsWireSceneSetup {
+	@discardableResult
+	static func configure(rootSplitViewController: RootSplitViewController, stateRestorationActivity: NSUserActivity?) -> SceneCoordinator {
+		rootSplitViewController.presentsWithGesture = true
+		rootSplitViewController.showsSecondaryOnlyButton = true
+		rootSplitViewController.preferredDisplayMode = UISplitViewController.DisplayMode(rawValue: AppDefaults.shared.splitViewPreferredDisplayMode) ?? .oneBesideSecondary
+
+		if AppDefaults.shared.isFirstRun && UIDevice.current.userInterfaceIdiom == .pad {
+			rootSplitViewController.preferredDisplayMode = .twoBesideSecondary
+		}
+
+		let coordinator = SceneCoordinator(rootSplitViewController: rootSplitViewController)
+		rootSplitViewController.coordinator = coordinator
+		rootSplitViewController.delegate = coordinator
+		coordinator.restoreWindowState(activity: stateRestorationActivity)
+		return coordinator
+	}
+}
+
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 	var window: UIWindow?
@@ -22,20 +41,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 		window!.tintColor = Assets.Colors.primaryAccent
 
 		let rootViewController = window!.rootViewController as! RootSplitViewController
-		rootViewController.presentsWithGesture = true
-		rootViewController.showsSecondaryOnlyButton = true
-		rootViewController.preferredDisplayMode = UISplitViewController.DisplayMode(rawValue: AppDefaults.shared.splitViewPreferredDisplayMode) ?? .oneBesideSecondary
-
-		// On first run on iPad, show all three columns so the sidebar is visible
-		if AppDefaults.shared.isFirstRun && UIDevice.current.userInterfaceIdiom == .pad {
-			rootViewController.preferredDisplayMode = .twoBesideSecondary
-		}
-
-		coordinator = SceneCoordinator(rootSplitViewController: rootViewController)
-		rootViewController.coordinator = coordinator
-		rootViewController.delegate = coordinator
-
-		coordinator.restoreWindowState(activity: session.stateRestorationActivity)
+		coordinator = NetNewsWireSceneSetup.configure(rootSplitViewController: rootViewController, stateRestorationActivity: session.stateRestorationActivity)
 
 		updateUserInterfaceStyle()
 

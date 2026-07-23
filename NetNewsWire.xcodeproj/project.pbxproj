@@ -318,6 +318,7 @@
 		513C5CE6232571C2003D4054 /* NetNewsWire iOS Share Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "NetNewsWire iOS Share Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		518B2ED22351B3DD00400001 /* NetNewsWire-iOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "NetNewsWire-iOSTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6581C73320CED60000F4AD34 /* Subscribe to Feed.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Subscribe to Feed.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0BA40665441CA62669920BA5 /* NetNewsWireFeature.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NetNewsWireFeature.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		840A1F0A2E4133F400CFCCFC /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		840D617C2029031C009BC708 /* NetNewsWire.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetNewsWire.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		844E47DC2E7DC72A0061A51A /* CODE_OF_CONDUCT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CODE_OF_CONDUCT.md; sourceTree = "<group>"; };
@@ -515,6 +516,35 @@
 			);
 			target = 510C415B24E5CDE3008226FD /* NetNewsWire Share Extension */;
 		};
+		2A6E2A3A03E512D664A2FF68 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Commands/MarkCommandValidationStatus.swift,
+				ExtensionPoints/SendToMarsEditCommand.swift,
+				ExtensionPoints/SendToMicroBlogCommand.swift,
+				ShareExtension/SafariExt.js,
+				ShareExtension/ShareDefaultContainer.swift,
+				SmartFeeds/SmartFeedPasteboardWriter.swift,
+				Timer/AccountRefreshTimer.swift,
+			);
+			target = 76B185B42DE279958A9DFB8E /* NetNewsWireFeature */;
+		};
+		64786A0484DB49E7684A0DC6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				/Localized/ShareExtension/MainInterface.storyboard,
+				IntentsExtension/Info.plist,
+				IntentsExtension/IntentHandler.swift,
+				Resources/Info.plist,
+				ShareExtension/Info.plist,
+				ShareExtension/ShareFolderPickerAccountCell.xib,
+				ShareExtension/ShareFolderPickerCell.swift,
+				ShareExtension/ShareFolderPickerController.swift,
+				ShareExtension/ShareFolderPickerFolderCell.xib,
+				ShareExtension/ShareViewController.swift,
+			);
+			target = 76B185B42DE279958A9DFB8E /* NetNewsWireFeature */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -550,12 +580,19 @@
 		8448F1F62D1E36BF0048BA50 /* Widget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (8448F2052D1E36BF0048BA50 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Widget; sourceTree = "<group>"; };
 		84719F0E2DB9C52B00EEF332 /* Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (84719F272DB9C52B00EEF332 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Tests; sourceTree = "<group>"; };
 		84719F372DB9C60400EEF332 /* xcconfig */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (84719F392DB9C60500EEF332 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (common, ); path = xcconfig; sourceTree = "<group>"; };
-		84A6CFB52D1B4EC500F23315 /* iOS */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (84A6D03F2D1B4EC500F23315 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84A6D0402D1B4EC500F23315 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84A6D0412D1B4EC500F23315 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = iOS; sourceTree = "<group>"; };
+		84A6CFB52D1B4EC500F23315 /* iOS */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (84A6D03F2D1B4EC500F23315 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84A6D0402D1B4EC500F23315 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84A6D0412D1B4EC500F23315 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 64786A0484DB49E7684A0DC6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = iOS; sourceTree = "<group>"; };
 		84CB35042DB9B5E2002AC251 /* Modules */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Modules; sourceTree = "<group>"; };
-		84D35D422DB9F32D004AA60E /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (84D35E0A2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0B2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0C2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0D2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0E2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0F2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
+		84D35D422DB9F32D004AA60E /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (84D35E0A2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0B2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0C2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0D2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0E2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 84D35E0F2DB9F32D004AA60E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 2A6E2A3A03E512D664A2FF68 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Shared; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		B85541A20746971EE443B16A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		176813F02564BB2C00D98635 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -738,6 +775,7 @@
 				51314637235A7BBE00387FDC /* NetNewsWire iOS Intents Extension.appex */,
 				510C415C24E5CDE3008226FD /* NetNewsWire Share Extension.appex */,
 				176813F32564BB2C00D98635 /* NetNewsWire iOS Widget Extension.appex */,
+				0BA40665441CA62669920BA5 /* NetNewsWireFeature.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -875,6 +913,44 @@
 			productName = "Subscribe to Feed";
 			productReference = 6581C73320CED60000F4AD34 /* Subscribe to Feed.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		76B185B42DE279958A9DFB8E /* NetNewsWireFeature */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6CE6B68F44FFCF08534202FB /* Build configuration list for PBXNativeTarget "NetNewsWireFeature" */;
+			buildPhases = (
+				A4C203595E150DEA668C15E3 /* Sources */,
+				B85541A20746971EE443B16A /* Frameworks */,
+				F94227A53ECF6CD5B87EB270 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				84A6CFB52D1B4EC500F23315 /* iOS */,
+				84D35D422DB9F32D004AA60E /* Shared */,
+			);
+			name = NetNewsWireFeature;
+			packageProductDependencies = (
+				516B695E24D2F33B00B5702F /* Account */,
+				8C00352722FF4540BF3E5072 /* ErrorLog */,
+				513F32702593EE6F0003048F /* Articles */,
+				513F32732593EE6F0003048F /* ArticlesDatabase */,
+				513F32762593EE6F0003048F /* Secrets */,
+				513F32792593EE6F0003048F /* SyncDatabase */,
+				179D280A26F6F93D003B2E0A /* Zip */,
+				843E2F192CF2B8C500ED170F /* RSWeb */,
+				D1A7E100000000000000A001 /* HTMLMetadata */,
+				D1A7E100000000000000B001 /* ActivityLog */,
+				D1A7E100000000000000C001 /* Images */,
+				8424B31A2DB73D530053AA11 /* RSParser */,
+				848E84D42DB749670023F3BA /* RSCore */,
+				84EE3F142DB8A0A0009D3A8D /* RSTree */,
+				84EE434A2DB8A44C009D3A8D /* RSDatabase */,
+			);
+			productName = NetNewsWireFeature;
+			productReference = 0BA40665441CA62669920BA5 /* NetNewsWireFeature.framework */;
+			productType = "com.apple.product-type.framework";
 		};
 		840D617B2029031C009BC708 /* NetNewsWire-iOS */ = {
 			isa = PBXNativeTarget;
@@ -1093,11 +1169,19 @@
 				176813F22564BB2C00D98635 /* NetNewsWire iOS Widget Extension */,
 				518B2ED12351B3DD00400001 /* NetNewsWire-iOSTests */,
 				510C415B24E5CDE3008226FD /* NetNewsWire Share Extension */,
+				76B185B42DE279958A9DFB8E /* NetNewsWireFeature */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		F94227A53ECF6CD5B87EB270 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		176813F12564BB2C00D98635 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1331,6 +1415,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		A4C203595E150DEA668C15E3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		176813EF2564BB2C00D98635 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1546,6 +1637,34 @@
 			};
 			name = Release;
 		};
+		25131AFD3B81292637A972EA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 84719F372DB9C60400EEF332 /* xcconfig */;
+			baseConfigurationReferenceRelativePath = NetNewsWire_feature_target.xcconfig;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ryanmccool.NetNewsWireFeature;
+				PRODUCT_NAME = NetNewsWireFeature;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) MCREADER_EMBEDDED";
+			};
+			name = Debug;
+		};
+		80D8B438C6CD9554B22AA3EF /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 84719F372DB9C60400EEF332 /* xcconfig */;
+			baseConfigurationReferenceRelativePath = NetNewsWire_feature_target.xcconfig;
+			buildSettings = {
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ryanmccool.NetNewsWireFeature;
+				PRODUCT_NAME = NetNewsWireFeature;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) MCREADER_EMBEDDED";
+			};
+			name = Release;
+		};
 		840D61A42029031E009BC708 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = 84719F372DB9C60400EEF332 /* xcconfig */;
@@ -1663,6 +1782,15 @@
 			buildConfigurations = (
 				6581C74720CED60100F4AD34 /* Debug */,
 				6581C74820CED60100F4AD34 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6CE6B68F44FFCF08534202FB /* Build configuration list for PBXNativeTarget "NetNewsWireFeature" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				25131AFD3B81292637A972EA /* Debug */,
+				80D8B438C6CD9554B22AA3EF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

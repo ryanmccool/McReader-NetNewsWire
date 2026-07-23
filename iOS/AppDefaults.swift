@@ -43,6 +43,9 @@ final class AppDefaults: Sendable {
 	private init() {}
 
 	nonisolated(unsafe) static let store: UserDefaults = {
+		if Bundle.isNetNewsWireEmbeddedHost {
+			return UserDefaults(suiteName: "com.ranchero.NetNewsWire.embedded") ?? .standard
+		}
 		let appIdentifierPrefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as! String
 		let suiteName = "\(appIdentifierPrefix)group.\(Bundle.main.bundleIdentifier!)"
 		return UserDefaults.init(suiteName: suiteName)!

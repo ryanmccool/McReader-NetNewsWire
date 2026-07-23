@@ -59,7 +59,7 @@ final class AddFeedViewController: UITableViewController {
 
 		updateFolderLabel()
 
-		tableView.register(UINib(nibName: "AddFeedSelectFolderTableViewCell", bundle: nil), forCellReuseIdentifier: "AddFeedSelectFolderTableViewCell")
+		tableView.register(UINib(nibName: "AddFeedSelectFolderTableViewCell", bundle: .netNewsWire), forCellReuseIdentifier: "AddFeedSelectFolderTableViewCell")
 
 		NotificationCenter.default.addObserver(self, selector: #selector(textDidChange(_:)), name: UITextField.textDidChangeNotification, object: urlTextField)
 

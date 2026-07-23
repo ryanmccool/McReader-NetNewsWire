@@ -122,7 +122,7 @@ final class ArticleThemesManager: NSObject, NSFilePresenter, Sendable {
 
 		let url: URL
 		let isAppTheme: Bool
-		if let appThemeURL = Bundle.main.url(forResource: themeName, withExtension: ArticleTheme.nnwThemeSuffix) {
+		if let appThemeURL = Bundle.netNewsWire.url(forResource: themeName, withExtension: ArticleTheme.nnwThemeSuffix) {
 			url = appThemeURL
 			isAppTheme = true
 		} else if let installedPath = pathForThemeName(themeName, folder: folderPath) {
@@ -152,7 +152,7 @@ final class ArticleThemesManager: NSObject, NSFilePresenter, Sendable {
 private extension ArticleThemesManager {
 
 	func updateThemeNames() {
-		let appThemeFilenames = Bundle.main.paths(forResourcesOfType: ArticleTheme.nnwThemeSuffix, inDirectory: nil)
+		let appThemeFilenames = Bundle.netNewsWire.paths(forResourcesOfType: ArticleTheme.nnwThemeSuffix, inDirectory: nil)
 		let appThemeNames = Set(appThemeFilenames.map { ArticleTheme.themeNameForPath($0) })
 
 		let installedThemeNames = Set(allThemePaths(folderPath).map { ArticleTheme.themeNameForPath($0) })
