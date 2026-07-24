@@ -3,6 +3,7 @@
 PRODUCT_BUNDLE_IDENTIFIER = com.ryanmccool.NetNewsWireFeature
 PRODUCT_NAME = NetNewsWireFeature
 PRODUCT_MODULE_NAME = NetNewsWireFeature
+LD_DYLIB_INSTALL_NAME = @rpath/NetNewsWireFeature.framework/NetNewsWireFeature
 SWIFT_OBJC_BRIDGING_HEADER = iOS/NetNewsWire-iOS-Bridging-Header.h
 SUPPORTED_PLATFORMS = iphoneos iphonesimulator
 SUPPORTS_MACCATALYST = NO
