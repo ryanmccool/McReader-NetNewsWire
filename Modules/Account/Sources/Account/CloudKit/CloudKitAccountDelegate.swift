@@ -16,6 +16,27 @@ import RSCore
 import RSParser
 import RSWeb
 import SyncDatabase
+
+private struct SendableUserDefaults: @unchecked Sendable {
+	let value: UserDefaults
+}
+
+@MainActor struct CloudKitZoneFactory {
+	static func makeZones(
+		container: CKContainer?,
+		userDefaults: UserDefaults,
+		syncArticleContentForUnreadArticles: @escaping @Sendable () -> Bool
+	) -> (account: CloudKitAccountZone, articles: CloudKitArticlesZone) {
+		(
+			CloudKitAccountZone(container: container, userDefaults: userDefaults),
+			CloudKitArticlesZone(
+				container: container,
+				userDefaults: userDefaults,
+				syncArticleContentForUnreadArticles: syncArticleContentForUnreadArticles
+			)
+		)
+	}
+}
 import Articles
 import ArticlesDatabase
 import Secrets
@@ -25,12 +46,49 @@ import FeedFinder
 /// Parameters: (error, operation, fileName, functionName, lineNumber)
 typealias CloudKitSyncErrorHandler = @Sendable (Error, String, String, String, Int) -> Void
 
-enum CloudKitAccountDelegateError: LocalizedError, Sendable {
+enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 	case invalidParameter
+	case containerUnavailable
 	case unknown
 
 	var errorDescription: String? {
+		if case .containerUnavailable = self {
+			return NSLocalizedString("The iCloud container for feeds is unavailable. Check iCloud access and try again.", comment: "Feeds CloudKit container unavailable.")
+		}
 		return NSLocalizedString("An unexpected CloudKit error occurred.", comment: "An unexpected CloudKit error occurred.")
+	}
+
+	static func userVisibleError(for error: Error) -> Error {
+		let underlyingError = (error as? CloudKitError)?.error ?? error
+		let nsError = underlyingError as NSError
+		guard nsError.domain == CKErrorDomain,
+			let code = CKError.Code(rawValue: nsError.code),
+			[.badContainer, .missingEntitlement, .notAuthenticated, .permissionFailure].contains(code) else {
+			return error
+		}
+		return CloudKitAccountDelegateError.containerUnavailable
+	}
+}
+
+@MainActor public enum CloudKitAccountContainerConfiguration {
+	private static var configuredContainer: CKContainer?
+
+	public static func configure(identifier: String) throws {
+		guard identifier.hasPrefix("iCloud."), identifier.count > "iCloud.".count else {
+			throw CloudKitAccountDelegateError.containerUnavailable
+		}
+		configuredContainer = CKContainer(identifier: identifier)
+	}
+
+	static var container: CKContainer? {
+		configuredContainer
+	}
+
+	static func resolve<Container>(
+		configured: Container?,
+		defaultContainer: () -> Container
+	) -> Container {
+		configured ?? defaultContainer()
 	}
 }
 
@@ -39,10 +97,7 @@ enum CloudKitAccountDelegateError: LocalizedError, Sendable {
 
 	private let syncDatabase: SyncDatabase
 
-	private let container: CKContainer = {
-		let orgID = Bundle.main.object(forInfoDictionaryKey: "OrganizationIdentifier") as! String
-		return CKContainer(identifier: "iCloud.\(orgID).NetNewsWire")
-	}()
+	private let container: CKContainer
 
 	private let accountZone: CloudKitAccountZone
 	private let articlesZone: CloudKitArticlesZone
@@ -87,12 +142,23 @@ enum CloudKitAccountDelegateError: LocalizedError, Sendable {
 
 	init(dataFolder: String) {
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
+		self.container = CloudKitAccountContainerConfiguration.resolve(
+			configured: CloudKitAccountContainerConfiguration.container,
+			defaultContainer: CKContainer.default
+		)
+		let defaults = AppConfig.defaults
+		let sendableDefaults = SendableUserDefaults(value: defaults)
 		let syncArticleContentForUnreadArticles: @Sendable () -> Bool = {
-			UserDefaults.standard.bool(forKey: AccountManager.syncArticleContentForUnreadArticlesKey)
+			sendableDefaults.value.bool(forKey: AccountManager.syncArticleContentForUnreadArticlesKey)
 		}
+		let zones = CloudKitZoneFactory.makeZones(
+			container: container,
+			userDefaults: defaults,
+			syncArticleContentForUnreadArticles: syncArticleContentForUnreadArticles
+		)
 		self.syncArticleContentForUnreadArticles = syncArticleContentForUnreadArticles
-		self.accountZone = CloudKitAccountZone(container: container)
-		self.articlesZone = CloudKitArticlesZone(container: container, syncArticleContentForUnreadArticles: syncArticleContentForUnreadArticles)
+		self.accountZone = zones.account
+		self.articlesZone = zones.articles
 
 		let databaseFilePath = (dataFolder as NSString).appendingPathComponent("Sync.sqlite3")
 		self.syncDatabase = SyncDatabase(databasePath: databaseFilePath)
@@ -105,19 +171,24 @@ enum CloudKitAccountDelegateError: LocalizedError, Sendable {
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
 	}
 
-	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async {
+	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {
 		guard let account else {
-			return
+			return false
 		}
 		lastNoChangeSyncDate = nil
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
 		ActivityLog.shared.logCompletedActivity(owner: account.activityOwner, kind: .receiveCloudKitNotification)
 
-		await withCheckedContinuation { continuation in
+		return await withCheckedContinuation { continuation in
 			let op = CloudKitRemoteNotificationOperation(accountZone: accountZone, articlesZone: articlesZone, accountID: account.accountID, accountDisplayName: account.nameForDisplay, userInfo: userInfo)
 			op.completionBlock = { _ in
 				Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
-				continuation.resume()
+				if let error = op.notificationError {
+					self.postSyncError(error, account: account, operation: "Receiving iCloud changes")
+					continuation.resume(returning: false)
+				} else {
+					continuation.resume(returning: op.notificationResult.didChange)
+				}
 			}
 			mainThreadOperationQueue.add(op)
 		}
@@ -1018,7 +1089,8 @@ private extension CloudKitAccountDelegate {
 	}
 
 	func postSyncError(_ error: Error, account: Account, operation: String, fileName: String = #fileID, functionName: String = #function, lineNumber: Int = #line) {
-		let errorLogUserInfo = ErrorLogUserInfoKey.userInfo(sourceName: account.nameForDisplay, sourceID: account.type.rawValue, operation: operation, errorMessage: AccountError.detailedErrorMessage(error), fileName: fileName, functionName: functionName, lineNumber: lineNumber)
+		let userVisibleError = CloudKitAccountDelegateError.userVisibleError(for: error)
+		let errorLogUserInfo = ErrorLogUserInfoKey.userInfo(sourceName: account.nameForDisplay, sourceID: account.type.rawValue, operation: operation, errorMessage: AccountError.detailedErrorMessage(userVisibleError), fileName: fileName, functionName: functionName, lineNumber: lineNumber)
 		NotificationCenter.default.post(name: .appDidEncounterError, object: self, userInfo: errorLogUserInfo)
 	}
 
@@ -1116,11 +1188,11 @@ private extension CloudKitAccountDelegate {
 	private static let lastCleanUpKey = "cloudkit.lastCleanUpDate"
 
 	func cleanUpContentRecordsIfNeeded() async {
-		if UserDefaults.standard.object(forKey: Self.lastCleanUpKey) == nil {
-			UserDefaults.standard.set(Date(), forKey: Self.lastCleanUpKey)
+		if AppConfig.defaults.object(forKey: Self.lastCleanUpKey) == nil {
+			AppConfig.defaults.set(Date(), forKey: Self.lastCleanUpKey)
 			return
 		}
-		let lastCleanUp = UserDefaults.standard.object(forKey: Self.lastCleanUpKey) as? Date ?? .distantPast
+		let lastCleanUp = AppConfig.defaults.object(forKey: Self.lastCleanUpKey) as? Date ?? .distantPast
 		let sixDaysAgo = Date(timeIntervalSinceNow: -6 * 24 * 60 * 60)
 		guard lastCleanUp < sixDaysAgo else {
 			return
@@ -1132,7 +1204,7 @@ private extension CloudKitAccountDelegate {
 
 		// Set this unconditionally. If it fails, we don’t want to keep trying, possibly
 		// doing a bunch of extra work that will fail. Let it rest until the next go.
-		UserDefaults.standard.set(Date(), forKey: Self.lastCleanUpKey)
+		AppConfig.defaults.set(Date(), forKey: Self.lastCleanUpKey)
 
 		Self.logger.info("CloudKitAccountDelegate: running weekly record cleanup")
 		do {

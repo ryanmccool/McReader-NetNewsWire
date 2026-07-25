@@ -71,6 +71,7 @@ final class CloudKitArticlesZone: CloudKitZone {
 	}
 
 	var zoneID: CKRecordZone.ID
+	let userDefaults: UserDefaults
 
 	weak var container: CKContainer?
 	weak var database: CKDatabase?
@@ -111,10 +112,11 @@ final class CloudKitArticlesZone: CloudKitZone {
 
 	let syncArticleContentForUnreadArticles: @Sendable () -> Bool
 
-	init(container: CKContainer, syncArticleContentForUnreadArticles: @escaping @Sendable () -> Bool) {
+	init(container: CKContainer?, userDefaults: UserDefaults, syncArticleContentForUnreadArticles: @escaping @Sendable () -> Bool) {
 		self.container = container
-		self.database = container.privateCloudDatabase
+		self.database = container?.privateCloudDatabase
 		self.zoneID = CKRecordZone.ID(zoneName: "Articles", ownerName: CKCurrentUserDefaultName)
+		self.userDefaults = userDefaults
 		self.syncArticleContentForUnreadArticles = syncArticleContentForUnreadArticles
 	}
 

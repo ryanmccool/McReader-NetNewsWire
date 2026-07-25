@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import RSCore
 
 @objc @MainActor protocol SearchBarDelegate: NSObjectProtocol {
 	@objc optional func nextWasPressed(_ searchBar: ArticleSearchBar)
@@ -53,17 +54,17 @@ import UIKit
 
 	override func didMoveToSuperview() {
 		super.didMoveToSuperview()
-		layer.backgroundColor = UIColor(named: "barBackgroundColor")?.cgColor ?? UIColor.white.cgColor
+		layer.backgroundColor = UIColor(named: "barBackgroundColor", in: .netNewsWire, compatibleWith: nil)?.cgColor ?? UIColor.white.cgColor
 		isOpaque = true
 		NotificationCenter.default.addObserver(self, selector: #selector(textDidChange(_:)), name: UITextField.textDidChangeNotification, object: searchField)
 	}
 
 	private func updateUI() {
 		if resultsCount > 0 {
-			let format = NSLocalizedString("%d of %d", comment: "Results selection and count")
+			let format = NNWLocalizedString("%d of %d", comment: "Results selection and count")
 			resultsLabel.text = String.localizedStringWithFormat(format, selectedResult, resultsCount)
 		} else {
-			resultsLabel.text = NSLocalizedString("No results", comment: "No results")
+			resultsLabel.text = NNWLocalizedString("No results", comment: "No results")
 		}
 
 		nextButton.isEnabled = selectedResult < resultsCount
@@ -101,7 +102,7 @@ private extension ArticleSearchBar {
 		addSubview(background)
 
 		let doneButton = UIButton()
-		doneButton.setTitle(NSLocalizedString("Done", comment: "Done"), for: .normal)
+		doneButton.setTitle(NNWLocalizedString("Done", comment: "Done"), for: .normal)
 		doneButton.setTitleColor(UIColor.label, for: .normal)
 		doneButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
 		doneButton.isAccessibilityElement = true

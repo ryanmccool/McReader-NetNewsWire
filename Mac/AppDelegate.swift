@@ -336,7 +336,7 @@ let appName = "NetNewsWire"
 
 	func application(_ application: NSApplication, didReceiveRemoteNotification userInfo: [String: Any]) {
 		Task { @MainActor in
-			await AccountManager.shared.receiveRemoteNotification(userInfo: userInfo)
+			_ = await AccountManager.shared.receiveRemoteNotification(userInfo: userInfo)
 		}
 	}
 

@@ -22,7 +22,7 @@ struct CurrentActivityView: View {
 		List {
 			Section {
 				if activities.isEmpty {
-					Text(NSLocalizedString("No current activity.", comment: "Current Activity empty state"))
+					Text(NNWLocalizedString("No current activity.", comment: "Current Activity empty state"))
 						.foregroundStyle(.secondary)
 				} else {
 					ForEach(activities, id: \.id) { activity in
@@ -36,7 +36,7 @@ struct CurrentActivityView: View {
 				helpLinkFooter
 			}
 		}
-		.navigationTitle(NSLocalizedString("Current Activity", comment: "Current Activity"))
+		.navigationTitle(NNWLocalizedString("Current Activity", comment: "Current Activity"))
 		.navigationBarTitleDisplayMode(.inline)
 		.toolbar {
 			if #available(iOS 26, *) {
@@ -47,7 +47,7 @@ struct CurrentActivityView: View {
 				}
 			} else {
 				ToolbarItem(placement: .confirmationAction) {
-					Button(NSLocalizedString("Done", comment: "Done")) {
+					Button(NNWLocalizedString("Done", comment: "Done")) {
 						dismiss()
 					}
 				}
@@ -73,7 +73,7 @@ struct CurrentActivityView: View {
 private extension CurrentActivityView {
 
 	var helpLinkFooter: some View {
-		Button(NSLocalizedString("Current Activity Help", comment: "Help link")) {
+		Button(NNWLocalizedString("Current Activity Help", comment: "Help link")) {
 			showHelp = true
 		}
 		.font(.subheadline)

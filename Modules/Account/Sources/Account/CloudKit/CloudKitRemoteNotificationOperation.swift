@@ -19,6 +19,8 @@ import ActivityLog
 	private let accountDisplayName: String
 	nonisolated(unsafe) private var userInfo: [AnyHashable: Any]
 	private static let logger = cloudKitLogger
+	private(set) var notificationError: Error?
+	private(set) var notificationResult = CloudKitRemoteNotificationResult.notHandled
 
 	init(accountZone: CloudKitAccountZone, articlesZone: CloudKitArticlesZone, accountID: String, accountDisplayName: String, userInfo: [AnyHashable: Any]) {
 		self.accountZone = accountZone
@@ -44,13 +46,25 @@ import ActivityLog
 			activityLog.didStart(id: accountZoneActivityID)
 
 			Self.logger.debug("iCloud: Processing remote notification")
-			await accountZone.receiveRemoteNotification(userInfo: userInfo)
-			activityLog.didComplete(id: accountZoneActivityID)
+			do {
+				let result = try await accountZone.receiveRemoteNotification(userInfo: userInfo)
+				notificationResult = notificationResult.merging(result)
+				activityLog.didComplete(id: accountZoneActivityID)
+			} catch {
+				notificationError = error
+				activityLog.didFail(id: accountZoneActivityID, error: error)
+			}
 
 			let articlesZoneActivityID = activityLog.createActivity(owner: owner, kind: .refreshArticleStatuses, detail: "Receiving article changes \(taskNumber)")
 			activityLog.didStart(id: articlesZoneActivityID)
-			await articlesZone.receiveRemoteNotification(userInfo: self.userInfo)
-			activityLog.didComplete(id: articlesZoneActivityID)
+			do {
+				let result = try await articlesZone.receiveRemoteNotification(userInfo: self.userInfo)
+				notificationResult = notificationResult.merging(result)
+				activityLog.didComplete(id: articlesZoneActivityID)
+			} catch {
+				notificationError = notificationError ?? error
+				activityLog.didFail(id: articlesZoneActivityID, error: error)
+			}
 
 			Self.logger.debug("iCloud: Finished processing remote notification")
 			didComplete()

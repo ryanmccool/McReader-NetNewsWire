@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import RSCore
 import Zip
 
 public final class ArticleThemeDownloader: Sendable {
@@ -89,7 +90,15 @@ public final class ArticleThemeDownloader: Sendable {
 	/// The download directory used by the theme downloader: `Application Support/NetNewsWire/Downloads`
 	/// - Returns: `URL`
 	private func downloadDirectory() -> URL {
-		FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("NetNewsWire/Downloads", isDirectory: true)
+		let applicationSupportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+		return Self.downloadDirectory(for: NetNewsWireEnvironment.current, applicationSupportDirectory: applicationSupportDirectory)
+	}
+
+	static func downloadDirectory(for environment: NetNewsWireEnvironmentValues?, applicationSupportDirectory: URL) -> URL {
+		if let environment, environment.mode == .embedded {
+			return environment.dataDirectoryURL.appendingPathComponent("Downloads", isDirectory: true)
+		}
+		return applicationSupportDirectory.appendingPathComponent("NetNewsWire/Downloads", isDirectory: true)
 	}
 
 	/// Removes downloaded themes, where themes == folders, from `Application Support/NetNewsWire/Downloads`.

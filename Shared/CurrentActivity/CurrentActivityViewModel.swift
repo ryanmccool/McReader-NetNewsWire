@@ -7,6 +7,7 @@
 
 import Foundation
 import ActivityLog
+import RSCore
 
 struct ActivityDisplayText {
 	let title: String
@@ -65,13 +66,13 @@ struct ActivityDisplayText {
 	static func accessibilityLabel(for state: ActivityState) -> String {
 		switch state {
 		case .pending:
-			return NSLocalizedString("Pending", comment: "Pending")
+			return NNWLocalizedString("Pending", comment: "Pending")
 		case .running:
-			return NSLocalizedString("Running", comment: "Running")
+			return NNWLocalizedString("Running", comment: "Running")
 		case .completed:
-			return NSLocalizedString("Completed", comment: "Completed")
+			return NNWLocalizedString("Completed", comment: "Completed")
 		case .failed:
-			return NSLocalizedString("Failed", comment: "Failed")
+			return NNWLocalizedString("Failed", comment: "Failed")
 		}
 	}
 
@@ -83,17 +84,17 @@ struct ActivityDisplayText {
 			}
 			return ActivityDisplayText(title: feedURL, detail: nil)
 		case .findFeed(let urlString):
-			return ActivityDisplayText(title: NSLocalizedString("Finding feed", comment: "Finding feed"), detail: urlString)
+			return ActivityDisplayText(title: NNWLocalizedString("Finding feed", comment: "Finding feed"), detail: urlString)
 		case .fetchFeedCandidate(let urlString):
-			return ActivityDisplayText(title: NSLocalizedString("Fetching", comment: "Fetching"), detail: urlString)
+			return ActivityDisplayText(title: NNWLocalizedString("Fetching", comment: "Fetching"), detail: urlString)
 		case .downloadFeedImage(let feedURL):
-			return ActivityDisplayText(title: NSLocalizedString("Downloading image", comment: "Downloading image"), detail: feedURL)
+			return ActivityDisplayText(title: NNWLocalizedString("Downloading image", comment: "Downloading image"), detail: feedURL)
 		case .downloadFavicon(let faviconURL):
-			return ActivityDisplayText(title: NSLocalizedString("Downloading favicon", comment: "Downloading favicon"), detail: faviconURL)
+			return ActivityDisplayText(title: NNWLocalizedString("Downloading favicon", comment: "Downloading favicon"), detail: faviconURL)
 		case .downloadAvatar(let avatarURL):
-			return ActivityDisplayText(title: NSLocalizedString("Downloading avatar", comment: "Downloading avatar"), detail: avatarURL)
+			return ActivityDisplayText(title: NNWLocalizedString("Downloading avatar", comment: "Downloading avatar"), detail: avatarURL)
 		case .downloadHTMLMetadata(let urlString):
-			return ActivityDisplayText(title: NSLocalizedString("Downloading metadata", comment: "Downloading metadata"), detail: urlString)
+			return ActivityDisplayText(title: NNWLocalizedString("Downloading metadata", comment: "Downloading metadata"), detail: urlString)
 		default:
 			return ActivityDisplayText(title: activity.kind.simpleDisplayName ?? "", detail: activity.detail)
 		}

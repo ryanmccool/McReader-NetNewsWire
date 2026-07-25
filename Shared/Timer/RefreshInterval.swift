@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import RSCore
 
 enum RefreshInterval: Int, CaseIterable, Identifiable {
 	case manually = 1
@@ -38,17 +39,17 @@ enum RefreshInterval: Int, CaseIterable, Identifiable {
 	func description() -> String {
 		switch self {
 		case .manually:
-			return NSLocalizedString("Manually", comment: "Manually")
+			return NNWLocalizedString("Manually", comment: "Manually")
 		case .every30Minutes:
-			return NSLocalizedString("Every 30 Minutes", comment: "Every 30 Minutes")
+			return NNWLocalizedString("Every 30 Minutes", comment: "Every 30 Minutes")
 		case .everyHour:
-			return NSLocalizedString("Every Hour", comment: "Every Hour")
+			return NNWLocalizedString("Every Hour", comment: "Every Hour")
 		case .every2Hours:
-			return NSLocalizedString("Every 2 Hours", comment: "Every 2 Hours")
+			return NNWLocalizedString("Every 2 Hours", comment: "Every 2 Hours")
 		case .every4Hours:
-			return NSLocalizedString("Every 4 Hours", comment: "Every 4 Hours")
+			return NNWLocalizedString("Every 4 Hours", comment: "Every 4 Hours")
 		case .every8Hours:
-			return NSLocalizedString("Every 8 Hours", comment: "Every 8 Hours")
+			return NNWLocalizedString("Every 8 Hours", comment: "Every 8 Hours")
 		}
 	}
 

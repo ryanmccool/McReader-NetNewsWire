@@ -23,7 +23,7 @@ struct SearchTimelineFeedDelegate: SmartFeedDelegate {
 		return nameForDisplayPrefix + searchString
 	}
 
-	let nameForDisplayPrefix = NSLocalizedString("Search: ", comment: "Search smart feed title prefix")
+	let nameForDisplayPrefix = NNWLocalizedString("Search: ", comment: "Search smart feed title prefix")
 	let searchString: String
 	let fetchType: FetchType
 	var smallIcon: IconImage? = Assets.Images.searchFeed

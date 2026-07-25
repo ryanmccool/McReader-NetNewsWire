@@ -40,7 +40,8 @@ import Secrets
 		return refresher
 	}()
 
-	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async {
+	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {
+		false
 	}
 
 	@MainActor func refreshAll() async throws {

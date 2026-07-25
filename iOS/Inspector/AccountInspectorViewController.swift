@@ -37,7 +37,7 @@ final class AccountInspectorViewController: UITableViewController {
 		navigationItem.title = account.nameForDisplay
 
 		if account.type != .onMyMac {
-			deleteAccountButton.setTitle(NSLocalizedString("Remove Account", comment: "Remove Account"), for: .normal)
+			deleteAccountButton.setTitle(NNWLocalizedString("Remove Account", comment: "Remove Account"), for: .normal)
 		}
 
 		if account.type != .cloudKit {
@@ -98,21 +98,21 @@ final class AccountInspectorViewController: UITableViewController {
 			return
 		}
 
-		let title = NSLocalizedString("Remove Account", comment: "Remove Account")
+		let title = NNWLocalizedString("Remove Account", comment: "Remove Account")
 		let message: String = {
 			switch account.type {
 			case .feedly:
-				return NSLocalizedString("Are you sure you want to remove this account? NetNewsWire will no longer be able to access articles and feeds unless the account is added again.", comment: "Log Out and Remove Account")
+				return NNWLocalizedString("Are you sure you want to remove this account? NetNewsWire will no longer be able to access articles and feeds unless the account is added again.", comment: "Log Out and Remove Account")
 			default:
-				return NSLocalizedString("Are you sure you want to remove this account? This cannot be undone.", comment: "Remove Account")
+				return NNWLocalizedString("Are you sure you want to remove this account? This cannot be undone.", comment: "Remove Account")
 			}
 		}()
 		let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
-		let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
+		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 		let cancelAction = UIAlertAction(title: cancelTitle, style: .cancel)
 		alertController.addAction(cancelAction)
 
-		let markTitle = NSLocalizedString("Remove", comment: "Remove")
+		let markTitle = NNWLocalizedString("Remove", comment: "Remove")
 		let markAction = UIAlertAction(title: markTitle, style: .destructive) { [weak self] _ in
 			guard let self, let account = self.account else {
 				return

@@ -37,7 +37,7 @@ struct CloudKitStatsView: View {
 				}
 				if model.canCleanUp {
 					Section {
-						Button(NSLocalizedString("Clean Up…", comment: "Clean up button")) {
+						Button(NNWLocalizedString("Clean Up…", comment: "Clean up button")) {
 							showCleanUpConfirmation = true
 						}
 					} footer: {
@@ -51,37 +51,37 @@ struct CloudKitStatsView: View {
 				}
 			}
 		}
-		.navigationTitle(NSLocalizedString("iCloud Storage Stats", comment: "iCloud Storage Stats window title"))
+		.navigationTitle(NNWLocalizedString("iCloud Storage Stats", comment: "iCloud Storage Stats window title"))
 		.toolbar {
 			ToolbarItem(placement: .topBarTrailing) {
 				if model.fetchStatus.isFetching {
-					Button(NSLocalizedString("Cancel", comment: "Cancel button")) {
+					Button(NNWLocalizedString("Cancel", comment: "Cancel button")) {
 						model.cancelFetch()
 					}
 				} else if model.cleanUpStatus.isCleaning {
-					Button(NSLocalizedString("Cancel", comment: "Cancel button")) {
+					Button(NNWLocalizedString("Cancel", comment: "Cancel button")) {
 						model.cancelCleanUp()
 					}
 				} else {
 					Menu {
 						ShareLink(item: model.cleanUpStatus.isActive ? model.cleanUpStatsText : model.statsText) {
-							Label(NSLocalizedString("Share Stats", comment: "Share stats menu item"), systemImage: "square.and.arrow.up")
+							Label(NNWLocalizedString("Share Stats", comment: "Share stats menu item"), systemImage: "square.and.arrow.up")
 						}
 						Link(destination: Self.helpURL) {
-							Label(NSLocalizedString("Help", comment: "Help"), systemImage: "questionmark.circle")
+							Label(NNWLocalizedString("Help", comment: "Help"), systemImage: "questionmark.circle")
 						}
 					} label: {
-						Label(NSLocalizedString("More", comment: "More"), systemImage: "ellipsis.circle")
+						Label(NNWLocalizedString("More", comment: "More"), systemImage: "ellipsis.circle")
 					}
 					.disabled(!model.fetchStatus.isCompleted && !model.cleanUpStatus.isActive)
 				}
 			}
 		}
-		.alert(NSLocalizedString("Clean Up iCloud Records", comment: "Clean up alert title"), isPresented: $showCleanUpConfirmation) {
-			Button(NSLocalizedString("Clean Up", comment: "Clean Up button"), role: .destructive) {
+		.alert(NNWLocalizedString("Clean Up iCloud Records", comment: "Clean up alert title"), isPresented: $showCleanUpConfirmation) {
+			Button(NNWLocalizedString("Clean Up", comment: "Clean Up button"), role: .destructive) {
 				model.cleanUp()
 			}
-			Button(NSLocalizedString("Cancel", comment: "Cancel button"), role: .cancel) {
+			Button(NNWLocalizedString("Cancel", comment: "Cancel button"), role: .cancel) {
 			}
 		} message: {
 			Text(cleanUpConfirmationMessage())
@@ -115,7 +115,7 @@ struct CloudKitStatsView: View {
 				HStack(spacing: 6) {
 					ProgressView()
 						.controlSize(.small)
-					Text(NSLocalizedString("Scanning iCloud storage", comment: "Scan status text while fetching"))
+					Text(NNWLocalizedString("Scanning iCloud storage", comment: "Scan status text while fetching"))
 						.foregroundStyle(.secondary)
 				}
 				.id("fetching")
@@ -123,32 +123,32 @@ struct CloudKitStatsView: View {
 				HStack(spacing: 4) {
 					Image(systemName: "checkmark.circle.fill")
 						.foregroundStyle(.green)
-					Text(NSLocalizedString("Scan completed.", comment: "Scan status text when completed"))
+					Text(NNWLocalizedString("Scan completed.", comment: "Scan status text when completed"))
 						.foregroundStyle(.secondary)
 					Spacer()
-					Button(NSLocalizedString("Refresh", comment: "Refresh")) {
+					Button(NNWLocalizedString("Refresh", comment: "Refresh")) {
 						model.fetch()
 					}
 				}
 			case .canceled:
-				statusRow(NSLocalizedString("Canceled.", comment: "Scan status text when canceled"))
+				statusRow(NNWLocalizedString("Canceled.", comment: "Scan status text when canceled"))
 			case .error:
-				statusRow(NSLocalizedString("Scan failed.", comment: "Scan failed text"))
+				statusRow(NNWLocalizedString("Scan failed.", comment: "Scan failed text"))
 			}
 		}
 	}
 
 	private var statusRecordsSection: some View {
 		Section {
-			statsRow(NSLocalizedString("Status Records", comment: "Status records section header"), model.stats.statusCount, isHeader: true)
-			iconStatsRow(NSLocalizedString("Starred", comment: "Starred"), systemImage: "star.fill", iconColor: .yellow, model.stats.starredStatusCount, iconBaselineOffset: 1)
-			iconStatsRow(NSLocalizedString("Unread", comment: "Unread"), systemImage: "circle.fill", iconColor: .accentColor, model.stats.unreadStatusCount)
-			statsRow(NSLocalizedString("Read", comment: "Read row label"), model.stats.readStatusCount)
+			statsRow(NNWLocalizedString("Status Records", comment: "Status records section header"), model.stats.statusCount, isHeader: true)
+			iconStatsRow(NNWLocalizedString("Starred", comment: "Starred"), systemImage: "star.fill", iconColor: .yellow, model.stats.starredStatusCount, iconBaselineOffset: 1)
+			iconStatsRow(NNWLocalizedString("Unread", comment: "Unread"), systemImage: "circle.fill", iconColor: .accentColor, model.stats.unreadStatusCount)
+			statsRow(NNWLocalizedString("Read", comment: "Read row label"), model.stats.readStatusCount)
 		}
 	}
 
 	private var helpLinkFooter: some View {
-		Button(NSLocalizedString("How to Optimize iCloud Syncing", comment: "Help link")) {
+		Button(NNWLocalizedString("How to Optimize iCloud Syncing", comment: "Help link")) {
 			showHelp = true
 		}
 		.font(.subheadline)
@@ -158,10 +158,10 @@ struct CloudKitStatsView: View {
 
 	private var contentRecordsSection: some View {
 		Section {
-			statsRow(NSLocalizedString("Article Content Records", comment: "Article content records header"), model.stats.articleCount, isHeader: true)
-			iconStatsRow(NSLocalizedString("Starred", comment: "Starred"), systemImage: "star.fill", iconColor: .yellow, model.stats.starredArticleCount, iconBaselineOffset: 1)
-			iconStatsRow(NSLocalizedString("Unread", comment: "Unread"), systemImage: "circle.fill", iconColor: .accentColor, model.stats.unreadArticleCount, isWarning: !syncUnreadContent)
-			statsRow(NSLocalizedString("Read", comment: "Read row label"), model.stats.readArticleCount, isWarning: true)
+			statsRow(NNWLocalizedString("Article Content Records", comment: "Article content records header"), model.stats.articleCount, isHeader: true)
+			iconStatsRow(NNWLocalizedString("Starred", comment: "Starred"), systemImage: "star.fill", iconColor: .yellow, model.stats.starredArticleCount, iconBaselineOffset: 1)
+			iconStatsRow(NNWLocalizedString("Unread", comment: "Unread"), systemImage: "circle.fill", iconColor: .accentColor, model.stats.unreadArticleCount, isWarning: !syncUnreadContent)
+			statsRow(NNWLocalizedString("Read", comment: "Read row label"), model.stats.readArticleCount, isWarning: true)
 		}
 	}
 
@@ -170,19 +170,19 @@ struct CloudKitStatsView: View {
 	@ViewBuilder private var cleanUpStatusSection: some View {
 		Section {
 			if model.cleanUpStatus.cleanUpError != nil {
-				Text(NSLocalizedString("Cleanup failed to complete, but you may be able to clean up more if you wait a few minutes and try again.", comment: "Cleanup error message"))
+				Text(NNWLocalizedString("Cleanup failed to complete, but you may be able to clean up more if you wait a few minutes and try again.", comment: "Cleanup error message"))
 					.foregroundStyle(.red)
-				Button(NSLocalizedString("Refresh", comment: "Refresh")) {
+				Button(NNWLocalizedString("Refresh", comment: "Refresh")) {
 					model.fetch()
 				}
 			} else if let progress = model.cleanUpStatus.progress {
 				if model.cleanUpStatus.isCanceled {
 					ProgressView(value: fractionComplete(progress))
-					Text(NSLocalizedString("Cleanup canceled.", comment: "Cleanup status text when canceled"))
+					Text(NNWLocalizedString("Cleanup canceled.", comment: "Cleanup status text when canceled"))
 						.foregroundStyle(.secondary)
 				} else if model.cleanUpStatus.isCompleted {
 					ProgressView(value: 1.0)
-					Text(NSLocalizedString("iCloud storage cleanup completed.", comment: "Cleanup phase text when completed"))
+					Text(NNWLocalizedString("iCloud storage cleanup completed.", comment: "Cleanup phase text when completed"))
 						.foregroundStyle(.secondary)
 				} else {
 					ProgressView(value: fractionComplete(progress))
@@ -197,10 +197,10 @@ struct CloudKitStatsView: View {
 		if let progress = model.cleanUpStatus.progress {
 			Section {
 				if progress.readContentDeleted > 0 || progress.phase == .deletingReadContent {
-					statsRow(NSLocalizedString("Read Content Deleted", comment: "Cleanup stat row label"), progress.readContentDeleted)
+					statsRow(NNWLocalizedString("Read Content Deleted", comment: "Cleanup stat row label"), progress.readContentDeleted)
 				}
 				if progress.unreadContentDeleted > 0 || progress.phase == .deletingUnreadContent {
-					statsRow(NSLocalizedString("Unread Content Deleted", comment: "Cleanup stat row label"), progress.unreadContentDeleted)
+					statsRow(NNWLocalizedString("Unread Content Deleted", comment: "Cleanup stat row label"), progress.unreadContentDeleted)
 				}
 			}
 		}
@@ -209,12 +209,12 @@ struct CloudKitStatsView: View {
 	@ViewBuilder private var cleanUpNavigationSection: some View {
 		if model.cleanUpStatus.isCompleted || model.cleanUpStatus.isCanceled {
 			Section {
-				Button(NSLocalizedString("Return to Previous Scan Results", comment: "Return to previous scan results button")) {
+				Button(NNWLocalizedString("Return to Previous Scan Results", comment: "Return to previous scan results button")) {
 					withAnimation(.easeInOut(duration: 0.25)) {
 						model.cleanUpStatus = .idle
 					}
 				}
-				Button(NSLocalizedString("Refresh Scan", comment: "Refresh scan button")) {
+				Button(NNWLocalizedString("Refresh Scan", comment: "Refresh scan button")) {
 					withAnimation(.easeInOut(duration: 0.25)) {
 						model.fetch()
 					}
@@ -261,7 +261,7 @@ struct CloudKitStatsView: View {
 			Text(text)
 				.foregroundStyle(.secondary)
 			Spacer()
-			Button(NSLocalizedString("Refresh", comment: "Refresh")) {
+			Button(NNWLocalizedString("Refresh", comment: "Refresh")) {
 				model.fetch()
 			}
 		}
@@ -289,20 +289,20 @@ struct CloudKitStatsView: View {
 	private func cleanUpConfirmationText(_ plan: CloudKitCleanUpPlan) -> String {
 		var lines = [String]()
 		if plan.readContentCount > 0 {
-			lines.append(formattedCount(plan.readContentCount, singular: NSLocalizedString("read content record", comment: "Singular label for read content records"), plural: NSLocalizedString("read content records", comment: "Plural label for read content records")))
+			lines.append(formattedCount(plan.readContentCount, singular: NNWLocalizedString("read content record", comment: "Singular label for read content records"), plural: NNWLocalizedString("read content records", comment: "Plural label for read content records")))
 		}
 		if plan.unreadContentCount > 0 {
-			lines.append(formattedCount(plan.unreadContentCount, singular: NSLocalizedString("unread content record", comment: "Singular label for unread content records"), plural: NSLocalizedString("unread content records", comment: "Plural label for unread content records")))
+			lines.append(formattedCount(plan.unreadContentCount, singular: NNWLocalizedString("unread content record", comment: "Singular label for unread content records"), plural: NNWLocalizedString("unread content records", comment: "Plural label for unread content records")))
 		}
 		let listText = lines.map { "• " + $0 }.joined(separator: "\n")
-		return NSLocalizedString("This will delete:", comment: "Clean up confirmation prefix") + "\n" + listText + "\n\n" + NSLocalizedString("This may take several minutes.", comment: "Clean up confirmation suffix")
+		return NNWLocalizedString("This will delete:", comment: "Clean up confirmation prefix") + "\n" + listText + "\n\n" + NNWLocalizedString("This may take several minutes.", comment: "Clean up confirmation suffix")
 	}
 
 	private func staleCleanUpConfirmationText() -> String {
 		if syncUnreadContent {
-			return NSLocalizedString("This will delete any read content records.\n\nThis may take several minutes.", comment: "Clean up confirmation when sync unread is on and plan is stale")
+			return NNWLocalizedString("This will delete any read content records.\n\nThis may take several minutes.", comment: "Clean up confirmation when sync unread is on and plan is stale")
 		} else {
-			return NSLocalizedString("This will delete any not-starred content records.\n\nThis may take several minutes.", comment: "Clean up confirmation when plan is stale")
+			return NNWLocalizedString("This will delete any not-starred content records.\n\nThis may take several minutes.", comment: "Clean up confirmation when plan is stale")
 		}
 	}
 
@@ -311,11 +311,11 @@ struct CloudKitStatsView: View {
 		case .deletingStaleStatus:
 			return ""
 		case .deletingReadContent:
-			return NSLocalizedString("Deleting read content records…", comment: "Cleanup phase text")
+			return NNWLocalizedString("Deleting read content records…", comment: "Cleanup phase text")
 		case .deletingUnreadContent:
-			return NSLocalizedString("Deleting unread content records…", comment: "Cleanup phase text")
+			return NNWLocalizedString("Deleting unread content records…", comment: "Cleanup phase text")
 		case .completed:
-			return NSLocalizedString("iCloud storage cleanup completed.", comment: "Cleanup phase text when completed")
+			return NNWLocalizedString("iCloud storage cleanup completed.", comment: "Cleanup phase text when completed")
 		}
 	}
 

@@ -33,34 +33,34 @@ import RSWeb
 
 	private var plistImported: Bool {
 		get {
-			UserDefaults.standard.bool(forKey: defaultsKey(.imported))
+			AppConfig.defaults.bool(forKey: defaultsKey(.imported))
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: defaultsKey(.imported))
+			AppConfig.defaults.set(newValue, forKey: defaultsKey(.imported))
 		}
 	}
 
 	var name: String? {
 		get {
-			UserDefaults.standard.string(forKey: defaultsKey(.name))
+			AppConfig.defaults.string(forKey: defaultsKey(.name))
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: defaultsKey(.name))
+			AppConfig.defaults.set(newValue, forKey: defaultsKey(.name))
 		}
 	}
 
 	var isActive: Bool {
 		get {
-			UserDefaults.standard.bool(forKey: defaultsKey(.isActive))
+			AppConfig.defaults.bool(forKey: defaultsKey(.isActive))
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: defaultsKey(.isActive))
+			AppConfig.defaults.set(newValue, forKey: defaultsKey(.isActive))
 		}
 	}
 
 	var username: String? {
 		get {
-			guard let username = UserDefaults.standard.string(forKey: defaultsKey(.username))?.trimmingWhitespace, !username.isEmpty else {
+			guard let username = AppConfig.defaults.string(forKey: defaultsKey(.username))?.trimmingWhitespace, !username.isEmpty else {
 				return nil
 			}
 			return username
@@ -69,13 +69,13 @@ import RSWeb
 			guard let trimmed = newValue?.trimmingWhitespace, !trimmed.isEmpty else {
 				return
 			}
-			UserDefaults.standard.set(trimmed, forKey: defaultsKey(.username))
+			AppConfig.defaults.set(trimmed, forKey: defaultsKey(.username))
 		}
 	}
 
 	func conditionalGetInfo(for endpoint: String) -> HTTPConditionalGetInfo? {
 		let key = conditionalGetInfoDefaultsKey(endpoint)
-		guard let d = UserDefaults.standard.dictionary(forKey: key) as? [String: String] else {
+		guard let d = AppConfig.defaults.dictionary(forKey: key) as? [String: String] else {
 			return nil
 		}
 		return HTTPConditionalGetInfo(lastModified: d[Self.lastModifiedKey], etag: d[Self.etagKey])
@@ -91,33 +91,33 @@ import RSWeb
 			if let etag = info.etag {
 				d[Self.etagKey] = etag
 			}
-			UserDefaults.standard.set(d, forKey: key)
+			AppConfig.defaults.set(d, forKey: key)
 		} else {
-			UserDefaults.standard.removeObject(forKey: key)
+			AppConfig.defaults.removeObject(forKey: key)
 		}
 	}
 
 	var lastArticleFetchStartTime: Date? {
 		get {
-			UserDefaults.standard.object(forKey: defaultsKey(.lastArticleFetchStartTime)) as? Date
+			AppConfig.defaults.object(forKey: defaultsKey(.lastArticleFetchStartTime)) as? Date
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: defaultsKey(.lastArticleFetchStartTime))
+			AppConfig.defaults.set(newValue, forKey: defaultsKey(.lastArticleFetchStartTime))
 		}
 	}
 
 	var lastRefreshCompletedDate: Date? {
 		get {
-			UserDefaults.standard.object(forKey: defaultsKey(.lastRefreshCompletedDate)) as? Date
+			AppConfig.defaults.object(forKey: defaultsKey(.lastRefreshCompletedDate)) as? Date
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: defaultsKey(.lastRefreshCompletedDate))
+			AppConfig.defaults.set(newValue, forKey: defaultsKey(.lastRefreshCompletedDate))
 		}
 	}
 
 	var endpointURL: URL? {
 		get {
-			guard let urlString = UserDefaults.standard.string(forKey: defaultsKey(.endpointURL))?.trimmingWhitespace, !urlString.isEmpty else {
+			guard let urlString = AppConfig.defaults.string(forKey: defaultsKey(.endpointURL))?.trimmingWhitespace, !urlString.isEmpty else {
 				return nil
 			}
 			return URL(string: urlString)
@@ -126,16 +126,16 @@ import RSWeb
 			guard let trimmed = newValue?.absoluteString.trimmingWhitespace, !trimmed.isEmpty else {
 				return
 			}
-			UserDefaults.standard.set(trimmed, forKey: defaultsKey(.endpointURL))
+			AppConfig.defaults.set(trimmed, forKey: defaultsKey(.endpointURL))
 		}
 	}
 
 	var externalID: String? {
 		get {
-			UserDefaults.standard.string(forKey: defaultsKey(.externalID))
+			AppConfig.defaults.string(forKey: defaultsKey(.externalID))
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: defaultsKey(.externalID))
+			AppConfig.defaults.set(newValue, forKey: defaultsKey(.externalID))
 		}
 	}
 
@@ -143,7 +143,7 @@ import RSWeb
 		self.accountID = accountID
 		self.dataFolder = dataFolder
 
-		UserDefaults.standard.register(defaults: [defaultsKey(.isActive): true])
+		AppConfig.defaults.register(defaults: [defaultsKey(.isActive): true])
 
 		if !self.plistImported {
 			if let importedSettings = AccountSettingsImporter.readSettingsFromPlist(accountID: accountID, dataFolder: dataFolder) {
@@ -167,7 +167,7 @@ import RSWeb
 	}
 
 	func deleteSettings() {
-		let defaults = UserDefaults.standard
+		let defaults = AppConfig.defaults
 		let prefix = "\(accountID)-"
 		for key in defaults.dictionaryRepresentation().keys {
 			if key.hasPrefix(prefix) {

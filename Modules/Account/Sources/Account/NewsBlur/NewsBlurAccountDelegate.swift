@@ -53,7 +53,8 @@ import Secrets
 		NotificationCenter.default.addObserver(self, selector: #selector(progressInfoDidChange(_:)), name: .progressInfoDidChange, object: refreshProgress)
 	}
 
-	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async {
+	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {
+		false
 	}
 
 	func refreshAll() async throws {

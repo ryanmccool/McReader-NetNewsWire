@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import RSCore
 
 final class ImageViewController: UIViewController {
 	@IBOutlet var imageScrollView: ImageScrollView!
@@ -26,7 +27,7 @@ final class ImageViewController: UIViewController {
 	override var keyCommands: [UIKeyCommand]? {
 		return [
 			UIKeyCommand(
-				title: NSLocalizedString("Close Image", comment: "Close Image"),
+				title: NNWLocalizedString("Close Image", comment: "Close Image"),
 				action: #selector(done(_:)),
 				input: " "
 			)

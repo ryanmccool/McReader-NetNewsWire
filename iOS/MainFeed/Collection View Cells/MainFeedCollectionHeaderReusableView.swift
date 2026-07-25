@@ -8,6 +8,7 @@
 
 import UIKit
 import Account
+import RSCore
 
 @MainActor protocol MainFeedCollectionHeaderReusableViewDelegate: AnyObject {
 	func mainFeedCollectionHeaderReusableViewDidTapDisclosureIndicator(_ view: MainFeedCollectionHeaderReusableView)
@@ -31,7 +32,7 @@ final class MainFeedCollectionHeaderReusableView: UICollectionReusableView {
 	override var accessibilityLabel: String? {
 		get {
 			if unreadCount > 0 {
-				let unreadLabel = NSLocalizedString("unread", comment: "Unread label for accessibility")
+				let unreadLabel = NNWLocalizedString("unread", comment: "Unread label for accessibility")
 				return "\(headerTitle.text ?? "") \(unreadCount) \(unreadLabel) \(expandedStateMessage) "
 			} else {
 				return "\(headerTitle.text ?? "") \(expandedStateMessage) "
@@ -42,9 +43,9 @@ final class MainFeedCollectionHeaderReusableView: UICollectionReusableView {
 
 	private var expandedStateMessage: String {
 		if disclosureExpanded {
-			return NSLocalizedString("Expanded", comment: "Expanded")
+			return NNWLocalizedString("Expanded", comment: "Expanded")
 		}
-		return NSLocalizedString("Collapsed", comment: "Collapsed")
+		return NNWLocalizedString("Collapsed", comment: "Collapsed")
 	}
 
 	private var _unreadCount: Int = 0

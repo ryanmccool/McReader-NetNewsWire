@@ -38,6 +38,9 @@ final class FeedInspectorViewController: UITableViewController {
 	}
 
 	private var authorizationStatus: UNAuthorizationStatus?
+	private var capabilities: NetNewsWireFeatureCapabilities {
+		appDelegate.capabilities
+	}
 
 	override func viewDidLoad() {
 		tableView.register(InspectorIconHeaderView.self, forHeaderFooterViewReuseIdentifier: "SectionHeader")
@@ -46,6 +49,7 @@ final class FeedInspectorViewController: UITableViewController {
 		nameTextField.text = feed.nameForDisplay
 
 		newArticleNotificationsEnabledSwitch.setOn(feed.newArticleNotificationsEnabled, animated: false)
+		newArticleNotificationsEnabledSwitch.isEnabled = capabilities.mayPresentUserNotifications
 
 		readerViewAlwaysEnabledSwitch.setOn(feed.readerViewAlwaysEnabled, animated: false)
 
@@ -54,18 +58,22 @@ final class FeedInspectorViewController: UITableViewController {
 
 		NotificationCenter.default.addObserver(self, selector: #selector(feedIconDidBecomeAvailable(_:)), name: .feedIconDidBecomeAvailable, object: nil)
 
-		NotificationCenter.default.addObserver(self, selector: #selector(updateNotificationSettings), name: UIApplication.willEnterForegroundNotification, object: nil)
+		if capabilities.mayPresentUserNotifications {
+			NotificationCenter.default.addObserver(self, selector: #selector(updateNotificationSettings), name: UIApplication.willEnterForegroundNotification, object: nil)
+		}
 
 	}
 
 	override func viewDidAppear(_ animated: Bool) {
-		updateNotificationSettings()
+		if capabilities.mayPresentUserNotifications {
+			updateNotificationSettings()
+		}
 	}
 
 	override func viewDidDisappear(_ animated: Bool) {
 		if nameTextField.text != feed.nameForDisplay {
 			let nameText = nameTextField.text ?? ""
-			let newName = nameText.isEmpty ? (feed.name ?? NSLocalizedString("Untitled", comment: "Feed name")) : nameText
+			let newName = nameText.isEmpty ? (feed.name ?? NNWLocalizedString("Untitled", comment: "Feed name")) : nameText
 			feed.rename(to: newName) { _ in }
 		}
 	}
@@ -76,6 +84,10 @@ final class FeedInspectorViewController: UITableViewController {
 	}
 
 	@IBAction func newArticleNotificationsEnabledChanged(_ sender: Any) {
+		guard capabilities.mayPresentUserNotifications else {
+			newArticleNotificationsEnabledSwitch.setOn(feed.newArticleNotificationsEnabled, animated: true)
+			return
+		}
 		guard let authorizationStatus else {
 			newArticleNotificationsEnabledSwitch.isOn = !newArticleNotificationsEnabledSwitch.isOn
 			return
@@ -187,10 +199,10 @@ extension FeedInspectorViewController {
 		let title: String
 		let urlString: String?
 		if logicalIndexPath == homePageIndexPath {
-			title = NSLocalizedString("Copy Home Page URL", comment: "Command")
+			title = NNWLocalizedString("Copy Home Page URL", comment: "Command")
 			urlString = feed.homePageURL
 		} else if logicalIndexPath == feedURLIndexPath {
-			title = NSLocalizedString("Copy Feed URL", comment: "Command")
+			title = NNWLocalizedString("Copy Feed URL", comment: "Command")
 			urlString = feed.url
 		} else {
 			return nil
@@ -224,6 +236,11 @@ extension FeedInspectorViewController: UITextFieldDelegate {
 extension FeedInspectorViewController {
 
 	@objc func updateNotificationSettings() {
+		guard capabilities.mayPresentUserNotifications else {
+			authorizationStatus = nil
+			newArticleNotificationsEnabledSwitch.isEnabled = false
+			return
+		}
 		UNUserNotificationCenter.current().getNotificationSettings { (settings) in
 			let updatedAuthorizationStatus = settings.authorizationStatus
 			DispatchQueue.main.async {
@@ -236,12 +253,12 @@ extension FeedInspectorViewController {
 	}
 
 	func notificationUpdateErrorAlert() -> UIAlertController {
-		let alert = UIAlertController(title: NSLocalizedString("Enable Notifications", comment: "Notifications"),
-									  message: NSLocalizedString("Notifications need to be enabled in the Settings app.", comment: "Notifications need to be enabled in the Settings app."), preferredStyle: .alert)
-		let openSettings = UIAlertAction(title: NSLocalizedString("Open Settings", comment: "Open Settings button"), style: .default) { _ in
+		let alert = UIAlertController(title: NNWLocalizedString("Enable Notifications", comment: "Notifications"),
+									  message: NNWLocalizedString("Notifications need to be enabled in the Settings app.", comment: "Notifications need to be enabled in the Settings app."), preferredStyle: .alert)
+		let openSettings = UIAlertAction(title: NNWLocalizedString("Open Settings", comment: "Open Settings button"), style: .default) { _ in
 			UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [UIApplication.OpenExternalURLOptionsKey.universalLinksOnly: false], completionHandler: nil)
 		}
-		let dismiss = UIAlertAction(title: NSLocalizedString("Dismiss", comment: "Dismiss"), style: .cancel, handler: nil)
+		let dismiss = UIAlertAction(title: NNWLocalizedString("Dismiss", comment: "Dismiss"), style: .cancel, handler: nil)
 		alert.addAction(openSettings)
 		alert.addAction(dismiss)
 		alert.preferredAction = openSettings

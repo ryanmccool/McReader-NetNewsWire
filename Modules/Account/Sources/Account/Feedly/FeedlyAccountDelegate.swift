@@ -92,7 +92,8 @@ import Secrets
 
 	// MARK: - Account API
 
-	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async {
+	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {
+		false
 	}
 
 	func refreshAll() async throws {

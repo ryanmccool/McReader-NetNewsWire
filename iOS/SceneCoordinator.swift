@@ -54,7 +54,7 @@ struct SidebarItemNode: Hashable, Sendable {
 
 	lazy var webViewProvider = WebViewProvider(coordinator: self)
 
-	private var activityManager = ActivityManager()
+	private let activityManager: ActivityManager
 
 	private var rootSplitViewController: RootSplitViewController!
 
@@ -304,8 +304,9 @@ struct SidebarItemNode: Hashable, Sendable {
 		}
 	}
 
-	init(rootSplitViewController: RootSplitViewController) {
+	init(rootSplitViewController: RootSplitViewController, capabilities: NetNewsWireFeatureCapabilities) {
 		self.rootSplitViewController = rootSplitViewController
+		self.activityManager = ActivityManager(mayDonateActivities: capabilities.mayDonateActivities)
 		self.rootSplitViewController.minimumPrimaryColumnWidth = 300
 		self.rootSplitViewController.maximumPrimaryColumnWidth = 500
 		self.rootSplitViewController.minimumSupplementaryColumnWidth = 300
@@ -659,7 +660,7 @@ struct SidebarItemNode: Hashable, Sendable {
 					let relativeDateTimeFormatter = RelativeDateTimeFormatter()
 					relativeDateTimeFormatter.dateTimeStyle = .named
 					let refreshed = relativeDateTimeFormatter.localizedString(for: accountLastArticleFetchEndTime, relativeTo: Date())
-					let localizedRefreshText = NSLocalizedString("Updated %@", comment: "Updated")
+					let localizedRefreshText = NNWLocalizedString("Updated %@", comment: "Updated")
 					let refreshText = NSString.localizedStringWithFormat(localizedRefreshText as NSString, refreshed) as String
 
 					// Update Feeds with Updated text
@@ -669,7 +670,7 @@ struct SidebarItemNode: Hashable, Sendable {
 
 					// If unread count > 0, add unread string to timeline
 					if timelineFeed != nil, timelineUnreadCount > 0 {
-						let localizedUnreadCount = NSLocalizedString("%i Unread", comment: "14 Unread")
+						let localizedUnreadCount = NNWLocalizedString("%i Unread", comment: "14 Unread")
 						let unreadCount = NSString.localizedStringWithFormat(localizedUnreadCount as NSString, timelineUnreadCount) as String
 						self.mainTimelineViewController?.updateNavigationBarSubtitle(unreadCount)
 					} else {
@@ -683,18 +684,18 @@ struct SidebarItemNode: Hashable, Sendable {
 				} else {
 					// Use 'Updated Just Now' while <60s have passed since refresh.
 					if #available(iOS 26, *) {
-						self.mainFeedCollectionViewController?.navigationItem.subtitle = NSLocalizedString("Updated Just Now", comment: "Updated Just Now")
+						self.mainFeedCollectionViewController?.navigationItem.subtitle = NNWLocalizedString("Updated Just Now", comment: "Updated Just Now")
 					}
 
 					// If unread count > 0, add unread string to timeline
 					if timelineFeed != nil, timelineUnreadCount > 0 {
-						let localizedUnreadCount = NSLocalizedString("%i Unread", comment: "14 Unread")
+						let localizedUnreadCount = NNWLocalizedString("%i Unread", comment: "14 Unread")
 						let refreshTextWithUnreadCount = NSString.localizedStringWithFormat(localizedUnreadCount as NSString, timelineUnreadCount) as String
 						self.mainTimelineViewController?.updateNavigationBarSubtitle(refreshTextWithUnreadCount)
 					} else {
 						// When unread count == 0, iPhone timeline displays Updated Just Now; iPad is blank
 						if UIDevice.current.userInterfaceIdiom == .phone {
-							self.mainTimelineViewController?.updateNavigationBarSubtitle(NSLocalizedString("Updated Just Now", comment: "Updated Just Now"))
+							self.mainTimelineViewController?.updateNavigationBarSubtitle(NNWLocalizedString("Updated Just Now", comment: "Updated Just Now"))
 						} else {
 							self.mainTimelineViewController?.updateNavigationBarSubtitle("")
 						}
@@ -706,13 +707,13 @@ struct SidebarItemNode: Hashable, Sendable {
 				}
 				// If unread count > 0, add unread string to timeline
 				if timelineFeed != nil, timelineUnreadCount > 0 {
-					let localizedUnreadCount = NSLocalizedString("%i Unread", comment: "14 Unread")
+					let localizedUnreadCount = NNWLocalizedString("%i Unread", comment: "14 Unread")
 					let refreshTextWithUnreadCount = NSString.localizedStringWithFormat(localizedUnreadCount as NSString, timelineUnreadCount) as String
 					self.mainTimelineViewController?.updateNavigationBarSubtitle(refreshTextWithUnreadCount)
 				} else {
 					// When unread count == 0, iPhone timeline displays Updated Just Now; iPad is blank
 					if UIDevice.current.userInterfaceIdiom == .phone {
-						self.mainTimelineViewController?.updateNavigationBarSubtitle(NSLocalizedString("Updated Just Now", comment: "Updated Just Now"))
+						self.mainTimelineViewController?.updateNavigationBarSubtitle(NNWLocalizedString("Updated Just Now", comment: "Updated Just Now"))
 					} else {
 						self.mainTimelineViewController?.updateNavigationBarSubtitle("")
 					}
@@ -721,7 +722,7 @@ struct SidebarItemNode: Hashable, Sendable {
 		} else {
 			// Updating in progress, apply to both iPhone and iPad Feeds.
 			if #available(iOS 26, *) {
-				self.mainFeedCollectionViewController?.navigationItem.subtitle = NSLocalizedString("Updating…", comment: "Updating…")
+				self.mainFeedCollectionViewController?.navigationItem.subtitle = NNWLocalizedString("Updating…", comment: "Updating…")
 			}
 		}
 
@@ -1391,6 +1392,9 @@ struct SidebarItemNode: Hashable, Sendable {
 	}
 
 	func showNotificationInspector(for account: Account) {
+		guard appDelegate.capabilities.mayPresentUserNotifications else {
+			return
+		}
 		let hostingController = UIHostingController(rootView: AccountNotificationInspectorView(account: account))
 		hostingController.modalPresentationStyle = .formSheet
 		rootSplitViewController.present(hostingController, animated: true)

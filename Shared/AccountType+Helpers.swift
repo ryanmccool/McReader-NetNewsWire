@@ -8,6 +8,7 @@
 
 import Foundation
 import Account
+import RSCore
 #if os(macOS)
 import AppKit
 #else
@@ -73,33 +74,41 @@ extension AccountType {
 		case .onMyMac:
 			// If it's the multiplatform app, the asset catalog contains assets for 
 			#if os(macOS)
-			return Image("accountLocal")
+			return accountTypeImage(named: "accountLocal")
 			#else
 			if UIDevice.current.userInterfaceIdiom == .pad {
-				return Image("accountLocalPad")
+				return accountTypeImage(named: "accountLocalPad")
 			} else {
-				return Image("accountLocalPhone")
+				return accountTypeImage(named: "accountLocalPhone")
 			}
 			#endif
 		case .bazQux:
-			return Image("accountBazQux")
+			return accountTypeImage(named: "accountBazQux")
 		case .cloudKit:
-			return Image("accountCloudKit")
+			return accountTypeImage(named: "accountCloudKit")
 		case .feedbin:
-			return Image("accountFeedbin")
+			return accountTypeImage(named: "accountFeedbin")
 		case .feedly:
-			return Image("accountFeedly")
+			return accountTypeImage(named: "accountFeedly")
 		case .freshRSS:
-			return Image("accountFreshRSS")
+			return accountTypeImage(named: "accountFreshRSS")
 		case .inoreader:
-			return Image("accountInoreader")
+			return accountTypeImage(named: "accountInoreader")
 		case .newsBlur:
-			return Image("accountNewsBlur")
+			return accountTypeImage(named: "accountNewsBlur")
 		case .theOldReader:
-			return Image("accountTheOldReader")
+			return accountTypeImage(named: "accountTheOldReader")
 		}
 	}
 
+}
+
+private func accountTypeImage(named name: String) -> Image {
+#if os(macOS)
+	Image(name)
+#else
+	Image(name, bundle: .netNewsWire)
+#endif
 }
 
 #if os(macOS)

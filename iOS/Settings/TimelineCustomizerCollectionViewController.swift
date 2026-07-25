@@ -9,6 +9,7 @@
 import UIKit
 import Articles
 import Images
+import RSCore
 
 class TimelineCustomizerCollectionViewController: UICollectionViewController {
 	private var previewArticle: Article {
@@ -43,7 +44,7 @@ class TimelineCustomizerCollectionViewController: UICollectionViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-		title = NSLocalizedString("Timeline Layout", comment: "Timeline Layout")
+		title = NNWLocalizedString("Timeline Layout", comment: "Timeline Layout")
 
 		NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
 			guard let self = self else { return }
@@ -156,15 +157,15 @@ class TimelineCustomizerCollectionViewController: UICollectionViewController {
 
 		switch indexPath.section {
 		case 0:
-			header.label.text = NSLocalizedString("Icon Size", comment: "Icon Size")
+			header.label.text = NNWLocalizedString("Icon Size", comment: "Icon Size")
 		case 1:
-			header.label.text = NSLocalizedString("Number of Lines", comment: "Number of Lines")
+			header.label.text = NNWLocalizedString("Number of Lines", comment: "Number of Lines")
 		case 2:
-			header.label.text = NSLocalizedString("No Icon Preview", comment: "No Icon Preview")
+			header.label.text = NNWLocalizedString("No Icon Preview", comment: "No Icon Preview")
 		case 3:
-			header.label.text = NSLocalizedString("Icon Preview", comment: "Icon Preview")
+			header.label.text = NNWLocalizedString("Icon Preview", comment: "Icon Preview")
 		default:
-			header.label.text = NSLocalizedString("", comment: "")
+			header.label.text = NNWLocalizedString("", comment: "")
 		}
 		return header
 	}

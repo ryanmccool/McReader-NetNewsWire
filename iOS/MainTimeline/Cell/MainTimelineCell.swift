@@ -263,8 +263,8 @@ private extension MainTimelineCell {
 	}
 
 	func updateAccessibilityLabel() {
-		let starredStatus = cellData.starred ? "\(NSLocalizedString("Starred", comment: "Starred")), " : ""
-		let unreadStatus = cellData.read ? "" : "\(NSLocalizedString("Unread", comment: "Unread")), "
+		let starredStatus = cellData.starred ? "\(NNWLocalizedString("Starred", comment: "Starred")), " : ""
+		let unreadStatus = cellData.read ? "" : "\(NNWLocalizedString("Unread", comment: "Unread")), "
 		accessibilityLabel = starredStatus + unreadStatus + "\(cellData.feedName), \(cellData.title), \(cellData.summary), \(cellData.dateString)"
 	}
 }

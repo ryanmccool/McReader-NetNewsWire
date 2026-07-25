@@ -7,12 +7,14 @@
 //
 
 import Foundation
+import RSCore
 
 nonisolated public struct UserAgent {
 
 	public static func fromInfoPlist() -> String? {
 
-		return Bundle.main.object(forInfoDictionaryKey: "UserAgent") as? String
+		return NetNewsWireEnvironment.current?.userAgent
+			?? Bundle.main.object(forInfoDictionaryKey: "UserAgent") as? String
 	}
 
 	public static func headers() -> [AnyHashable: String]? {

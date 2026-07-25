@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import RSCore
 import os
 
 nonisolated public let localeForLowercasing = Locale(identifier: "en_US")
@@ -140,9 +141,11 @@ nonisolated extension UserAgent {
 		let version = stringFromInfoPlist("CFBundleShortVersionString") ?? "Unknown"
 		let build = stringFromInfoPlist("CFBundleVersion") ?? "Unknown"
 
-		let template = Bundle.main.object(forInfoDictionaryKey: "UserAgentExtended") as? String
+		let template = NetNewsWireEnvironment.current?.extendedUserAgent
+			?? Bundle.main.object(forInfoDictionaryKey: "UserAgentExtended") as? String
+			?? NetNewsWireEnvironmentValues.defaultExtendedUserAgent
 
-		var userAgent = template!.replacingOccurrences(of: "[platform]", with: platform)
+		var userAgent = template.replacingOccurrences(of: "[platform]", with: platform)
 		userAgent = userAgent.replacingOccurrences(of: "[version]", with: version)
 		userAgent = userAgent.replacingOccurrences(of: "[build]", with: build)
 

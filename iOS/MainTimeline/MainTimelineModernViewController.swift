@@ -456,7 +456,7 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 			assertionFailure("Expected coordinator")
 			return
 		}
-		let title = NSLocalizedString("Mark All as Read", comment: "Command")
+		let title = NNWLocalizedString("Mark All as Read", comment: "Command")
 
 		let articlesToMark = coordinator.articles
 
@@ -673,10 +673,10 @@ private extension MainTimelineModernViewController {
 		searchController.searchResultsUpdater = self
 		searchController.obscuresBackgroundDuringPresentation = false
 		searchController.searchBar.delegate = self
-		searchController.searchBar.placeholder = NSLocalizedString("Search Articles", comment: "Search Articles")
+		searchController.searchBar.placeholder = NNWLocalizedString("Search Articles", comment: "Search Articles")
 		searchController.searchBar.scopeButtonTitles = [
-			NSLocalizedString("Here", comment: "Here"),
-			NSLocalizedString("All Articles", comment: "All Articles")
+			NNWLocalizedString("Here", comment: "Here"),
+			NNWLocalizedString("All Articles", comment: "All Articles")
 		]
 		searchController.searchBar.barTintColor = .clear
 		searchController.searchBar.scopeBarBackgroundImage = UIImage()
@@ -704,16 +704,16 @@ private extension MainTimelineModernViewController {
 
 			// Set up the star action
 			let starTitle = article.status.starred ?
-				NSLocalizedString("Unstar", comment: "Unstar") :
-				NSLocalizedString("Star", comment: "Star")
+				NNWLocalizedString("Unstar", comment: "Unstar") :
+				NNWLocalizedString("Star", comment: "Star")
 
 			let starAction = UIContextualAction(style: .normal, title: starTitle) { [weak self] _, _, completion in
 
 				// Post the accessibility announcement immediately so VoiceOver
 				// doesn't lag behind user actions.
 				let announcement = article.status.starred ?
-					NSLocalizedString("Unstarred", comment: "Accessibility announcement") :
-					NSLocalizedString("Starred", comment: "Starred")
+					NNWLocalizedString("Unstarred", comment: "Accessibility announcement") :
+					NNWLocalizedString("Starred", comment: "Starred")
 				UIAccessibility.post(notification: .announcement, argument: announcement)
 
 				/// The call to `toggleStar` is delayed in order to allow
@@ -731,7 +731,7 @@ private extension MainTimelineModernViewController {
 			starAction.backgroundColor = Assets.Colors.star
 
 			// Set up the read action
-			let moreTitle = NSLocalizedString("More", comment: "More")
+			let moreTitle = NNWLocalizedString("More", comment: "More")
 			let moreAction = UIContextualAction(style: .normal, title: moreTitle) { [weak self] (action, view, completion) in
 
 				if let self = self {
@@ -766,7 +766,7 @@ private extension MainTimelineModernViewController {
 						alert.addAction(action)
 					}
 
-					let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
+					let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 					alert.addAction(UIAlertAction(title: cancelTitle, style: .cancel) { _ in
 						completion(true)
 					})
@@ -798,16 +798,16 @@ private extension MainTimelineModernViewController {
 
 			// Set up the read action
 			let readTitle = article.status.read ?
-				NSLocalizedString("Mark as Unread", comment: "Command") :
-				NSLocalizedString("Mark as Read", comment: "Command")
+				NNWLocalizedString("Mark as Unread", comment: "Command") :
+				NNWLocalizedString("Mark as Read", comment: "Command")
 
 			let readAction = UIContextualAction(style: .normal, title: readTitle) { [weak self] _, _, completion in
 
 				// Post the accessibility announcement immediately so VoiceOver
 				// doesn't lag behind user actions.
 				let announcement = article.status.read ?
-					NSLocalizedString("Marked as Unread", comment: "Accessibility announcement") :
-					NSLocalizedString("Marked as Read", comment: "Accessibility announcement")
+					NNWLocalizedString("Marked as Unread", comment: "Accessibility announcement") :
+					NNWLocalizedString("Marked as Read", comment: "Accessibility announcement")
 				UIAccessibility.post(notification: .announcement, argument: announcement)
 
 				/// The call to `toggleRead` is delayed in order to allow
@@ -918,10 +918,10 @@ private extension MainTimelineModernViewController {
 
 		if isReadArticlesFiltered {
 			filterButton.tintColor = Assets.Colors.primaryAccent
-			filterButton.accLabelText = NSLocalizedString("Selected - Filter Read Articles", comment: "Selected - Filter Read Articles")
+			filterButton.accLabelText = NNWLocalizedString("Selected - Filter Read Articles", comment: "Selected - Filter Read Articles")
 		} else {
 			filterButton.tintColor = .label
-			filterButton.accLabelText = NSLocalizedString("Filter Read Articles", comment: "Filter Read Articles")
+			filterButton.accLabelText = NNWLocalizedString("Filter Read Articles", comment: "Filter Read Articles")
 		}
 
 		collectionView?.selectItem(at: nil, animated: false, scrollPosition: .top)
@@ -1133,16 +1133,16 @@ extension MainTimelineModernViewController {
 		guard !article.status.read || article.isAvailableToMarkUnread else { return nil }
 
 		let title = article.status.read ?
-			NSLocalizedString("Mark as Unread", comment: "Command") :
-			NSLocalizedString("Mark as Read", comment: "Command")
+			NNWLocalizedString("Mark as Unread", comment: "Command") :
+			NNWLocalizedString("Mark as Read", comment: "Command")
 		let image = article.status.read ? Assets.Images.circleClosed : Assets.Images.circleOpen
 
 		let action = UIAction(title: title, image: image) { [weak self] _ in
 			// Post the accessibility announcement immediately so VoiceOver
 			// doesn't lag behind user actions.
 			let announcement = article.status.read ?
-				NSLocalizedString("Marked as Unread", comment: "Accessibility announcement") :
-				NSLocalizedString("Marked as Read", comment: "Accessibility announcement")
+				NNWLocalizedString("Marked as Unread", comment: "Accessibility announcement") :
+				NNWLocalizedString("Marked as Read", comment: "Accessibility announcement")
 			UIAccessibility.post(notification: .announcement, argument: announcement)
 
 			DispatchQueue.main.asyncAfter(wallDeadline: .now() + 1.0) {
@@ -1161,16 +1161,16 @@ extension MainTimelineModernViewController {
 	func toggleArticleStarStatusAction(_ article: Article) -> UIAction {
 
 		let title = article.status.starred ?
-			NSLocalizedString("Mark as Unstarred", comment: "Command") :
-			NSLocalizedString("Mark as Starred", comment: "Command")
+			NNWLocalizedString("Mark as Unstarred", comment: "Command") :
+			NNWLocalizedString("Mark as Starred", comment: "Command")
 		let image = article.status.starred ? Assets.Images.starOpen : Assets.Images.starClosed
 
 		let action = UIAction(title: title, image: image) { [weak self] _ in
 			// Post the accessibility announcement immediately so VoiceOver
 			// doesn't lag behind user actions.
 			let announcement = article.status.starred ?
-				NSLocalizedString("Unstarred", comment: "Accessibility announcement") :
-				NSLocalizedString("Starred", comment: "Starred")
+				NNWLocalizedString("Unstarred", comment: "Accessibility announcement") :
+				NNWLocalizedString("Starred", comment: "Starred")
 			UIAccessibility.post(notification: .announcement, argument: announcement)
 
 			DispatchQueue.main.asyncAfter(wallDeadline: .now() + 1.0) {
@@ -1196,7 +1196,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Mark Above as Read", comment: "Command")
+		let title = NNWLocalizedString("Mark Above as Read", comment: "Command")
 		let image = Assets.Images.markAboveAsRead
 		let action = UIAction(title: title, image: image) { [weak self] _ in
 			MarkAsReadAlertController.confirm(self, coordinator: self?.coordinator, confirmTitle: title, sourceType: contentView) { [weak self] in
@@ -1221,7 +1221,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Mark Below as Read", comment: "Command")
+		let title = NNWLocalizedString("Mark Below as Read", comment: "Command")
 		let image = Assets.Images.markBelowAsRead
 		let action = UIAction(title: title, image: image) { [weak self] _ in
 			MarkAsReadAlertController.confirm(self, coordinator: self?.coordinator, confirmTitle: title, sourceType: contentView) { [weak self] in
@@ -1236,7 +1236,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Mark Above as Read", comment: "Command")
+		let title = NNWLocalizedString("Mark Above as Read", comment: "Command")
 		let cancel = {
 			completion(true)
 		}
@@ -1255,7 +1255,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Mark Below as Read", comment: "Command")
+		let title = NNWLocalizedString("Mark Below as Read", comment: "Command")
 		let cancel = {
 			completion(true)
 		}
@@ -1283,7 +1283,7 @@ extension MainTimelineModernViewController {
 		guard let feed = article.feed,
 			!timelineFeedIsEqualTo(feed) else { return nil }
 
-		let title = NSLocalizedString("Go to Feed", comment: "Go to Feed")
+		let title = NNWLocalizedString("Go to Feed", comment: "Go to Feed")
 		let action = UIAction(title: title, image: Assets.Images.openInSidebar) { [weak self] _ in
 			self?.discloseFeed(feed, animations: [.scroll, .navigation])
 		}
@@ -1294,7 +1294,7 @@ extension MainTimelineModernViewController {
 		guard let feed = article.feed,
 			!timelineFeedIsEqualTo(feed) else { return nil }
 
-		let title = NSLocalizedString("Go to Feed", comment: "Go to Feed")
+		let title = NNWLocalizedString("Go to Feed", comment: "Go to Feed")
 		let action = UIAlertAction(title: title, style: .default) { [weak self] _ in
 			self?.discloseFeed(feed, animations: [.scroll, .navigation])
 			completion(true)
@@ -1318,7 +1318,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let localizedMenuText = NSLocalizedString("Mark All as Read in “%@”", comment: "Command")
+		let localizedMenuText = NNWLocalizedString("Mark All as Read in “%@”", comment: "Command")
 		let title = NSString.localizedStringWithFormat(localizedMenuText as NSString, feed.nameForDisplay) as String
 
 		let action = UIAction(title: title, image: Assets.Images.markAllAsRead) { [weak self] _ in
@@ -1340,7 +1340,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let localizedMenuText = NSLocalizedString("Mark All as Read in “%@”", comment: "Command")
+		let localizedMenuText = NNWLocalizedString("Mark All as Read in “%@”", comment: "Command")
 		let title = NSString.localizedStringWithFormat(localizedMenuText as NSString, feed.nameForDisplay) as String
 		let cancel = {
 			completion(true)
@@ -1357,7 +1357,7 @@ extension MainTimelineModernViewController {
 
 	func copyArticleURLAction(_ article: Article) -> UIAction? {
 		guard let url = article.preferredURL else { return nil }
-		let title = NSLocalizedString("Copy Article URL", comment: "Command")
+		let title = NNWLocalizedString("Copy Article URL", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.copy) { _ in
 			UIPasteboard.general.url = url
 		}
@@ -1366,7 +1366,7 @@ extension MainTimelineModernViewController {
 
 	func copyExternalURLAction(_ article: Article) -> UIAction? {
 		guard let externalLink = article.externalLink, externalLink != article.preferredLink, let url = URL(string: externalLink) else { return nil }
-		let title = NSLocalizedString("Copy External URL", comment: "Command")
+		let title = NNWLocalizedString("Copy External URL", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.copy) { _ in
 			UIPasteboard.general.url = url
 		}
@@ -1382,7 +1382,7 @@ extension MainTimelineModernViewController {
 		guard article.preferredURL != nil else {
 			return nil
 		}
-		let title = NSLocalizedString("Open in Browser", comment: "Command")
+		let title = NNWLocalizedString("Open in Browser", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.safari) { [weak self] _ in
 			self?.showBrowserForArticle(article)
 		}
@@ -1394,7 +1394,7 @@ extension MainTimelineModernViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Open in Browser", comment: "Command")
+		let title = NNWLocalizedString("Open in Browser", comment: "Command")
 		let action = UIAlertAction(title: title, style: .default) { [weak self] _ in
 			self?.showBrowserForArticle(article)
 			completion(true)
@@ -1417,7 +1417,7 @@ extension MainTimelineModernViewController {
 
 	func shareAction(_ article: Article, indexPath: IndexPath) -> UIAction? {
 		guard let url = article.preferredURL else { return nil }
-		let title = NSLocalizedString("Share", comment: "Share button")
+		let title = NNWLocalizedString("Share", comment: "Share button")
 		let action = UIAction(title: title, image: Assets.Images.share) { [weak self] _ in
 			self?.shareDialogForTableCell(indexPath: indexPath, url: url, title: article.title)
 		}
@@ -1426,7 +1426,7 @@ extension MainTimelineModernViewController {
 
 	func shareAlertAction(_ article: Article, indexPath: IndexPath, completion: @escaping (Bool) -> Void) -> UIAlertAction? {
 		guard let url = article.preferredURL else { return nil }
-		let title = NSLocalizedString("Share", comment: "Share button")
+		let title = NNWLocalizedString("Share", comment: "Share button")
 		let action = UIAlertAction(title: title, style: .default) { [weak self] _ in
 			completion(true)
 			self?.shareDialogForTableCell(indexPath: indexPath, url: url, title: article.title)

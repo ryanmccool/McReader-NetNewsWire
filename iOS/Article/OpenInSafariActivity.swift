@@ -7,13 +7,14 @@
 //
 
 import UIKit
+import RSCore
 
 final class OpenInBrowserActivity: UIActivity {
 
 	private var activityItems: [Any]?
 
 	override var activityTitle: String? {
-		return NSLocalizedString("Open in Browser", comment: "Command")
+		return NNWLocalizedString("Open in Browser", comment: "Command")
 	}
 
 	override var activityImage: UIImage? {

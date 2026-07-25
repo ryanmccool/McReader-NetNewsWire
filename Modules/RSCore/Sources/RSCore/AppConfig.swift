@@ -12,7 +12,27 @@ import Foundation
 
 	public static let appName: String = (Bundle.main.infoDictionary!["CFBundleExecutable"]! as! String)
 
+	public static let defaultsSuiteName: String? = {
+		guard let environment = NetNewsWireEnvironment.current, environment.mode == .embedded else {
+			return nil
+		}
+		return environment.userDefaultsSuiteName
+	}()
+
+	nonisolated(unsafe) public static let defaults = defaults(for: NetNewsWireEnvironment.current)
+
+	nonisolated public static func defaults(for environment: NetNewsWireEnvironmentValues?) -> UserDefaults {
+		guard let environment, environment.mode == .embedded else {
+			return .standard
+		}
+		return UserDefaults(suiteName: environment.userDefaultsSuiteName)!
+	}
+
 	public static let cacheFolder: URL = {
+		if let cacheDirectoryURL = NetNewsWireEnvironment.current?.cacheDirectoryURL {
+			createFolderIfNecessary(cacheDirectoryURL)
+			return cacheDirectoryURL
+		}
 
 		let folderURL: URL
 
@@ -34,6 +54,10 @@ import Foundation
 	}
 
 	public static let dataFolder: URL = {
+		if let dataDirectoryURL = NetNewsWireEnvironment.current?.dataDirectoryURL {
+			createFolderIfNecessary(dataDirectoryURL)
+			return dataDirectoryURL
+		}
 
 #if os(macOS)
 		var dataFolder = try! FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)

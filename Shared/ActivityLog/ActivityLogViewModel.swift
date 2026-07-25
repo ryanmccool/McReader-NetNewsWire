@@ -7,6 +7,7 @@
 
 import Foundation
 import ActivityLog
+import RSCore
 
 enum ActivityLogTextColor {
 	case primary
@@ -58,7 +59,7 @@ struct ActivityLogTextSegment {
 		}
 
 		if activity.returnedFromCache {
-			let fromCacheText = NSLocalizedString("from cache", comment: "Activity log — appended when a download was served from cache instead of the network")
+			let fromCacheText = NNWLocalizedString("from cache", comment: "Activity log — appended when a download was served from cache instead of the network")
 			result.append(ActivityLogTextSegment(text: " — \(fromCacheText)", color: .secondary, weight: .regular))
 		}
 
@@ -92,7 +93,7 @@ private extension ActivityLogViewModel {
 			guard let detail = activity.detail else {
 				return nil
 			}
-			let format = NSLocalizedString("(last downloaded %@)", comment: "Activity log — when HTML metadata for a URL was last downloaded — %@ is a date")
+			let format = NNWLocalizedString("(last downloaded %@)", comment: "Activity log — when HTML metadata for a URL was last downloaded — %@ is a date")
 			return String(format: format, detail)
 		default:
 			return activity.detail

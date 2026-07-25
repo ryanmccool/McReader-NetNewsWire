@@ -61,7 +61,7 @@ final class MainFeedCollectionViewCell: UICollectionViewCell {
 		get {
 			let name = feedTitle.text ?? ""
 			if unreadCount > 0 {
-				let unreadLabel = NSLocalizedString("unread", comment: "Unread label for accessibility")
+				let unreadLabel = NNWLocalizedString("unread", comment: "Unread label for accessibility")
 				return "\(name) \(unreadCount) \(unreadLabel)"
 			} else {
 				return name

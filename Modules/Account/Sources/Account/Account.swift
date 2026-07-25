@@ -452,7 +452,7 @@ public enum FetchType {
 		return try await grantingType.requestOAuthAccessToken(with: response)
 	}
 
-	public func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async {
+	public func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {
 		await delegate.receiveRemoteNotification(userInfo: userInfo)
 	}
 

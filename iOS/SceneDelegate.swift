@@ -12,7 +12,11 @@ import Account
 
 @MainActor enum NetNewsWireSceneSetup {
 	@discardableResult
-	static func configure(rootSplitViewController: RootSplitViewController, stateRestorationActivity: NSUserActivity?) -> SceneCoordinator {
+	static func configure(
+		rootSplitViewController: RootSplitViewController,
+		stateRestorationActivity: NSUserActivity?,
+		capabilities: NetNewsWireFeatureCapabilities
+	) -> SceneCoordinator {
 		rootSplitViewController.presentsWithGesture = true
 		rootSplitViewController.showsSecondaryOnlyButton = true
 		rootSplitViewController.preferredDisplayMode = UISplitViewController.DisplayMode(rawValue: AppDefaults.shared.splitViewPreferredDisplayMode) ?? .oneBesideSecondary
@@ -21,11 +25,15 @@ import Account
 			rootSplitViewController.preferredDisplayMode = .twoBesideSecondary
 		}
 
-		let coordinator = SceneCoordinator(rootSplitViewController: rootSplitViewController)
+		let coordinator = SceneCoordinator(rootSplitViewController: rootSplitViewController, capabilities: capabilities)
 		rootSplitViewController.coordinator = coordinator
 		rootSplitViewController.delegate = coordinator
-		coordinator.restoreWindowState(activity: stateRestorationActivity)
+		coordinator.restoreWindowState(activity: restorationActivity(stateRestorationActivity, capabilities: capabilities))
 		return coordinator
+	}
+
+	static func restorationActivity(_ activity: NSUserActivity?, capabilities: NetNewsWireFeatureCapabilities) -> NSUserActivity? {
+		capabilities.mayRestoreSceneState ? activity : nil
 	}
 }
 
@@ -41,7 +49,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 		window!.tintColor = Assets.Colors.primaryAccent
 
 		let rootViewController = window!.rootViewController as! RootSplitViewController
-		coordinator = NetNewsWireSceneSetup.configure(rootSplitViewController: rootViewController, stateRestorationActivity: session.stateRestorationActivity)
+		coordinator = NetNewsWireSceneSetup.configure(
+			rootSplitViewController: rootViewController,
+			stateRestorationActivity: session.stateRestorationActivity,
+			capabilities: .standalone
+		)
 
 		updateUserInterfaceStyle()
 
@@ -92,6 +104,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 	}
 
 	func stateRestorationActivity(for scene: UIScene) -> NSUserActivity? {
+		guard appDelegate.capabilities.mayRestoreSceneState else {
+			return nil
+		}
 		return coordinator.stateRestorationActivity
 	}
 

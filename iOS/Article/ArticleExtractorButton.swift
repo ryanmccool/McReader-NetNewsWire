@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import RSCore
 
 enum ArticleExtractorButtonState {
 	case error
@@ -53,13 +54,13 @@ final class ArticleExtractorButton: UIButton {
 		get {
 			switch buttonState {
 			case .error:
-				return NSLocalizedString("Error - Reader View", comment: "Error - Reader View")
+				return NNWLocalizedString("Error - Reader View", comment: "Error - Reader View")
 			case .animated:
-				return NSLocalizedString("Processing - Reader View", comment: "Processing - Reader View")
+				return NNWLocalizedString("Processing - Reader View", comment: "Processing - Reader View")
 			case .on:
-				return NSLocalizedString("Selected - Reader View", comment: "Selected - Reader View")
+				return NNWLocalizedString("Selected - Reader View", comment: "Selected - Reader View")
 			case .off:
-				return NSLocalizedString("Reader View", comment: "Reader View")
+				return NNWLocalizedString("Reader View", comment: "Reader View")
 			}
 		}
 		set {

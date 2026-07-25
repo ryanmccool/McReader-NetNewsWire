@@ -38,19 +38,19 @@ final class ReaderAPIAccountViewController: UITableViewController {
 
 		if let unwrappedAccount = account,
 		   let credentials = try? retrieveCredentialsForAccount(for: unwrappedAccount) {
-			actionButton.setTitle(NSLocalizedString("Update Credentials", comment: "Update Credentials"), for: .normal)
+			actionButton.setTitle(NNWLocalizedString("Update Credentials", comment: "Update Credentials"), for: .normal)
 			actionButton.isEnabled = true
 			usernameTextField.text = credentials.username
 			passwordTextField.text = credentials.secret
 		} else {
-			actionButton.setTitle(NSLocalizedString("Add Account", comment: "Add Account"), for: .normal)
+			actionButton.setTitle(NNWLocalizedString("Add Account", comment: "Add Account"), for: .normal)
 		}
 
 		if let unwrappedAccountType = accountType {
 			switch unwrappedAccountType {
 			case .freshRSS:
 				title = "FreshRSS"
-				apiURLTextField.placeholder = NSLocalizedString("API URL: https://fresh.rss.net/api/greader.php", comment: "FreshRSS API Helper")
+				apiURLTextField.placeholder = NNWLocalizedString("API URL: https://fresh.rss.net/api/greader.php", comment: "FreshRSS API Helper")
 			case .inoreader:
 				title = "Inoreader"
 			case .bazQux:
@@ -72,17 +72,17 @@ final class ReaderAPIAccountViewController: UITableViewController {
 	private func setupFooter() {
 		switch accountType {
 		case .bazQux:
-			footerLabel.text = NSLocalizedString("Sign in to your BazQux account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have a BazQux account?", comment: "BazQux")
-			signUpButton.setTitle(NSLocalizedString("Sign Up Here", comment: "Sign Up"), for: .normal)
+			footerLabel.text = NNWLocalizedString("Sign in to your BazQux account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have a BazQux account?", comment: "BazQux")
+			signUpButton.setTitle(NNWLocalizedString("Sign Up Here", comment: "Sign Up"), for: .normal)
 		case .inoreader:
-			footerLabel.text = NSLocalizedString("Sign in to your Inoreader account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have an Inoreader account?", comment: "Inoreader")
-			signUpButton.setTitle(NSLocalizedString("Sign Up Here", comment: "Sign Up"), for: .normal)
+			footerLabel.text = NNWLocalizedString("Sign in to your Inoreader account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have an Inoreader account?", comment: "Inoreader")
+			signUpButton.setTitle(NNWLocalizedString("Sign Up Here", comment: "Sign Up"), for: .normal)
 		case .theOldReader:
-			footerLabel.text = NSLocalizedString("Sign in to your The Old Reader account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have a The Old Reader account?", comment: "TOR")
-			signUpButton.setTitle(NSLocalizedString("Sign Up Here", comment: "Sign Up"), for: .normal)
+			footerLabel.text = NNWLocalizedString("Sign in to your The Old Reader account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have a The Old Reader account?", comment: "TOR")
+			signUpButton.setTitle(NNWLocalizedString("Sign Up Here", comment: "Sign Up"), for: .normal)
 		case .freshRSS:
-			footerLabel.text = NSLocalizedString("Sign in to your FreshRSS instance and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have an FreshRSS instance?", comment: "FreshRSS")
-			signUpButton.setTitle(NSLocalizedString("Find Out More", comment: "Find Out More"), for: .normal)
+			footerLabel.text = NNWLocalizedString("Sign in to your FreshRSS instance and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have an FreshRSS instance?", comment: "FreshRSS")
+			signUpButton.setTitle(NNWLocalizedString("Find Out More", comment: "Find Out More"), for: .normal)
 		default:
 			return
 		}
@@ -143,7 +143,7 @@ final class ReaderAPIAccountViewController: UITableViewController {
 		let trimmedUsername = username.trimmingWhitespace
 
 		guard account != nil || !AccountManager.shared.duplicateServiceAccount(type: type, username: trimmedUsername) else {
-			showError(NSLocalizedString("There is already an account of that type with that username created.", comment: "Duplicate Error"))
+			showError(NNWLocalizedString("There is already an account of that type with that username created.", comment: "Duplicate Error"))
 			return
 		}
 
@@ -177,10 +177,10 @@ final class ReaderAPIAccountViewController: UITableViewController {
 						dismiss(animated: true, completion: nil)
 						delegate?.dismiss()
 					} catch {
-						showError(NSLocalizedString("Keychain error while storing credentials.", comment: "Credentials Error"))
+						showError(NNWLocalizedString("Keychain error while storing credentials.", comment: "Credentials Error"))
 					}
 				} else {
-					showError(NSLocalizedString("Invalid username/password combination.", comment: "Credentials Error"))
+					showError(NNWLocalizedString("Invalid username/password combination.", comment: "Credentials Error"))
 				}
 			} catch {
 				stopAnimation()
@@ -220,16 +220,16 @@ final class ReaderAPIAccountViewController: UITableViewController {
 		switch accountType {
 		case .freshRSS:
 			if !usernameTextField.hasText || !passwordTextField.hasText || !apiURLTextField.hasText {
-				showError(NSLocalizedString("Username, password, and API URL are required.", comment: "Credentials Error"))
+				showError(NNWLocalizedString("Username, password, and API URL are required.", comment: "Credentials Error"))
 				return false
 			}
 			guard URL(string: apiURLTextField.text!) != nil else {
-				showError(NSLocalizedString("Invalid API URL.", comment: "Invalid API URL"))
+				showError(NNWLocalizedString("Invalid API URL.", comment: "Invalid API URL"))
 				return false
 			}
 		default:
 			if !usernameTextField.hasText || !passwordTextField.hasText {
-				showError(NSLocalizedString("Username and password are required.", comment: "Credentials Error"))
+				showError(NNWLocalizedString("Username and password are required.", comment: "Credentials Error"))
 				return false
 			}
 		}
