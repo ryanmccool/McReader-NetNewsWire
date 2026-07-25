@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import RSCore
 
 protocol MarkAsReadAlertControllerSourceType {}
 extension CGRect: MarkAsReadAlertControllerSourceType {}
@@ -44,11 +45,11 @@ extension UIBarButtonItem: MarkAsReadAlertControllerSourceType {}
 	                             sourceType: T,
 	                             completion: @escaping (UIAlertAction) -> Void) -> UIAlertController where T: MarkAsReadAlertControllerSourceType {
 
-		let title = NSLocalizedString("Mark As Read", comment: "Mark As Read")
-		let message = NSLocalizedString("You can turn this confirmation off in Settings.",
+		let title = NNWLocalizedString("Mark As Read", comment: "Mark As Read")
+		let message = NNWLocalizedString("You can turn this confirmation off in Settings.",
 										comment: "You can turn this confirmation off in Settings.")
-		let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
-		let settingsTitle = NSLocalizedString("Open Settings", comment: "Open Settings button")
+		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
+		let settingsTitle = NNWLocalizedString("Open Settings", comment: "Open Settings button")
 
 		let alertController = UIAlertController(title: title, message: message, preferredStyle: .actionSheet)
 		let cancelAction = UIAlertAction(title: cancelTitle, style: .cancel) { _ in

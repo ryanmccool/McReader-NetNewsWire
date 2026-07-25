@@ -83,7 +83,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			// Toolbar button to open Current Activity. It lights up while activity is happening.
 			let settingsButtonIndex = 0
 			let button = UIBarButtonItem(image: Assets.Images.currentActivity, style: .plain, target: self, action: #selector(showCurrentActivity(_:)))
-			button.accessibilityLabel = NSLocalizedString("Current Activity", comment: "Current Activity")
+			button.accessibilityLabel = NNWLocalizedString("Current Activity", comment: "Current Activity")
 			toolbarItems?.insert(button, at: settingsButtonIndex + 1)
 			currentActivityButton = button
 			NotificationCenter.default.addObserver(self, selector: #selector(activityDidChange(_:)), name: .activityDidChange, object: nil)
@@ -92,7 +92,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			// Tap progress view in the toolbar to open Current Activity.
 			refreshProgressView.isUserInteractionEnabled = true
 			refreshProgressView.accessibilityTraits = .button
-			refreshProgressView.accessibilityHint = NSLocalizedString("Shows current activity", comment: "Current Activity accessibility hint")
+			refreshProgressView.accessibilityHint = NNWLocalizedString("Shows current activity", comment: "Current Activity accessibility hint")
 			let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(showCurrentActivity(_:)))
 			refreshProgressView.addGestureRecognizer(tapGestureRecognizer)
 		}
@@ -200,7 +200,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			var actions = [UIContextualAction]()
 
 			// Set up the delete action
-			let deleteTitle = NSLocalizedString("Delete", comment: "Delete button")
+			let deleteTitle = NNWLocalizedString("Delete", comment: "Delete button")
 			let deleteAction = UIContextualAction(style: .destructive, title: nil) { [weak self] _, _, completion in
 				self?.delete(indexPath: indexPath)
 				completion(true)
@@ -211,7 +211,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			actions.append(deleteAction)
 
 			// Set up the rename action
-			let renameTitle = NSLocalizedString("Rename", comment: "Command")
+			let renameTitle = NNWLocalizedString("Rename", comment: "Command")
 			let renameAction = UIContextualAction(style: .normal, title: nil) { [weak self] _, _, completion in
 				self?.rename(indexPath: indexPath)
 				completion(true)
@@ -222,7 +222,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			actions.append(renameAction)
 
 			if let feed = dataSource.itemIdentifier(for: indexPath)?.node.representedObject as? Feed {
-				let moreTitle = NSLocalizedString("More", comment: "More")
+				let moreTitle = NNWLocalizedString("More", comment: "More")
 				let moreAction = UIContextualAction(style: .normal, title: nil) { [weak self] (action, view, completion) in
 
 					if let self = self {
@@ -253,7 +253,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 							alert.addAction(action)
 						}
 
-						let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
+						let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 						alert.addAction(UIAlertAction(title: cancelTitle, style: .cancel) { _ in
 							completion(true)
 						})
@@ -491,7 +491,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			return
 		}
 
-		let title = NSLocalizedString("Mark All as Read", comment: "Command")
+		let title = NNWLocalizedString("Mark All as Read", comment: "Command")
 		MarkAsReadAlertController.confirm(self, coordinator: coordinator, confirmTitle: title, sourceType: contentView) { [weak self] in
 			self?.coordinator.markAllAsReadInTimeline()
 		}
@@ -722,12 +722,12 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 	func setFilterButtonToActive() {
 		filterButton.tintColor = Assets.Colors.primaryAccent
-		filterButton?.accLabelText = NSLocalizedString("Selected - Filter Read Feeds", comment: "Selected - Filter Read Feeds")
+		filterButton?.accLabelText = NNWLocalizedString("Selected - Filter Read Feeds", comment: "Selected - Filter Read Feeds")
 	}
 
 	func setFilterButtonToInactive() {
 		filterButton.tintColor = .label
-		filterButton?.accLabelText = NSLocalizedString("Filter Read Feeds", comment: "Filter Read Feeds")
+		filterButton?.accLabelText = NNWLocalizedString("Filter Read Feeds", comment: "Filter Read Feeds")
 	}
 
 	// MARK: - Notifications
@@ -797,13 +797,13 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 		var menuItems: [UIAction] = []
 
-		let addFeedActionTitle = NSLocalizedString("Add Feed", comment: "Add Feed")
+		let addFeedActionTitle = NNWLocalizedString("Add Feed", comment: "Add Feed")
 		let addFeedAction = UIAction(title: addFeedActionTitle, image: Assets.Images.plus) { _ in
 			self.coordinator.showAddFeed()
 		}
 		menuItems.append(addFeedAction)
 
-		let addFolderActionTitle = NSLocalizedString("Add Folder", comment: "Add Folder")
+		let addFolderActionTitle = NNWLocalizedString("Add Folder", comment: "Add Folder")
 		let addFolderAction = UIAction(title: addFolderActionTitle, image: Assets.Images.folderOutlinePlus) { _ in
 			self.coordinator.showAddFolder()
 		}
@@ -828,10 +828,10 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	@IBAction func add(_ sender: UIBarButtonItem) {
 		let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
-		let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
+		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 		let cancelAction = UIAlertAction(title: cancelTitle, style: .cancel)
 
-		let addFeedActionTitle = NSLocalizedString("Add Feed", comment: "Add Feed")
+		let addFeedActionTitle = NNWLocalizedString("Add Feed", comment: "Add Feed")
 		let addFeedAction = UIAlertAction(title: addFeedActionTitle, style: .default) { _ in
 			self.coordinator.showAddFeed()
 		}
@@ -847,7 +847,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			return false
 		}()
 		if anyActiveAccountSupportsFolders {
-			let addFolderActionTitle = NSLocalizedString("Add Folder", comment: "Add Folder")
+			let addFolderActionTitle = NNWLocalizedString("Add Folder", comment: "Add Folder")
 			let addFolderAction = UIAlertAction(title: addFolderActionTitle, style: .default) { _ in
 				self.coordinator.showAddFolder()
 			}
@@ -941,7 +941,9 @@ extension MainFeedCollectionViewController: UIContextMenuInteractionDelegate {
 			var menuElements = [UIMenuElement]()
 			menuElements.append(UIMenu(title: "", options: .displayInline, children: [self.getAccountInfoAction(account: account)]))
 
-			menuElements.append(UIMenu(title: "", options: .displayInline, children: [self.getAccountNotificationsAction(account: account)]))
+			if let notificationsAction = self.getAccountNotificationsAction(account: account) {
+				menuElements.append(UIMenu(title: "", options: .displayInline, children: [notificationsAction]))
+			}
 
 			if let markAllAction = self.markAllAsReadAction(account: account, contentView: interaction.view) {
 				menuElements.append(UIMenu(title: "", options: .displayInline, children: [markAllAction]))
@@ -1052,7 +1054,7 @@ extension MainFeedCollectionViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Open Home Page", comment: "Command")
+		let title = NNWLocalizedString("Open Home Page", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.safari) { _ in
 			UIApplication.shared.open(url, options: [:])
 		}
@@ -1066,7 +1068,7 @@ extension MainFeedCollectionViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Open Home Page", comment: "Command")
+		let title = NNWLocalizedString("Open Home Page", comment: "Command")
 		let action = UIAlertAction(title: title, style: .default) { _ in
 			UIApplication.shared.open(url, options: [:])
 			completion(true)
@@ -1080,7 +1082,7 @@ extension MainFeedCollectionViewController {
 				  return nil
 			  }
 
-		let title = NSLocalizedString("Copy Feed URL", comment: "Command")
+		let title = NNWLocalizedString("Copy Feed URL", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.copy) { _ in
 			UIPasteboard.general.url = url
 		}
@@ -1093,7 +1095,7 @@ extension MainFeedCollectionViewController {
 				  return nil
 			  }
 
-		let title = NSLocalizedString("Copy Feed URL", comment: "Command")
+		let title = NNWLocalizedString("Copy Feed URL", comment: "Command")
 		let action = UIAlertAction(title: title, style: .default) { _ in
 			UIPasteboard.general.url = url
 			completion(true)
@@ -1108,7 +1110,7 @@ extension MainFeedCollectionViewController {
 				  return nil
 			  }
 
-		let title = NSLocalizedString("Copy Home Page URL", comment: "Command")
+		let title = NNWLocalizedString("Copy Home Page URL", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.copy) { _ in
 			UIPasteboard.general.url = url
 		}
@@ -1122,7 +1124,7 @@ extension MainFeedCollectionViewController {
 				  return nil
 			  }
 
-		let title = NSLocalizedString("Copy Home Page URL", comment: "Command")
+		let title = NNWLocalizedString("Copy Home Page URL", comment: "Command")
 		let action = UIAlertAction(title: title, style: .default) { _ in
 			UIPasteboard.general.url = url
 			completion(true)
@@ -1140,7 +1142,7 @@ extension MainFeedCollectionViewController {
 				return nil
 		}
 
-		let localizedMenuText = NSLocalizedString("Mark All as Read in “%@”", comment: "Command")
+		let localizedMenuText = NNWLocalizedString("Mark All as Read in “%@”", comment: "Command")
 		let title = NSString.localizedStringWithFormat(localizedMenuText as NSString, feed.nameForDisplay) as String
 		let cancel = {
 			completion(true)
@@ -1156,7 +1158,7 @@ extension MainFeedCollectionViewController {
 	}
 
 	func deleteAction(indexPath: IndexPath) -> UIAction {
-		let title = NSLocalizedString("Delete", comment: "Delete button")
+		let title = NNWLocalizedString("Delete", comment: "Delete button")
 
 		let action = UIAction(title: title, image: Assets.Images.trash, attributes: .destructive) { [weak self] _ in
 			self?.delete(indexPath: indexPath)
@@ -1165,7 +1167,7 @@ extension MainFeedCollectionViewController {
 	}
 
 	func renameAction(indexPath: IndexPath) -> UIAction {
-		let title = NSLocalizedString("Rename", comment: "Command")
+		let title = NNWLocalizedString("Rename", comment: "Command")
 		let action = UIAction(title: title, image: Assets.Images.edit) { [weak self] _ in
 			self?.rename(indexPath: indexPath)
 		}
@@ -1177,7 +1179,7 @@ extension MainFeedCollectionViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Get Info", comment: "Get Info")
+		let title = NNWLocalizedString("Get Info", comment: "Get Info")
 		let action = UIAction(title: title, image: Assets.Images.info) { [weak self] _ in
 			self?.coordinator.showFeedInspector(for: feed)
 		}
@@ -1185,15 +1187,18 @@ extension MainFeedCollectionViewController {
 	}
 
 	func getAccountInfoAction(account: Account) -> UIAction {
-		let title = NSLocalizedString("Get Info", comment: "Get Info")
+		let title = NNWLocalizedString("Get Info", comment: "Get Info")
 		let action = UIAction(title: title, image: Assets.Images.info) { [weak self] _ in
 			self?.coordinator.showAccountInspector(for: account)
 		}
 		return action
 	}
 
-	func getAccountNotificationsAction(account: Account) -> UIAction {
-		let title = NSLocalizedString("Notifications", comment: "Notifications")
+	func getAccountNotificationsAction(account: Account) -> UIAction? {
+		guard appDelegate.capabilities.mayPresentUserNotifications else {
+			return nil
+		}
+		let title = NNWLocalizedString("Notifications", comment: "Notifications")
 		let action = UIAction(title: title, image: UIImage(systemName: "bell.badge")) { [weak self] _ in
 			self?.coordinator.showNotificationInspector(for: account)
 		}
@@ -1201,7 +1206,7 @@ extension MainFeedCollectionViewController {
 	}
 
 	func deactivateAccountAction(account: Account) -> UIAction {
-		let title = NSLocalizedString("Deactivate", comment: "Deactivate")
+		let title = NNWLocalizedString("Deactivate", comment: "Deactivate")
 		let action = UIAction(title: title, image: Assets.Images.deactivate) { _ in
 			account.isActive = false
 		}
@@ -1213,7 +1218,7 @@ extension MainFeedCollectionViewController {
 			return nil
 		}
 
-		let title = NSLocalizedString("Get Info", comment: "Get Info")
+		let title = NNWLocalizedString("Get Info", comment: "Get Info")
 		let action = UIAlertAction(title: title, style: .default) { [weak self] _ in
 			self?.coordinator.showFeedInspector(for: feed)
 			completion(true)
@@ -1228,7 +1233,7 @@ extension MainFeedCollectionViewController {
 				  return nil
 			  }
 
-		let localizedMenuText = NSLocalizedString("Mark All as Read in “%@”", comment: "Command")
+		let localizedMenuText = NNWLocalizedString("Mark All as Read in “%@”", comment: "Command")
 		let title = NSString.localizedStringWithFormat(localizedMenuText as NSString, sidebarItem.nameForDisplay) as String
 		let action = UIAction(title: title, image: Assets.Images.markAllAsRead) { [weak self] _ in
 			MarkAsReadAlertController.confirm(self, coordinator: self?.coordinator, confirmTitle: title, sourceType: contentView) { [weak self] in
@@ -1245,7 +1250,7 @@ extension MainFeedCollectionViewController {
 			return nil
 		}
 
-		let localizedMenuText = NSLocalizedString("Mark All as Read in “%@”", comment: "Command")
+		let localizedMenuText = NNWLocalizedString("Mark All as Read in “%@”", comment: "Command")
 		let title = NSString.localizedStringWithFormat(localizedMenuText as NSString, account.nameForDisplay) as String
 		let action = UIAction(title: title, image: Assets.Images.markAllAsRead) { [weak self] _ in
 			MarkAsReadAlertController.confirm(self, coordinator: self?.coordinator, confirmTitle: title, sourceType: contentView) { [weak self] in
@@ -1265,15 +1270,15 @@ extension MainFeedCollectionViewController {
 			return
 		}
 
-		let formatString = NSLocalizedString("Rename “%@”", comment: "Rename feed")
+		let formatString = NNWLocalizedString("Rename “%@”", comment: "Rename feed")
 		let title = NSString.localizedStringWithFormat(formatString as NSString, sidebarItem.nameForDisplay) as String
 
 		let alertController = UIAlertController(title: title, message: nil, preferredStyle: .alert)
 
-		let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
+		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 		alertController.addAction(UIAlertAction(title: cancelTitle, style: .cancel))
 
-		let renameTitle = NSLocalizedString("Rename", comment: "Command")
+		let renameTitle = NNWLocalizedString("Rename", comment: "Command")
 		let renameAction = UIAlertAction(title: renameTitle, style: .default) { [weak self] _ in
 
 			guard let name = alertController.textFields?[0].text, !name.isEmpty else {
@@ -1307,7 +1312,7 @@ extension MainFeedCollectionViewController {
 
 		alertController.addTextField { textField in
 			textField.text = sidebarItem.nameForDisplay
-			textField.placeholder = NSLocalizedString("Name", comment: "Name")
+			textField.placeholder = NNWLocalizedString("Name", comment: "Name")
 			textField.clearButtonMode = .always
 		}
 
@@ -1325,21 +1330,21 @@ extension MainFeedCollectionViewController {
 		let title: String
 		let message: String
 		if sidebarItem is Folder {
-			title = NSLocalizedString("Delete Folder", comment: "Command")
-			let localizedInformativeText = NSLocalizedString("Are you sure you want to delete the “%@” folder?", comment: "Folder delete text")
+			title = NNWLocalizedString("Delete Folder", comment: "Command")
+			let localizedInformativeText = NNWLocalizedString("Are you sure you want to delete the “%@” folder?", comment: "Folder delete text")
 			message = NSString.localizedStringWithFormat(localizedInformativeText as NSString, sidebarItem.nameForDisplay) as String
 		} else {
-			title = NSLocalizedString("Delete Feed", comment: "Delete Feed")
-			let localizedInformativeText = NSLocalizedString("Are you sure you want to delete the “%@” feed?", comment: "Feed delete text")
+			title = NNWLocalizedString("Delete Feed", comment: "Delete Feed")
+			let localizedInformativeText = NNWLocalizedString("Are you sure you want to delete the “%@” feed?", comment: "Feed delete text")
 			message = NSString.localizedStringWithFormat(localizedInformativeText as NSString, sidebarItem.nameForDisplay) as String
 		}
 
 		let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
 
-		let cancelTitle = NSLocalizedString("Cancel", comment: "Cancel button")
+		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 		alertController.addAction(UIAlertAction(title: cancelTitle, style: .cancel))
 
-		let deleteTitle = NSLocalizedString("Delete", comment: "Delete button")
+		let deleteTitle = NNWLocalizedString("Delete", comment: "Delete button")
 		let deleteAction = UIAlertAction(title: deleteTitle, style: .destructive) { [weak self] _ in
 			self?.performDelete(indexPath: indexPath)
 		}
@@ -1357,9 +1362,9 @@ extension MainFeedCollectionViewController {
 		}
 
 		if let folder = deleteNode.representedObject as? Folder {
-			ActivityManager.cleanUp(folder)
+			ActivityManager.cleanUp(folder, mayDonateActivities: appDelegate.capabilities.mayDonateActivities)
 		} else if let feed = deleteNode.representedObject as? Feed {
-			ActivityManager.cleanUp(feed)
+			ActivityManager.cleanUp(feed, mayDonateActivities: appDelegate.capabilities.mayDonateActivities)
 		}
 
 		if indexPath == coordinator.currentFeedIndexPath {

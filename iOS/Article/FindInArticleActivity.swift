@@ -7,10 +7,11 @@
 //
 
 import UIKit
+import RSCore
 
 final class FindInArticleActivity: UIActivity {
 	override var activityTitle: String? {
-		NSLocalizedString("Find in Article", comment: "Find in Article")
+		NNWLocalizedString("Find in Article", comment: "Find in Article")
 	}
 
 	override var activityType: UIActivity.ActivityType? {

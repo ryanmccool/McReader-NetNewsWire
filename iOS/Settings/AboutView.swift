@@ -7,12 +7,13 @@
 //
 
 import SwiftUI
+import RSCore
 
 struct AboutView: View {
     var body: some View {
 		ScrollView(.vertical) {
 			VStack(alignment: .center, spacing: 12) {
-				Image("nnwFeedIcon")
+				Image("nnwFeedIcon", bundle: .netNewsWire)
 					.resizable()
 					.frame(width: 100, height: 100)
 					.clipShape(RoundedRectangle(cornerRadius: 20))

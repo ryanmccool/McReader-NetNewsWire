@@ -8,9 +8,10 @@
 
 import Foundation
 import os
+import RSCore
 import RSWeb
 
-struct CacheCleaner {
+@MainActor struct CacheCleaner {
 
 	static private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "CacheCleaner")
 
@@ -29,7 +30,7 @@ struct CacheCleaner {
 		if flushDate.addingTimeInterval(3600 * 24 * 3) < Date() {
 			if NetworkMonitor.shared.isConnected {
 
-				let tempDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+				let tempDir = AppConfig.cacheFolder
 				let faviconsFolderURL = tempDir.appendingPathComponent("Favicons")
 				let imagesFolderURL = tempDir.appendingPathComponent("Images")
 				let feedURLToIconURL = tempDir.appendingPathComponent("FeedURLToIconURLCache.plist")
@@ -56,11 +57,11 @@ private extension CacheCleaner {
 	/// One-time purge of image caches so that oversized cached images
 	/// are replaced with properly resized versions on re-download.
 	static func purgeImageCachesForResizingIfNeeded() {
-		guard !UserDefaults.standard.bool(forKey: didPurgeImageCachesForResizingKey) else {
+		guard !AppConfig.defaults.bool(forKey: didPurgeImageCachesForResizingKey) else {
 			return
 		}
 
-		let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+		let cacheDir = AppConfig.cacheFolder
 		let foldersToRemove = [
 			cacheDir.appendingPathComponent("Favicons"),
 			cacheDir.appendingPathComponent("Images"),
@@ -76,6 +77,6 @@ private extension CacheCleaner {
 			}
 		}
 
-		UserDefaults.standard.set(true, forKey: didPurgeImageCachesForResizingKey)
+		AppConfig.defaults.set(true, forKey: didPurgeImageCachesForResizingKey)
 	}
 }

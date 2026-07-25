@@ -40,19 +40,19 @@ struct AccountStatsView: View {
 						statsRow(item, isBold: true)
 					}
 				} header: {
-					Text(NSLocalizedString("Totals", comment: "Totals section"))
+					Text(NNWLocalizedString("Totals", comment: "Totals section"))
 				}
 			}
 
 			Section {
-				Button(NSLocalizedString("Vacuum Databases", comment: "Vacuum databases button")) {
+				Button(NNWLocalizedString("Vacuum Databases", comment: "Vacuum databases button")) {
 					vacuum()
 				}
 				.frame(maxWidth: .infinity)
 				.disabled(isVacuuming)
 			} footer: {
 				VStack(spacing: 8) {
-					Text(NSLocalizedString("Vacuuming may make databases faster.", comment: "Vacuum explanation"))
+					Text(NNWLocalizedString("Vacuuming may make databases faster.", comment: "Vacuum explanation"))
 						.frame(maxWidth: .infinity, alignment: .center)
 						.multilineTextAlignment(.center)
 					ProgressView()
@@ -66,7 +66,7 @@ struct AccountStatsView: View {
 				helpLinkFooter
 			}
 		}
-		.navigationTitle(NSLocalizedString("Account Stats", comment: "Account Stats screen title"))
+		.navigationTitle(NNWLocalizedString("Account Stats", comment: "Account Stats screen title"))
 		.toolbar {
 			ToolbarItem(placement: .topBarTrailing) {
 				Button {
@@ -74,7 +74,7 @@ struct AccountStatsView: View {
 						await refresh()
 					}
 				} label: {
-					Label(NSLocalizedString("Refresh", comment: "Refresh"), systemImage: "arrow.clockwise")
+					Label(NNWLocalizedString("Refresh", comment: "Refresh"), systemImage: "arrow.clockwise")
 				}
 				.disabled(isVacuuming)
 			}
@@ -116,7 +116,7 @@ private extension AccountStatsView {
 	}
 
 	var helpLinkFooter: some View {
-		Button(NSLocalizedString("Account Stats Help", comment: "Help link")) {
+		Button(NNWLocalizedString("Account Stats Help", comment: "Help link")) {
 			showHelp = true
 		}
 		.font(.subheadline)
@@ -136,13 +136,13 @@ private extension AccountStatsView {
 
 	func statItems(databaseSizeBytes: Int, feedCount: Int, folderCount: Int, articleCount: Int, statusesCount: Int, unreadCount: Int, starredCount: Int) -> [StatItem] {
 		[
-			StatItem(label: NSLocalizedString("Databases", comment: "Database size row label"), value: Self.formattedSize(databaseSizeBytes)),
-			StatItem(label: NSLocalizedString("Feeds", comment: "Feeds"), value: Self.formattedNumber(feedCount)),
-			StatItem(label: NSLocalizedString("Folders", comment: "Folders"), value: Self.formattedNumber(folderCount)),
-			StatItem(label: NSLocalizedString("Articles", comment: "Articles"), value: Self.formattedNumber(articleCount)),
-			StatItem(label: NSLocalizedString("Statuses", comment: "Statuses"), value: Self.formattedNumber(statusesCount)),
-			StatItem(label: NSLocalizedString("Unread", comment: "Unread"), value: Self.formattedNumber(unreadCount)),
-			StatItem(label: NSLocalizedString("Starred", comment: "Starred"), value: Self.formattedNumber(starredCount))
+			StatItem(label: NNWLocalizedString("Databases", comment: "Database size row label"), value: Self.formattedSize(databaseSizeBytes)),
+			StatItem(label: NNWLocalizedString("Feeds", comment: "Feeds"), value: Self.formattedNumber(feedCount)),
+			StatItem(label: NNWLocalizedString("Folders", comment: "Folders"), value: Self.formattedNumber(folderCount)),
+			StatItem(label: NNWLocalizedString("Articles", comment: "Articles"), value: Self.formattedNumber(articleCount)),
+			StatItem(label: NNWLocalizedString("Statuses", comment: "Statuses"), value: Self.formattedNumber(statusesCount)),
+			StatItem(label: NNWLocalizedString("Unread", comment: "Unread"), value: Self.formattedNumber(unreadCount)),
+			StatItem(label: NNWLocalizedString("Starred", comment: "Starred"), value: Self.formattedNumber(starredCount))
 		]
 	}
 
@@ -165,7 +165,7 @@ private extension AccountStatsView {
 		}
 		isVacuuming = true
 		Task {
-			await (UIApplication.shared.delegate as? AppDelegate)?.vacuumAllDatabases()
+			await appDelegate.vacuumAllDatabases()
 			isVacuuming = false
 			await refresh()
 		}

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import RSCore
 
 enum ArticleTextSize: Int, CaseIterable, Identifiable {
 	case small = 1
@@ -35,15 +36,15 @@ enum ArticleTextSize: Int, CaseIterable, Identifiable {
 	func description() -> String {
 		switch self {
 		case .small:
-			return NSLocalizedString("Small", comment: "Small")
+			return NNWLocalizedString("Small", comment: "Small")
 		case .medium:
-			return NSLocalizedString("Medium", comment: "Medium")
+			return NNWLocalizedString("Medium", comment: "Medium")
 		case .large:
-			return NSLocalizedString("Large", comment: "Large")
+			return NNWLocalizedString("Large", comment: "Large")
 		case .xlarge:
-			return NSLocalizedString("Extra Large", comment: "X-Large")
+			return NNWLocalizedString("Extra Large", comment: "X-Large")
 		case .xxlarge:
-			return NSLocalizedString("Extra Extra Large", comment: "XX-Large")
+			return NNWLocalizedString("Extra Extra Large", comment: "XX-Large")
 		}
 	}
 

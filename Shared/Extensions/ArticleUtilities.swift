@@ -105,7 +105,7 @@ extension Article {
 				return nil
 			}
 			let fm = FileManager.default
-			var path = fm.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+			var path = AppConfig.cacheFolder
 			let feedID = feed.feedID.replacingOccurrences(of: "/", with: "_")
 			path.appendPathComponent(feedID + "_smallIcon.png")
 			fm.createFile(atPath: path.path, contents: imageData, attributes: nil)

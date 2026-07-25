@@ -27,7 +27,8 @@ import Secrets
 	var credentials: Credentials? { get set }
 	var accountSettings: AccountSettings? { get set }
 
-	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async
+	/// Returns true only when handling the push fetched and applied record changes.
+	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool
 
 	func refreshAll() async throws
 	/// Returns `true` if any meaningful work was done (statuses sent or local

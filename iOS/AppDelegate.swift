@@ -20,11 +20,30 @@ import Images
 
 @MainActor var appDelegate: AppDelegate!
 
+@MainActor
+struct NetNewsWireHostGlobalMutationSeams {
+	let didRequestBadgeChange: (Int) -> Void
+	let didRegisterBackgroundTasks: () -> Void
+	let didRequestNotificationAuthorization: () -> Void
+	let didAssignNotificationDelegate: (AnyObject) -> Void
+	let didInstallQuickActions: ([String]) -> Void
+
+	static let live = Self(
+		didRequestBadgeChange: { _ in },
+		didRegisterBackgroundTasks: {},
+		didRequestNotificationAuthorization: {},
+		didAssignNotificationDelegate: { _ in },
+		didInstallQuickActions: { _ in }
+	)
+}
+
 #if !MCREADER_EMBEDDED
 @main
 #endif
 @MainActor final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, UnreadCountProvider {
 
+	nonisolated let capabilities: NetNewsWireFeatureCapabilities
+	private let globalMutationSeams: NetNewsWireHostGlobalMutationSeams
 	private let backgroundTaskDispatchQueue = DispatchQueue.init(label: "BGTaskScheduler")
 
 	private var waitBackgroundUpdateTask = UIBackgroundTaskIdentifier.invalid
@@ -55,7 +74,21 @@ import Images
 	private var didPerformLaunchSetup = false
 
 	override init() {
+		Self.configureStandaloneEnvironmentIfNeeded()
+		self.capabilities = .standalone
+		self.globalMutationSeams = .live
 		super.init()
+		start()
+	}
+
+	init(capabilities: NetNewsWireFeatureCapabilities, globalMutationSeams: NetNewsWireHostGlobalMutationSeams) {
+		self.capabilities = capabilities
+		self.globalMutationSeams = globalMutationSeams
+		super.init()
+		start()
+	}
+
+	private func start() {
 		appDelegate = self
 
 		AccountManager.shared.start()
@@ -64,14 +97,39 @@ import Images
 		NotificationCenter.default.addObserver(self, selector: #selector(accountRefreshDidFinish(_:)), name: .AccountRefreshDidFinish, object: nil)
 	}
 
-	static func bootstrapEmbeddedIfNeeded() -> AppDelegate {
+	static func bootstrapEmbeddedIfNeeded(
+		capabilities: NetNewsWireFeatureCapabilities,
+		globalMutationSeams: NetNewsWireHostGlobalMutationSeams
+	) -> AppDelegate {
+		precondition(NetNewsWireEnvironment.current != nil, "NetNewsWireFeatureRuntime must configure the environment before bootstrap.")
 		if let appDelegate {
+			precondition(appDelegate.capabilities == capabilities, "NetNewsWireFeatureRuntime capabilities changed after bootstrap.")
 			appDelegate.performLaunchSetupIfNeeded()
 			return appDelegate
 		}
-		let appDelegate = AppDelegate()
+		let appDelegate = AppDelegate(capabilities: capabilities, globalMutationSeams: globalMutationSeams)
 		appDelegate.performLaunchSetupIfNeeded()
 		return appDelegate
+	}
+
+	private static func configureStandaloneEnvironmentIfNeeded() {
+#if !MCREADER_EMBEDDED
+		guard NetNewsWireEnvironment.current == nil else {
+			return
+		}
+		let dataDirectoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+		let cacheDirectoryURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+		let appIdentifierPrefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as! String
+		let suiteName = "\(appIdentifierPrefix)group.\(Bundle.main.bundleIdentifier!)"
+		try! NetNewsWireEnvironment.configure(NetNewsWireEnvironmentValues(
+			mode: .standalone,
+			dataDirectoryURL: dataDirectoryURL,
+			cacheDirectoryURL: cacheDirectoryURL,
+			userDefaultsSuiteName: suiteName,
+			cloudKitContainerIdentifier: "iCloud.\(Bundle.main.bundleIdentifier!)",
+			resourceBundle: .main
+		))
+#endif
 	}
 
 	func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -80,9 +138,13 @@ import Images
 	}
 
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+		guard capabilities.mayHandleNotificationResponses else {
+			completionHandler(.noData)
+			return
+		}
 		Task { @MainActor in
 			self.resumeIfNecessary()
-			await AccountManager.shared.receiveRemoteNotification(userInfo: userInfo)
+			_ = await AccountManager.shared.receiveRemoteNotification(userInfo: userInfo)
 			self.suspendApplication()
 			completionHandler(.newData)
 		}
@@ -101,10 +163,11 @@ import Images
 	}
 
 	private func updateBadge() {
-		guard !Bundle.isNetNewsWireEmbeddedHost else {
+		guard capabilities.mayChangeApplicationBadge else {
 			return
 		}
 		assert(unreadCount == AccountManager.shared.unreadCount)
+		globalMutationSeams.didRequestBadgeChange(unreadCount)
 		UNUserNotificationCenter.current().setBadgeCount(unreadCount)
 	}
 
@@ -123,9 +186,11 @@ import Images
 	// MARK: - API
 
 	func manualRefresh(errorHandler: @escaping @Sendable (Error) -> Void) {
-		let sceneDelegates = UIApplication.shared.connectedScenes.compactMap { $0.delegate as? SceneDelegate }
-		for sceneDelegate in sceneDelegates {
-			sceneDelegate.cleanUp(conditional: true)
+		if capabilities.mayUseStandaloneSceneDelegates {
+			let sceneDelegates = UIApplication.shared.connectedScenes.compactMap { $0.delegate as? SceneDelegate }
+			for sceneDelegate in sceneDelegates {
+				sceneDelegate.cleanUp(conditional: true)
+			}
 		}
 		AccountManager.shared.refreshAllWithoutWaiting(errorHandler: errorHandler)
 	}
@@ -142,26 +207,30 @@ import Images
 		updateBadge()
 
 #if !SKIP_APP_GROUP_ACCESS
-		if !Bundle.isNetNewsWireEmbeddedHost {
+		if capabilities.extensionsAreAvailable {
 			ExtensionFeedAddRequestFile.shared.suspend()
 		}
 #endif
 
 		ArticleStatusSyncTimer.shared.invalidate()
-		guard !Bundle.isNetNewsWireEmbeddedHost else {
+		guard capabilities.mayRegisterBackgroundTasks || capabilities.extensionsAreAvailable else {
 			AccountManager.shared.saveAll()
 			return
 		}
-		scheduleBackgroundFeedRefresh()
-		syncArticleStatus()
-		WidgetDataEncoder.shared?.encode()
+		if capabilities.mayRegisterBackgroundTasks {
+			scheduleBackgroundFeedRefresh()
+			syncArticleStatus()
+		}
+		if capabilities.extensionsAreAvailable {
+			WidgetDataEncoder.shared?.encode()
+		}
 		waitForSyncTasksToFinish()
 	}
 
 	func prepareAccountsForForeground() {
 		updateBadge()
 #if !SKIP_APP_GROUP_ACCESS
-		if !Bundle.isNetNewsWireEmbeddedHost {
+		if capabilities.extensionsAreAvailable {
 			ExtensionFeedAddRequestFile.shared.resume()
 		}
 #endif
@@ -179,7 +248,7 @@ import Images
 	}
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-		completionHandler([.list, .banner, .badge, .sound])
+		completionHandler(capabilities.mayPresentUserNotifications ? [.list, .banner, .badge, .sound] : [])
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -193,6 +262,10 @@ import Images
 		let wrappedCompletionHandler = UnsafeSendable(value: completionHandler)
 
 		Task { @MainActor in
+			guard self.capabilities.mayHandleNotificationResponses else {
+				wrappedCompletionHandler.value()
+				return
+			}
 			let response = wrappedResponse.value
 			let userInfo = response.notification.request.content.userInfo
 
@@ -249,9 +322,14 @@ private extension AppDelegate {
 			self.updateBadge()
 		}
 
-		if !Bundle.isNetNewsWireEmbeddedHost {
+		if capabilities.mayRegisterBackgroundTasks {
 			registerBackgroundTasks()
+		}
+		if capabilities.mayInstallQuickActions {
 			initializeHomeScreenQuickActions()
+		}
+		if capabilities.mayPresentUserNotifications {
+			globalMutationSeams.didRequestNotificationAuthorization()
 			UNUserNotificationCenter.current().requestAuthorization(options: [.badge, .sound, .alert]) { granted, _ in
 				if granted {
 					DispatchQueue.main.async {
@@ -259,13 +337,20 @@ private extension AppDelegate {
 					}
 				}
 			}
+		}
+		if capabilities.mayPresentUserNotifications || capabilities.mayHandleNotificationResponses {
+			globalMutationSeams.didAssignNotificationDelegate(self)
 			UNUserNotificationCenter.current().delegate = self
+		}
+		if capabilities.mayHandleNotificationResponses {
 			UserNotificationManager.shared.start()
+		}
 #if !SKIP_APP_GROUP_ACCESS
+		if capabilities.extensionsAreAvailable {
 			ExtensionContainersFile.shared.start()
 			ExtensionFeedAddRequestFile.shared.start()
-#endif
 		}
+#endif
 
 		ArticleThemesManager.shared.start()
 		NetworkMonitor.shared.start()
@@ -276,25 +361,27 @@ private extension AppDelegate {
 	}
 
 	private func initializeDownloaders() {
-		let tempDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+		let tempDir = AppConfig.cacheFolder
 		let imagesFolderURL = tempDir.appendingPathComponent("Images")
 		try! FileManager.default.createDirectory(at: imagesFolderURL, withIntermediateDirectories: true, attributes: nil)
 	}
 
 	private func initializeHomeScreenQuickActions() {
-		let unreadTitle = NSLocalizedString("First Unread", comment: "First Unread")
+		let unreadTitle = NNWLocalizedString("First Unread", comment: "First Unread")
 		let unreadIcon = UIApplicationShortcutIcon(systemImageName: "chevron.down.circle")
 		let unreadItem = UIApplicationShortcutItem(type: "com.ranchero.NetNewsWire.FirstUnread", localizedTitle: unreadTitle, localizedSubtitle: nil, icon: unreadIcon, userInfo: nil)
 
-		let searchTitle = NSLocalizedString("Search", comment: "Search")
+		let searchTitle = NNWLocalizedString("Search", comment: "Search")
 		let searchIcon = UIApplicationShortcutIcon(systemImageName: "magnifyingglass")
 		let searchItem = UIApplicationShortcutItem(type: "com.ranchero.NetNewsWire.ShowSearch", localizedTitle: searchTitle, localizedSubtitle: nil, icon: searchIcon, userInfo: nil)
 
-		let addTitle = NSLocalizedString("Add Feed", comment: "Add Feed")
+		let addTitle = NNWLocalizedString("Add Feed", comment: "Add Feed")
 		let addIcon = UIApplicationShortcutIcon(systemImageName: "plus")
 		let addItem = UIApplicationShortcutItem(type: "com.ranchero.NetNewsWire.ShowAdd", localizedTitle: addTitle, localizedSubtitle: nil, icon: addIcon, userInfo: nil)
 
-		UIApplication.shared.shortcutItems = [addItem, searchItem, unreadItem]
+		let shortcutItems = [addItem, searchItem, unreadItem]
+		globalMutationSeams.didInstallQuickActions(shortcutItems.map(\.type))
+		UIApplication.shared.shortcutItems = shortcutItems
 	}
 
 }
@@ -330,7 +417,8 @@ private extension AppDelegate {
 			return
 		}
 
-		if AccountManager.shared.refreshInProgress || isSyncArticleStatusRunning || WidgetDataEncoder.shared?.isRunning ?? false {
+		let isWidgetEncoding = capabilities.extensionsAreAvailable && (WidgetDataEncoder.shared?.isRunning ?? false)
+		if AccountManager.shared.refreshInProgress || isSyncArticleStatusRunning || isWidgetEncoding {
 			Self.logger.info("Waiting for sync to finish…")
 			DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
 				self?.waitToComplete(completion: completion)
@@ -395,9 +483,11 @@ private extension AppDelegate {
 		AppNotification.postAppDidGoToBackground()
 
 		CoalescingQueue.standard.performCallsImmediately()
-		for scene in UIApplication.shared.connectedScenes {
-			if let sceneDelegate = scene.delegate as? SceneDelegate {
-				sceneDelegate.suspend()
+		if capabilities.mayUseStandaloneSceneDelegates {
+			for scene in UIApplication.shared.connectedScenes {
+				if let sceneDelegate = scene.delegate as? SceneDelegate {
+					sceneDelegate.suspend()
+				}
 			}
 		}
 
@@ -410,7 +500,8 @@ private extension AppDelegate {
 
 private extension AppDelegate {
 	/// Register all background tasks.
-	nonisolated func registerBackgroundTasks() {
+	func registerBackgroundTasks() {
+		globalMutationSeams.didRegisterBackgroundTasks()
 		// Register background feed refresh.
 		BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.ranchero.NetNewsWire.FeedRefresh", using: nil) { task in
 			self.performBackgroundFeedRefresh(with: task as! BGAppRefreshTask)
@@ -444,7 +535,9 @@ private extension AppDelegate {
 			}
 			await AccountManager.shared.refreshAll(errorHandler: ErrorHandler.log)
 			if !AccountManager.shared.isSuspended {
-				await WidgetDataEncoder.shared?.encodeAndWait()
+				if capabilities.extensionsAreAvailable {
+					await WidgetDataEncoder.shared?.encodeAndWait()
+				}
 				self.suspendApplication()
 				Self.logger.info("Background refresh completed.")
 				task.setTaskCompleted(success: true)

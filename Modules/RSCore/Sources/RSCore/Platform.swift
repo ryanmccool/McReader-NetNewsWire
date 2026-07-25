@@ -79,6 +79,12 @@ public struct Platform {
 private extension Platform {
 
 	static func dataFolder(forApplication appName: String?) -> URL? {
+		#if os(iOS)
+		if let dataFolder = NetNewsWireEnvironment.current?.dataDirectoryURL {
+			try? FileManager.default.createDirectory(at: dataFolder, withIntermediateDirectories: true, attributes: nil)
+			return dataFolder
+		}
+		#endif
 		var dataFolder: URL?
 
 		do {

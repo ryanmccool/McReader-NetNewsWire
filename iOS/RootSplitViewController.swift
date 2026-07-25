@@ -13,6 +13,11 @@ final class RootSplitViewController: UISplitViewController {
 
 	var coordinator: SceneCoordinator!
 
+	override func viewDidLoad() {
+		super.viewDidLoad()
+		view.accessibilityIdentifier = "netnewswire.root"
+	}
+
 	override var prefersStatusBarHidden: Bool {
 		return coordinator.prefersStatusBarHidden
 	}

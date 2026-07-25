@@ -36,7 +36,13 @@ struct Assets {
 		static let starOpen = RSImage(symbol: "star")!
 		static let starClosed = RSImage(symbol: "star.fill")!
 		static let copy = RSImage(symbol: "document.on.document")
-		static var markAllAsRead: RSImage { RSImage(named: "markAllAsRead")! }
+		static var markAllAsRead: RSImage {
+#if os(macOS)
+			RSImage(named: "markAllAsRead")!
+#else
+			image(named: "markAllAsRead")
+#endif
+		}
 		static let nextUnread = RSImage(symbol: "chevron.down.circle")!
 
 		nonisolated static var nnwFeedIcon: RSImage { image(named: "nnwFeedIcon") }

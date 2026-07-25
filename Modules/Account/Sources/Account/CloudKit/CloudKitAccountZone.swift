@@ -23,6 +23,7 @@ enum CloudKitAccountZoneError: LocalizedError {
 
 @MainActor final class CloudKitAccountZone: CloudKitZone {
 	var zoneID: CKRecordZone.ID
+	let userDefaults: UserDefaults
 
     weak var container: CKContainer?
     weak var database: CKDatabase?
@@ -48,10 +49,11 @@ enum CloudKitAccountZoneError: LocalizedError {
 		}
 	}
 
-	init(container: CKContainer) {
+	init(container: CKContainer?, userDefaults: UserDefaults) {
 		self.container = container
-		self.database = container.privateCloudDatabase
+		self.database = container?.privateCloudDatabase
 		self.zoneID = CKRecordZone.ID(zoneName: "Account", ownerName: CKCurrentUserDefaultName)
+		self.userDefaults = userDefaults
 	}
 
 	func importOPML(rootExternalID: String, items: [OPMLItem]) async throws {

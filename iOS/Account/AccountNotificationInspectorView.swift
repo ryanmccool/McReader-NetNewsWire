@@ -18,10 +18,20 @@ struct AccountNotificationInspectorView: View {
 	@State private var authorisationStatus: UNAuthorizationStatus = .notDetermined
 
 	var account: Account!
+	private var notificationsAreAvailable: Bool {
+		appDelegate.capabilities.mayPresentUserNotifications
+	}
 
 	var body: some View {
 		NavigationStack {
-			if authorisationStatus == .notDetermined || authorisationStatus == .denied {
+			if !notificationsAreAvailable {
+				ContentUnavailableView("Notifications Unavailable", systemImage: "bell.slash")
+					.toolbar {
+						ToolbarItem(placement: .topBarTrailing) {
+							closeButton
+						}
+					}
+			} else if authorisationStatus == .notDetermined || authorisationStatus == .denied {
 				VStack {
 					ContentUnavailableView("Notifications Disabled",
 										   systemImage: "bell.slash",
@@ -47,7 +57,11 @@ struct AccountNotificationInspectorView: View {
 				List(account.flattenedFeeds().sorted(by: { a, b in
 					a.nameForDisplay.localizedCaseInsensitiveCompare(b.nameForDisplay) == .orderedAscending
 				}), id: \.feedID) { feed in
-					Toggle(isOn: Binding(get: { feed.newArticleNotificationsEnabled }, set: { feed.newArticleNotificationsEnabled = $0 })) {
+					Toggle(isOn: Binding(get: { feed.newArticleNotificationsEnabled }, set: {
+						if notificationsAreAvailable {
+							feed.newArticleNotificationsEnabled = $0
+						}
+					})) {
 						HStack {
 							if let img = IconImageCache.shared.imageFor(feed.sidebarItemID!) {
 								IconImageView(icon: img)
@@ -76,10 +90,16 @@ struct AccountNotificationInspectorView: View {
 			}
 		}
 		.task {
+			guard notificationsAreAvailable else {
+				return
+			}
 			let settings = await UNUserNotificationCenter.current().notificationSettings()
 			self.authorisationStatus = settings.authorizationStatus
 		}
 		.onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification), perform: { _ in
+			guard notificationsAreAvailable else {
+				return
+			}
 			Task {
 				let settings = await UNUserNotificationCenter.current().notificationSettings()
 				self.authorisationStatus = settings.authorizationStatus

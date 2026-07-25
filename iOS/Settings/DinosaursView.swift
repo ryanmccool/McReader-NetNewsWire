@@ -141,7 +141,7 @@ struct DinosaursView: View {
 private extension DinosaursView {
 
 	var helpLinkFooter: some View {
-		Button(NSLocalizedString("Dinosaurs Help", comment: "Help link")) {
+		Button(NNWLocalizedString("Dinosaurs Help", comment: "Help link")) {
 			showHelp = true
 		}
 		.font(.subheadline)

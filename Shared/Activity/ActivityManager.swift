@@ -22,6 +22,7 @@ import Images
 	private var selectingActivity: NSUserActivity?
 	private var readingActivity: NSUserActivity?
 	private var readingArticle: Article?
+	private let mayDonateActivities: Bool
 
 	#if os(macOS)
 	var stateRestorationActivity: NSUserActivity {
@@ -34,6 +35,9 @@ import Images
 		}
 
 		let activity = NSUserActivity(activityType: ActivityType.restoration.rawValue)
+		guard mayDonateActivities else {
+			return activity
+		}
 		activity.persistentIdentifier = UUID().uuidString
 		activity.becomeCurrent()
 		return activity
@@ -44,23 +48,31 @@ import Images
 		// The reading/selecting activities are still maintained for Handoff, Spotlight, and Siri Shortcuts,
 		// but we don't use them for same-device state restoration anymore.
 		let activity = NSUserActivity(activityType: ActivityType.restoration.rawValue)
+		guard mayDonateActivities else {
+			return activity
+		}
 		activity.persistentIdentifier = UUID().uuidString
 		activity.becomeCurrent()
 		return activity
 	}
 	#endif
 
-	init() {
-		NotificationCenter.default.addObserver(self, selector: #selector(feedIconDidBecomeAvailable(_:)), name: .feedIconDidBecomeAvailable, object: nil)
+	init(mayDonateActivities: Bool = true) {
+		self.mayDonateActivities = mayDonateActivities
+		if mayDonateActivities {
+			NotificationCenter.default.addObserver(self, selector: #selector(feedIconDidBecomeAvailable(_:)), name: .feedIconDidBecomeAvailable, object: nil)
+		}
 	}
 
 	func invalidateCurrentActivities() {
+		guard mayDonateActivities else { return }
 		invalidateReading()
 		invalidateSelecting()
 		invalidateNextUnread()
 	}
 
 	func selecting(sidebarItem: SidebarItem) {
+		guard mayDonateActivities else { return }
 		invalidateCurrentActivities()
 
 		selectingActivity = makeSelectFeedActivity(sidebarItem: sidebarItem)
@@ -73,15 +85,17 @@ import Images
 	}
 
 	func invalidateSelecting() {
+		guard mayDonateActivities else { return }
 		selectingActivity?.invalidate()
 		selectingActivity = nil
 	}
 
 	func selectingNextUnread() {
+		guard mayDonateActivities else { return }
 		guard nextUnreadActivity == nil else { return }
 
 		nextUnreadActivity = NSUserActivity(activityType: ActivityType.nextUnread.rawValue)
-		nextUnreadActivity!.title = NSLocalizedString("See first unread article", comment: "First Unread")
+		nextUnreadActivity!.title = NNWLocalizedString("See first unread article", comment: "First Unread")
 
 		#if os(iOS)
 		nextUnreadActivity!.suggestedInvocationPhrase = nextUnreadActivity!.title
@@ -94,11 +108,13 @@ import Images
 	}
 
 	func invalidateNextUnread() {
+		guard mayDonateActivities else { return }
 		nextUnreadActivity?.invalidate()
 		nextUnreadActivity = nil
 	}
 
 	func reading(feed: SidebarItem?, article: Article?) {
+		guard mayDonateActivities else { return }
 		invalidateReading()
 		invalidateNextUnread()
 
@@ -113,13 +129,15 @@ import Images
 	}
 
 	func invalidateReading() {
+		guard mayDonateActivities else { return }
 		readingActivity?.invalidate()
 		readingActivity = nil
 		readingArticle = nil
 	}
 
 	#if os(iOS)
-	static func cleanUp(_ account: Account) {
+	static func cleanUp(_ account: Account, mayDonateActivities: Bool = true) {
+		guard mayDonateActivities else { return }
 		var ids = [String]()
 
 		if let folders = account.folders {
@@ -135,7 +153,8 @@ import Images
 		CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: ids)
 	}
 
-	static func cleanUp(_ folder: Folder) {
+	static func cleanUp(_ folder: Folder, mayDonateActivities: Bool = true) {
+		guard mayDonateActivities else { return }
 		var ids = [String]()
 		ids.append(identifier(for: folder))
 
@@ -146,12 +165,14 @@ import Images
 		CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: ids)
 	}
 
-	static func cleanUp(_ feed: Feed) {
+	static func cleanUp(_ feed: Feed, mayDonateActivities: Bool = true) {
+		guard mayDonateActivities else { return }
 		CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: identifiers(for: feed))
 	}
 	#endif
 
 	@objc func feedIconDidBecomeAvailable(_ note: Notification) {
+		guard mayDonateActivities else { return }
 		guard let feed = note.userInfo?[UserInfoKey.feed] as? Feed, let activityFeedId = selectingActivity?.userInfo?[ArticlePathKey.feedID] as? String else {
 			return
 		}
@@ -176,7 +197,7 @@ import Images
 	func makeSelectFeedActivity(sidebarItem: SidebarItem) -> NSUserActivity {
 		let activity = NSUserActivity(activityType: ActivityType.selectFeed.rawValue)
 
-		let localizedText = NSLocalizedString("See articles in  “%@”", comment: "See articles in Folder")
+		let localizedText = NNWLocalizedString("See articles in  “%@”", comment: "See articles in Folder")
 		let title = NSString.localizedStringWithFormat(localizedText as NSString, sidebarItem.nameForDisplay) as String
 		activity.title = title
 
@@ -273,6 +294,7 @@ import Images
 	}
 
 	func donate(_ activity: NSUserActivity) {
+		guard mayDonateActivities else { return }
 		// You have to put the search item in the index or the activity won't index
 		// itself because the relatedUniqueIdentifier on the activity attributeset is populated.
 		if let attributeSet = activity.contentAttributeSet {

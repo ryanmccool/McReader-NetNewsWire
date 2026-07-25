@@ -1,18 +1,27 @@
 import Foundation
 
+enum NetNewsWireBundleResolution {
+	static func resourceBundle(environment: NetNewsWireEnvironmentValues?) throws -> Bundle {
+		guard let environment else {
+			throw NetNewsWireEnvironmentError.notConfigured
+		}
+		return environment.resourceBundle
+	}
+}
+
 public extension Bundle {
 	static var netNewsWire: Bundle {
-		if let frameworkBundle = Bundle.allFrameworks.first(where: { $0.bundleURL.lastPathComponent == "NetNewsWireFeature.framework" }) {
-			return frameworkBundle
+		guard let resourceBundle = try? NetNewsWireBundleResolution.resourceBundle(environment: NetNewsWireEnvironment.current) else {
+			preconditionFailure("NetNewsWireEnvironment must be configured before resolving resources.")
 		}
-		if Bundle.main.url(forResource: "Main", withExtension: "storyboardc") != nil,
-		   Bundle.main.url(forResource: "ContentRules", withExtension: "json") != nil {
-			return Bundle.main
-		}
-		return Bundle.main
+		return resourceBundle
 	}
 
 	static var isNetNewsWireEmbeddedHost: Bool {
 		Bundle.main.bundleURL != Bundle.netNewsWire.bundleURL
 	}
+}
+
+public func NNWLocalizedString(_ key: String, comment: String) -> String {
+	Bundle.netNewsWire.localizedString(forKey: key, value: nil, table: nil)
 }

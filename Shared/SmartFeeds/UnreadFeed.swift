@@ -31,7 +31,7 @@ import Images
 		return SidebarItemIdentifier.smartFeed(String(describing: UnreadFeed.self))
 	}
 
-	let nameForDisplay = NSLocalizedString("All Unread", comment: "All Unread pseudo-feed title")
+	let nameForDisplay = NNWLocalizedString("All Unread", comment: "All Unread pseudo-feed title")
 	let fetchType = FetchType.unread(nil)
 
 	var unreadCount = 0 {

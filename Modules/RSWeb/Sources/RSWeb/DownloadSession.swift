@@ -484,10 +484,10 @@ private extension DownloadSession {
 	static private let lastOpenRSSOrgFeedRefreshKey = "lastOpenRSSOrgFeedRefresh"
 	static private var lastOpenRSSOrgFeedRefresh: Date {
 		get {
-			UserDefaults.standard.value(forKey: lastOpenRSSOrgFeedRefreshKey) as? Date ?? Date.distantPast
+			AppConfig.defaults.value(forKey: lastOpenRSSOrgFeedRefreshKey) as? Date ?? Date.distantPast
 		}
 		set {
-			UserDefaults.standard.setValue(newValue, forKey: lastOpenRSSOrgFeedRefreshKey)
+			AppConfig.defaults.setValue(newValue, forKey: lastOpenRSSOrgFeedRefreshKey)
 		}
 	}
 

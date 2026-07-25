@@ -1,33 +1,111 @@
 import UIKit
 
 @MainActor
-public final class NetNewsWireFeatureHost {
-	private let appDelegate: AppDelegate
-	public let viewController: UIViewController
-	private let rootSplitViewController: RootSplitViewController
+public protocol NetNewsWireFeatureHosting: AnyObject {
+	var viewController: UIViewController { get }
+	func sceneWillEnterForeground()
+	func sceneDidEnterBackground()
+	func suspend()
+}
 
-	public init() {
-		appDelegate = AppDelegate.bootstrapEmbeddedIfNeeded()
+@MainActor
+final class NetNewsWireFeatureApplicationLifecycle {
+	private let resumeIfNecessary: () -> Void
+	private let prepareAccountsForForeground: () -> Void
+	private let prepareAccountsForBackground: () -> Void
+	private let didReceiveMemoryWarningCallback: () -> Void
+
+	init(
+		resumeIfNecessary: @escaping () -> Void,
+		prepareAccountsForForeground: @escaping () -> Void,
+		prepareAccountsForBackground: @escaping () -> Void,
+		didReceiveMemoryWarning: @escaping () -> Void
+	) {
+		self.resumeIfNecessary = resumeIfNecessary
+		self.prepareAccountsForForeground = prepareAccountsForForeground
+		self.prepareAccountsForBackground = prepareAccountsForBackground
+		self.didReceiveMemoryWarningCallback = didReceiveMemoryWarning
+	}
+
+	func applicationWillEnterForeground() {
+		resumeIfNecessary()
+		prepareAccountsForForeground()
+	}
+
+	func applicationDidEnterBackground() {
+		prepareAccountsForBackground()
+	}
+
+	func didReceiveMemoryWarning() {
+		didReceiveMemoryWarningCallback()
+	}
+}
+
+@MainActor
+final class NetNewsWireFeatureSceneLifecycle {
+	private let resetFocus: () -> Void
+	private let didEnterBackground: () -> Void
+	private let suspendCallback: () -> Void
+
+	init(
+		resetFocus: @escaping () -> Void,
+		didEnterBackground: @escaping () -> Void,
+		suspend: @escaping () -> Void
+	) {
+		self.resetFocus = resetFocus
+		self.didEnterBackground = didEnterBackground
+		self.suspendCallback = suspend
+	}
+
+	func sceneWillEnterForeground() {
+		resetFocus()
+	}
+
+	func sceneDidEnterBackground() {
+		didEnterBackground()
+	}
+
+	func suspend() {
+		suspendCallback()
+	}
+}
+
+@MainActor
+public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
+	public let viewController: UIViewController
+	private let lifecycle: NetNewsWireFeatureSceneLifecycle
+
+	internal init(
+		capabilities: NetNewsWireFeatureCapabilities,
+		globalMutationSeams: NetNewsWireHostGlobalMutationSeams
+	) throws {
+		_ = AppDelegate.bootstrapEmbeddedIfNeeded(capabilities: capabilities, globalMutationSeams: globalMutationSeams)
 		let storyboard = UIStoryboard.main
-		let rootSplitViewController = storyboard.instantiateViewController(withIdentifier: "RootSplitViewController") as! RootSplitViewController
-		self.rootSplitViewController = rootSplitViewController
+		guard let rootSplitViewController = storyboard.instantiateViewController(withIdentifier: "RootSplitViewController") as? RootSplitViewController else {
+			throw NetNewsWireFeatureConfigurationError.missingRootController
+		}
 		self.viewController = rootSplitViewController
-		NetNewsWireSceneSetup.configure(rootSplitViewController: rootSplitViewController, stateRestorationActivity: nil)
+		self.lifecycle = NetNewsWireFeatureSceneLifecycle(
+			resetFocus: { rootSplitViewController.coordinator.resetFocus() },
+			didEnterBackground: { rootSplitViewController.coordinator.didEnterBackground() },
+			suspend: { rootSplitViewController.coordinator.suspend() }
+		)
+		NetNewsWireSceneSetup.configure(
+			rootSplitViewController: rootSplitViewController,
+			stateRestorationActivity: nil,
+			capabilities: capabilities
+		)
 	}
 
 	public func sceneWillEnterForeground() {
-		appDelegate.resumeIfNecessary()
-		appDelegate.prepareAccountsForForeground()
-		rootSplitViewController.coordinator.resetFocus()
+		lifecycle.sceneWillEnterForeground()
 	}
 
 	public func sceneDidEnterBackground() {
-		rootSplitViewController.coordinator.didEnterBackground()
-		appDelegate.prepareAccountsForBackground()
-		rootSplitViewController.coordinator.suspend()
+		lifecycle.sceneDidEnterBackground()
 	}
 
-	public func didReceiveMemoryWarning() {
-		appDelegate.applicationDidReceiveMemoryWarning(UIApplication.shared)
+	public func suspend() {
+		lifecycle.suspend()
 	}
 }

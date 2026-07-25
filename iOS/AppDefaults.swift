@@ -11,6 +11,7 @@ import os
 import Account
 import Articles
 import Images
+import RSCore
 
 enum UserInterfaceColorPalette: Int, CustomStringConvertible, CaseIterable {
 	case automatic = 0
@@ -20,11 +21,11 @@ enum UserInterfaceColorPalette: Int, CustomStringConvertible, CaseIterable {
 	var description: String {
 		switch self {
 		case .automatic:
-			return NSLocalizedString("Automatic", comment: "Automatic")
+			return NNWLocalizedString("Automatic", comment: "Automatic")
 		case .light:
-			return NSLocalizedString("Light", comment: "Light")
+			return NNWLocalizedString("Light", comment: "Light")
 		case .dark:
-			return NSLocalizedString("Dark", comment: "Dark")
+			return NNWLocalizedString("Dark", comment: "Dark")
 		}
 	}
 }
@@ -43,13 +44,19 @@ final class AppDefaults: Sendable {
 	private init() {}
 
 	nonisolated(unsafe) static let store: UserDefaults = {
-		if Bundle.isNetNewsWireEmbeddedHost {
-			return UserDefaults(suiteName: "com.ranchero.NetNewsWire.embedded") ?? .standard
+		let environment = NetNewsWireEnvironment.current
+		if let environment, environment.mode == .embedded {
+			return store(for: environment, standaloneSuiteName: "")
 		}
 		let appIdentifierPrefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as! String
 		let suiteName = "\(appIdentifierPrefix)group.\(Bundle.main.bundleIdentifier!)"
-		return UserDefaults.init(suiteName: suiteName)!
+		return store(for: environment, standaloneSuiteName: suiteName)
 	}()
+
+	static func store(for environment: NetNewsWireEnvironmentValues?, standaloneSuiteName: String) -> UserDefaults {
+		let suiteName = environment?.mode == .embedded ? environment!.userDefaultsSuiteName : standaloneSuiteName
+		return UserDefaults(suiteName: suiteName)!
+	}
 
 	struct Key {
 		static let userInterfaceColorPalette = "userInterfaceColorPalette"
@@ -140,10 +147,10 @@ final class AppDefaults: Sendable {
 
 	var useSystemBrowser: Bool {
 		get {
-			return UserDefaults.standard.bool(forKey: Key.useSystemBrowser)
+			return AppConfig.defaults.bool(forKey: Key.useSystemBrowser)
 		}
 		set {
-			UserDefaults.standard.setValue(newValue, forKey: Key.useSystemBrowser)
+			AppConfig.defaults.setValue(newValue, forKey: Key.useSystemBrowser)
 		}
 	}
 
@@ -273,34 +280,34 @@ final class AppDefaults: Sendable {
 
 	var hideReadFeeds: Bool {
 		get {
-			UserDefaults.standard.bool(forKey: Key.hideReadFeeds)
+			AppConfig.defaults.bool(forKey: Key.hideReadFeeds)
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: Key.hideReadFeeds)
+			AppConfig.defaults.set(newValue, forKey: Key.hideReadFeeds)
 		}
 	}
 
 	var isShowingExtractedArticle: Bool {
 		get {
-			UserDefaults.standard.bool(forKey: Key.isShowingExtractedArticle)
+			AppConfig.defaults.bool(forKey: Key.isShowingExtractedArticle)
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: Key.isShowingExtractedArticle)
+			AppConfig.defaults.set(newValue, forKey: Key.isShowingExtractedArticle)
 		}
 	}
 
 	var articleWindowScrollY: Int {
 		get {
-			UserDefaults.standard.integer(forKey: Key.articleWindowScrollY)
+			AppConfig.defaults.integer(forKey: Key.articleWindowScrollY)
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: Key.articleWindowScrollY)
+			AppConfig.defaults.set(newValue, forKey: Key.articleWindowScrollY)
 		}
 	}
 
 	var expandedContainers: Set<ContainerIdentifier> {
 		get {
-			guard let rawIdentifiers = UserDefaults.standard.array(forKey: Key.expandedContainers) as? [[String: String]] else {
+			guard let rawIdentifiers = AppConfig.defaults.array(forKey: Key.expandedContainers) as? [[String: String]] else {
 				return Set<ContainerIdentifier>()
 			}
 			let containerIdentifiers = rawIdentifiers.compactMap { ContainerIdentifier(userInfo: $0) }
@@ -309,85 +316,85 @@ final class AppDefaults: Sendable {
 		set {
 			Self.logger.debug("AppDefaults: set expandedContainers: \(newValue)")
 			let containerIdentifierUserInfos = newValue.compactMap { $0.userInfo }
-			UserDefaults.standard.set(containerIdentifierUserInfos, forKey: Key.expandedContainers)
+			AppConfig.defaults.set(containerIdentifierUserInfos, forKey: Key.expandedContainers)
 		}
 	}
 
 	var smartFeedsHidingReadArticles: Set<String> {
 		get {
-			let smartFeedIDs = UserDefaults.standard.array(forKey: Key.smartFeedsHidingReadArticles) as? [String] ?? []
+			let smartFeedIDs = AppConfig.defaults.array(forKey: Key.smartFeedsHidingReadArticles) as? [String] ?? []
 			return Set(smartFeedIDs)
 		}
 		set {
 			let array = Array(newValue)
-			UserDefaults.standard.set(array, forKey: Key.smartFeedsHidingReadArticles)
+			AppConfig.defaults.set(array, forKey: Key.smartFeedsHidingReadArticles)
 		}
 	}
 
 	var feedsHidingReadArticles: [String: Set<String>] { // Account id: Set<feed.feedID>
 		get {
-			guard let d = UserDefaults.standard.dictionary(forKey: Key.feedsHidingReadArticles) as? [String: [String]] else {
+			guard let d = AppConfig.defaults.dictionary(forKey: Key.feedsHidingReadArticles) as? [String: [String]] else {
 				return [String: Set<String>]()
 			}
 			return d.mapValues { Set($0) }
 		}
 		set {
 			let d = newValue.mapValues { Array($0) }
-			UserDefaults.standard.set(d, forKey: Key.feedsHidingReadArticles)
+			AppConfig.defaults.set(d, forKey: Key.feedsHidingReadArticles)
 		}
 	}
 
 	var foldersShowingReadArticles: [String: Set<String>] { // Account id: Set<folder.nameForDisplay>
 		get {
-			guard let d = UserDefaults.standard.dictionary(forKey: Key.foldersShowingReadArticles) as? [String: [String]] else {
+			guard let d = AppConfig.defaults.dictionary(forKey: Key.foldersShowingReadArticles) as? [String: [String]] else {
 				return [String: Set<String>]()
 			}
 			return d.mapValues { Set($0) }
 		}
 		set {
 			let d = newValue.mapValues { Array($0) }
-			UserDefaults.standard.set(d, forKey: Key.foldersShowingReadArticles)
+			AppConfig.defaults.set(d, forKey: Key.foldersShowingReadArticles)
 		}
 	}
 
 	var selectedSidebarItem: SidebarItemIdentifier? {
 		get {
-			guard let userInfo = UserDefaults.standard.dictionary(forKey: Key.selectedSidebarItem) as? [String: String] else {
+			guard let userInfo = AppConfig.defaults.dictionary(forKey: Key.selectedSidebarItem) as? [String: String] else {
 				return nil
 			}
 			return SidebarItemIdentifier(userInfo: userInfo)
 		}
 		set {
 			guard let newValue else {
-				UserDefaults.standard.removeObject(forKey: Key.selectedSidebarItem)
+				AppConfig.defaults.removeObject(forKey: Key.selectedSidebarItem)
 				return
 			}
-			UserDefaults.standard.set(newValue.userInfo, forKey: Key.selectedSidebarItem)
+			AppConfig.defaults.set(newValue.userInfo, forKey: Key.selectedSidebarItem)
 		}
 	}
 
 	var selectedArticle: ArticleSpecifier? {
 		get {
-			guard let d = UserDefaults.standard.dictionary(forKey: Key.selectedArticle) as? [String: String] else {
+			guard let d = AppConfig.defaults.dictionary(forKey: Key.selectedArticle) as? [String: String] else {
 				return nil
 			}
 			return ArticleSpecifier(dictionary: d)
 		}
 		set {
 			guard let newValue else {
-				UserDefaults.standard.removeObject(forKey: Key.selectedArticle)
+				AppConfig.defaults.removeObject(forKey: Key.selectedArticle)
 				return
 			}
-			UserDefaults.standard.set(newValue.dictionary, forKey: Key.selectedArticle)
+			AppConfig.defaults.set(newValue.dictionary, forKey: Key.selectedArticle)
 		}
 	}
 
 	var didMigrateLegacyStateRestorationInfo: Bool {
 		get {
-			UserDefaults.standard.bool(forKey: Key.didMigrateLegacyStateRestorationInfo)
+			AppConfig.defaults.bool(forKey: Key.didMigrateLegacyStateRestorationInfo)
 		}
 		set {
-			UserDefaults.standard.set(newValue, forKey: Key.didMigrateLegacyStateRestorationInfo)
+			AppConfig.defaults.set(newValue, forKey: Key.didMigrateLegacyStateRestorationInfo)
 		}
 	}
 
@@ -420,11 +427,11 @@ private extension AppDefaults {
 	}
 
 	static func string(for key: String) -> String? {
-		return UserDefaults.standard.string(forKey: key)
+		return AppConfig.defaults.string(forKey: key)
 	}
 
 	static func setString(for key: String, _ value: String?) {
-		UserDefaults.standard.set(value, forKey: key)
+		AppConfig.defaults.set(value, forKey: key)
 	}
 
 	static func bool(for key: String) -> Bool {

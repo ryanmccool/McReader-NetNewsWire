@@ -9,10 +9,11 @@
 import UIKit
 import Articles
 import Images
+import RSCore
 
 @MainActor struct MainTimelineCellData {
 
-	private static let noText = NSLocalizedString("(No Text)", comment: "No Text")
+	private static let noText = NNWLocalizedString("(No Text)", comment: "No Text")
 
 	let accountID: String
 	let articleID: String

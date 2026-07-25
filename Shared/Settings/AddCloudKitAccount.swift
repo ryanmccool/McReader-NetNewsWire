@@ -19,22 +19,22 @@ enum AddCloudKitAccountError: LocalizedError, RecoverableError, Sendable {
 	case iCloudDriveMissing
 
 	var errorDescription: String? {
-		NSLocalizedString("Can’t Add iCloud Account", comment: "CloudKit account setup failure description — iCloud Drive not enabled.")
+		NNWLocalizedString("Can’t Add iCloud Account", comment: "CloudKit account setup failure description — iCloud Drive not enabled.")
 	}
 
 	var recoverySuggestion: String? {
 		#if os(macOS)
-		NSLocalizedString("Open System Settings to configure iCloud and enable iCloud Drive.", comment: "CloudKit account setup recovery suggestion")
+		NNWLocalizedString("Open System Settings to configure iCloud and enable iCloud Drive.", comment: "CloudKit account setup recovery suggestion")
 		#else
-		NSLocalizedString("Open Settings to configure iCloud and enable iCloud Drive.", comment: "CloudKit account setup recovery suggestion")
+		NNWLocalizedString("Open Settings to configure iCloud and enable iCloud Drive.", comment: "CloudKit account setup recovery suggestion")
 		#endif
 	}
 
 	var recoveryOptions: [String] {
 		#if os(macOS)
-		[NSLocalizedString("Open System Settings", comment: "Open System Settings button"), NSLocalizedString("Cancel", comment: "Cancel button")]
+		[NNWLocalizedString("Open System Settings", comment: "Open System Settings button"), NNWLocalizedString("Cancel", comment: "Cancel button")]
 		#else
-		[NSLocalizedString("Open Settings", comment: "Open Settings button"), NSLocalizedString("Cancel", comment: "Cancel button")]
+		[NNWLocalizedString("Open Settings", comment: "Open Settings button"), NNWLocalizedString("Cancel", comment: "Cancel button")]
 		#endif
 	}
 

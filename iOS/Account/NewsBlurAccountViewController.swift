@@ -33,12 +33,12 @@ final class NewsBlurAccountViewController: UITableViewController {
 		passwordTextField.delegate = self
 
 		if let account = account, let credentials = try? account.retrieveCredentials(type: .newsBlurBasic) {
-			actionButton.setTitle(NSLocalizedString("Update Credentials", comment: "Update Credentials"), for: .normal)
+			actionButton.setTitle(NNWLocalizedString("Update Credentials", comment: "Update Credentials"), for: .normal)
 			actionButton.isEnabled = true
 			usernameTextField.text = credentials.username
 			passwordTextField.text = credentials.secret
 		} else {
-			actionButton.setTitle(NSLocalizedString("Add Account", comment: "Add Account"), for: .normal)
+			actionButton.setTitle(NNWLocalizedString("Add Account", comment: "Add Account"), for: .normal)
 		}
 
 		NotificationCenter.default.addObserver(self, selector: #selector(textDidChange(_:)), name: UITextField.textDidChangeNotification, object: usernameTextField)
@@ -48,7 +48,7 @@ final class NewsBlurAccountViewController: UITableViewController {
 	}
 
 	private func setupFooter() {
-		footerLabel.text = NSLocalizedString("Sign in to your NewsBlur account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have a NewsBlur account?", comment: "NewsBlur")
+		footerLabel.text = NNWLocalizedString("Sign in to your NewsBlur account and sync your feeds across your devices. Your username and password will be encrypted and stored in Keychain.\n\nDon’t have a NewsBlur account?", comment: "NewsBlur")
 	}
 
 	override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
@@ -82,7 +82,7 @@ final class NewsBlurAccountViewController: UITableViewController {
 	@IBAction func action(_ sender: Any) {
 
 		guard let username = usernameTextField.text else {
-			showError(NSLocalizedString("Username required.", comment: "Credentials Error"))
+			showError(NNWLocalizedString("Username required.", comment: "Credentials Error"))
 			return
 		}
 
@@ -90,7 +90,7 @@ final class NewsBlurAccountViewController: UITableViewController {
 		let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
 
 		guard account != nil || !AccountManager.shared.duplicateServiceAccount(type: .newsBlur, username: trimmedUsername) else {
-			showError(NSLocalizedString("There is already a NewsBlur account with that username created.", comment: "Duplicate Error"))
+			showError(NNWLocalizedString("There is already a NewsBlur account with that username created.", comment: "Duplicate Error"))
 			return
 		}
 
@@ -124,10 +124,10 @@ final class NewsBlurAccountViewController: UITableViewController {
 						dismiss(animated: true, completion: nil)
 						delegate?.dismiss()
 					} catch {
-						showError(NSLocalizedString("Keychain error while storing credentials.", comment: "Credentials Error"))
+						showError(NNWLocalizedString("Keychain error while storing credentials.", comment: "Credentials Error"))
 					}
 				} else {
-					showError(NSLocalizedString("Invalid username/password combination.", comment: "Credentials Error"))
+					showError(NNWLocalizedString("Invalid username/password combination.", comment: "Credentials Error"))
 				}
 			} catch {
 				stopAnimation()

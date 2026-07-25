@@ -19,7 +19,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@ of %2$@"
           }
         }
@@ -30,7 +30,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$d of %2$d"
           }
         }
@@ -528,7 +528,7 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "Install theme “%1$@” by %2$@?"
           }
         }

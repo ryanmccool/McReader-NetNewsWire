@@ -8,6 +8,7 @@
 
 import UIKit
 import Images
+import RSCore
 
 @MainActor protocol MainFeedCollectionViewFolderCellDelegate: AnyObject {
 	func mainFeedCollectionFolderViewCellDisclosureDidToggle(_ sender: MainFeedCollectionViewFolderCell, expanding: Bool)
@@ -103,7 +104,7 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 		get {
 			let name = folderTitle.text ?? ""
 			if unreadCount > 0 {
-				let unreadLabel = NSLocalizedString("unread", comment: "Unread label for accessibility")
+				let unreadLabel = NNWLocalizedString("unread", comment: "Unread label for accessibility")
 				return "\(name) \(unreadCount) \(unreadLabel) \(expandedStateMessage)"
 			} else {
 				return "\(name) \(expandedStateMessage)"
@@ -114,18 +115,18 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 
 	private var expandedStateMessage: String {
 		if disclosureExpanded {
-			return NSLocalizedString("Expanded", comment: "Expanded")
+			return NNWLocalizedString("Expanded", comment: "Expanded")
 		}
-		return NSLocalizedString("Collapsed", comment: "Collapsed")
+		return NNWLocalizedString("Collapsed", comment: "Collapsed")
 	}
 
 	override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
 		get {
 			let name: String
 			if disclosureExpanded {
-				name = NSLocalizedString("Collapse", comment: "Collapse")
+				name = NNWLocalizedString("Collapse", comment: "Collapse")
 			} else {
-				name = NSLocalizedString("Expand", comment: "Expand")
+				name = NNWLocalizedString("Expand", comment: "Expand")
 			}
 			let toggleAction = UIAccessibilityCustomAction(name: name) { [weak self] _ in
 				self?.toggleDisclosure()
