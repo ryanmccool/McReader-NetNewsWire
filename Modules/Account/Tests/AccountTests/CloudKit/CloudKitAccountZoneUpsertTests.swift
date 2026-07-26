@@ -80,6 +80,50 @@ import CloudKitSync
 		XCTAssertTrue(result.isUnchanged)
 	}
 
+	func testImportReportsConfirmedResultsWhenLaterFeedFails() async {
+		let plan = CloudKitOPMLImportPlan(
+			feeds: [
+				PlannedCloudKitFeed(
+					urlString: "https://example.com/first",
+					editedName: nil,
+					homePageURL: nil,
+					isTopLevel: true,
+					folderNames: []
+				),
+				PlannedCloudKitFeed(
+					urlString: "https://example.com/second",
+					editedName: nil,
+					homePageURL: nil,
+					isTopLevel: true,
+					folderNames: []
+				)
+			],
+			rejectedCount: 1
+		)
+		var upsertCount = 0
+
+		do {
+			_ = try await CloudKitAccountZone.importFeeds(
+				rootExternalID: "root",
+				plan: plan,
+				folders: [:]
+			) { _, _, _, _, _ in
+				upsertCount += 1
+				guard upsertCount == 1 else {
+					throw TestError.expected
+				}
+				return CloudKitFeedUpsertResult(wasAdded: true, metadataChanged: false, placementChanged: false)
+			}
+			XCTFail("Expected the second feed to fail")
+		} catch let error as OPMLImportPartialFailure {
+			XCTAssertEqual(error.result.added, 1)
+			XCTAssertEqual(error.result.rejected, 1)
+			XCTAssertTrue(error.underlyingError is TestError)
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
 	func testConflictRefetchesOnceAndReappliesImportFields() async throws {
 		let first = feedRecord(urlString: "https://example.com/feed")
 		first[CloudKitAccountZone.CloudKitFeed.Fields.name] = "First Name"
@@ -174,4 +218,8 @@ import CloudKitSync
 		record[CloudKitAccountZone.CloudKitContainer.Fields.isAccount] = isAccount ? "1" : "0"
 		return record
 	}
+}
+
+private enum TestError: Error {
+	case expected
 }

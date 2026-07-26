@@ -27,6 +27,7 @@ import ActivityLog
 
 	private let accountsFolder: String
     private var accountsDictionary = [String: Account]()
+	private let cloudKitMutationGate = CloudKitAccountMutationGate()
 
 	private let defaultAccountFolderName = "OnMyMac"
 	private let defaultAccountIdentifier = "OnMyMac"
@@ -127,16 +128,17 @@ import ActivityLog
 	}
 
 	public var cloudKitMutationInProgress: Bool {
-		guard let delegate = iCloudAccount?.delegate as? CloudKitAccountDelegate else {
-			return false
-		}
-		return delegate.mutationInProgress
+		cloudKitMutationGate.activeKind != nil
+	}
+
+	public var cloudKitResetIsAvailable: Bool {
+		CloudKitAccountContainerConfiguration.resetIsAvailable
 	}
 
 	public var cloudKitResetCanRun: Bool {
 		let phase = CloudKitAccountResetCoordinator.persistedPhase(in: AppConfig.defaults)
 		let cloudKitRefreshInProgress = iCloudAccount?.refreshInProgress ?? false
-		return (hasiCloudAccount || phase != .idle) && !cloudKitMutationInProgress && !cloudKitRefreshInProgress
+		return cloudKitResetIsAvailable && (hasiCloudAccount || phase != .idle) && !cloudKitMutationInProgress && !cloudKitRefreshInProgress
 	}
 
 	private var isActive = false
@@ -192,7 +194,17 @@ import ActivityLog
 	// MARK: - API
 
 	public func createAccount(type: AccountType) -> Account {
-		createAccount(type: type, cloudKitMutationGate: nil)
+		createAccount(
+			type: type,
+			cloudKitMutationGate: Self.cloudKitMutationGate(for: type, managerGate: cloudKitMutationGate)
+		)
+	}
+
+	static func cloudKitMutationGate(
+		for type: AccountType,
+		managerGate: CloudKitAccountMutationGate
+	) -> CloudKitAccountMutationGate? {
+		type == .cloudKit ? managerGate : nil
 	}
 
 	private func createAccount(
@@ -232,13 +244,12 @@ import ActivityLog
 
 	public func resetCloudKitAccount() async throws {
 		let phase = CloudKitAccountResetCoordinator.persistedPhase(in: AppConfig.defaults)
-		guard iCloudAccount != nil || phase != .idle else {
+		guard cloudKitResetIsAvailable, iCloudAccount != nil || phase != .idle else {
 			throw AccountError.invalidParameter
 		}
 
 		let deletingDelegate = iCloudAccount?.delegate as? CloudKitAccountDelegate
-		let mutationGate = deletingDelegate?.mutationGateForReset ?? CloudKitAccountMutationGate()
-		try await mutationGate.withMutation(kind: .reset) {
+		try await cloudKitMutationGate.withMutation(kind: .reset) {
 			let accountBeingDeleted = self.iCloudAccount
 			accountBeingDeleted?.suspendNetwork()
 
@@ -257,7 +268,7 @@ import ActivityLog
 				},
 				recreateAccount: {
 					if self.iCloudAccount == nil {
-						_ = self.createAccount(type: .cloudKit, cloudKitMutationGate: mutationGate)
+						_ = self.createAccount(type: .cloudKit)
 					}
 				},
 				initializeCloud: {
@@ -719,7 +730,15 @@ private extension AccountManager {
 	}
 
 	func loadAccount(_ accountSpecifier: AccountSpecifier) -> Account? {
-		Account(dataFolder: accountSpecifier.folderPath, type: accountSpecifier.type, accountID: accountSpecifier.identifier)
+		Account(
+			dataFolder: accountSpecifier.folderPath,
+			type: accountSpecifier.type,
+			accountID: accountSpecifier.identifier,
+			cloudKitMutationGate: Self.cloudKitMutationGate(
+				for: accountSpecifier.type,
+				managerGate: cloudKitMutationGate
+			)
+		)
 	}
 
 	func loadAccount(_ filename: String) -> Account? {
