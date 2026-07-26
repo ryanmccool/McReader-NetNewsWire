@@ -3,6 +3,7 @@ import CloudKit
 import XCTest
 @testable import Account
 @testable import NetNewsWireFeature
+import RSCore
 
 @MainActor
 final class NetNewsWireFeatureCloudKitTests: XCTestCase {
@@ -216,6 +217,23 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		XCTAssertEqual(snapshot.changedRecords.map(\.recordID), [changedRecord.recordID])
 		XCTAssertEqual(snapshot.deletedRecordKeys.map(\.recordID), [deletedRecordID])
 		XCTAssertTrue(snapshot.moreComing)
+	}
+
+	func testReceiveStatusOperationRetainsRefreshFailure() async throws {
+		let userDefaults = try XCTUnwrap(UserDefaults(suiteName: "NetNewsWireFeatureCloudKitTests.receiveFailure"))
+		let zone = CloudKitArticlesZone(container: nil, userDefaults: userDefaults, syncArticleContentForUnreadArticles: { false })
+		let operation = CloudKitReceiveStatusOperation(articlesZone: zone, accountID: "test", accountDisplayName: "Test")
+		let queue = MainThreadOperationQueue()
+		let completion = expectation(description: "Receive status operation completes")
+		operation.completionBlock = { _ in completion.fulfill() }
+
+		queue.add(operation)
+		await fulfillment(of: [completion], timeout: 2)
+
+		guard let receiveError = operation.receiveError as? CloudKitZoneError,
+				case .databaseUnavailable = receiveError else {
+			return XCTFail("Expected databaseUnavailable, got \(String(describing: operation.receiveError))")
+		}
 	}
 
 	private func makeConfiguration() throws -> NetNewsWireFeatureConfiguration {

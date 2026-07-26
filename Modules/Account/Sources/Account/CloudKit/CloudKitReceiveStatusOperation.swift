@@ -17,6 +17,7 @@ final class CloudKitReceiveStatusOperation: MainThreadOperation, @unchecked Send
 	private let accountID: String
 	private let accountDisplayName: String
 	private static let logger = cloudKitLogger
+	private(set) var receiveError: Error?
 
 	init(articlesZone: CloudKitArticlesZone, accountID: String, accountDisplayName: String) {
 		self.articlesZone = articlesZone
@@ -47,6 +48,7 @@ final class CloudKitReceiveStatusOperation: MainThreadOperation, @unchecked Send
 				Self.logger.debug("iCloud: Finished refreshing article statuses")
 				activityLog.didComplete(id: activityID, message: cloudKitSyncMessage(changed: totals.changed, deleted: totals.deleted))
 			} catch {
+				receiveError = error
 				Self.logger.error("iCloud: Receive status error: \(error.localizedDescription)")
 				activityLog.didFail(id: activityID, error: error)
 			}
