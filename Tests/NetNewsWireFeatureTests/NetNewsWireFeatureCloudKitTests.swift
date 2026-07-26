@@ -220,9 +220,32 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 	func testSettingsCloudKitResetWarningNamesAllDeletedDataAndOldBuildRisk() {
 		let message = SettingsViewController.cloudKitResetWarningMessage()
 
-		for expectedText in ["subscriptions", "folders", "articles", "read/starred state", "every device", "build 157 or older"] {
+		for expectedText in [
+			"subscriptions",
+			"folders",
+			"articles",
+			"read/starred state",
+			"close McReader build 157 or older on every device before resetting",
+			"do not reopen it"
+		] {
 			XCTAssertTrue(message.localizedCaseInsensitiveContains(expectedText), "Missing \(expectedText) in: \(message)")
 		}
+	}
+
+	func testSettingsProgressMessagesKeepContainedReaderOpen() {
+		XCTAssertEqual(
+			SettingsViewController.opmlImportProgressMessage(),
+			"Keep McReader/Feeds open until the import finishes."
+		)
+		XCTAssertEqual(
+			SettingsViewController.cloudKitResetProgressMessage(),
+			"This may take a few minutes. Keep McReader/Feeds open."
+		)
+	}
+
+	func testSettingsCannotDismissWhileOPMLImportIsInProgress() {
+		XCTAssertTrue(SettingsViewController.settingsDismissalIsAllowed(opmlImportInProgress: false))
+		XCTAssertFalse(SettingsViewController.settingsDismissalIsAllowed(opmlImportInProgress: true))
 	}
 
 	func testSettingsCloudKitResetFinalConfirmationNamesAccount() {

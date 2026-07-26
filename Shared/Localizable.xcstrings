@@ -1215,11 +1215,17 @@
     "The records were saved to iCloud but have not appeared on this device yet. Refresh once to apply them." : {
       "comment" : "OPML import was committed but has not converged locally"
     },
-    "This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Do not open Feeds in McReader build 157 or older after resetting, because an old build may restore deleted data." : {
+    "This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Close McReader build 157 or older on every device before resetting, and do not reopen it because an old build may restore deleted data." : {
       "comment" : "First iCloud feed reset confirmation warning"
     },
-    "This may take a few minutes. Keep NetNewsWire open." : {
+    "This may take a few minutes. Keep McReader/Feeds open." : {
       "comment" : "iCloud feed reset progress message"
+    },
+    "Keep McReader/Feeds open until the import finishes." : {
+      "comment" : "OPML import progress message"
+    },
+    "Importing Subscriptions…" : {
+      "comment" : "OPML import progress title"
     },
     "You can retry this reset." : {
       "comment" : "iCloud feed reset retry guidance"
