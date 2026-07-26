@@ -252,6 +252,13 @@ import CloudKitSync
 		XCTAssertThrowsError(try CloudKitAccountZone.folderInventory(records: [record], rootExternalID: "root"))
 	}
 
+	func testFolderInventoryQueryUsesExistingIsAccountIndex() {
+		let query = CloudKitAccountZone.folderInventoryQuery()
+
+		XCTAssertEqual(query.recordType, CloudKitAccountZone.CloudKitContainer.recordType)
+		XCTAssertEqual(query.predicate.predicateFormat, "isAccount == \"0\"")
+	}
+
 	func testFolderInventorySurfacesUnavailableDatabase() async {
 		let defaults = UserDefaults(suiteName: UUID().uuidString)!
 		let zone = CloudKitAccountZone(container: nil, userDefaults: defaults)
