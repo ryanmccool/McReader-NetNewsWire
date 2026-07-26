@@ -343,6 +343,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 			throw AccountError.invalidParameter
 		}
 		let normalizedItems = OPMLNormalizer.normalize(opmlItems)
+		let plan = try CloudKitOPMLPlanner.makePlan(items: normalizedItems)
 
 		syncProgress.addTask()
 		defer {
@@ -351,16 +352,16 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		}
 
 		do {
-			try await Self.performOPMLImport(
+			return try await Self.performOPMLImport(
 				save: {
 					try await account.logActivity(kind: .importOPML, detail: opmlFile.lastPathComponent) {
-						try await self.accountZone.importOPML(rootExternalID: rootExternalID, items: normalizedItems)
+						try await self.accountZone.importOPML(rootExternalID: rootExternalID, plan: plan)
 					}
 				},
 				refresh: { try await self.standardRefreshAll(for: account) },
+				verify: { Self.opmlImportHasConverged(account: account, rootExternalID: rootExternalID, plan: plan) },
 				reportRefreshError: { self.postSyncError($0, account: account, operation: "Refreshing after OPML import") }
 			)
-			return OPMLImportResult()
 		} catch {
 			postSyncError(error, account: account, operation: "Importing OPML")
 			throw error
@@ -368,16 +369,50 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	static func performOPMLImport(
-		save: () async throws -> Void,
+		save: () async throws -> OPMLImportResult,
 		refresh: () async throws -> Void,
+		verify: () -> Bool,
 		reportRefreshError: (Error) -> Void
-	) async throws {
-		try await save()
+	) async throws -> OPMLImportResult {
+		var result = try await save()
 		do {
 			try await refresh()
+			guard verify() else {
+				throw CloudKitAccountDelegateError.unknown
+			}
 		} catch {
 			reportRefreshError(error)
+			result.committedButNotApplied = !verify()
 		}
+		return result
+	}
+
+	static func opmlImportHasConverged(account: Account, rootExternalID: String, plan: CloudKitOPMLImportPlan) -> Bool {
+		for plannedFeed in plan.feeds {
+			guard let feed = account.flattenedFeeds().first(where: {
+				$0.url == plannedFeed.urlString && $0.externalID == plannedFeed.urlString.md5String
+			}) else {
+				return false
+			}
+
+			var expectedPlacements = Set<String>()
+			if plannedFeed.isTopLevel {
+				expectedPlacements.insert(rootExternalID)
+			}
+			for folderName in plannedFeed.folderNames {
+				let matches = (account.folders ?? []).filter { $0.name == folderName }
+				guard matches.count == 1, let externalID = matches.first?.externalID else {
+					return false
+				}
+				expectedPlacements.insert(externalID)
+			}
+
+			let actualPlacements = Set(account.existingContainers(withFeed: feed).compactMap(\.externalID))
+			guard actualPlacements == expectedPlacements else {
+				return false
+			}
+		}
+		return true
 	}
 
 	static func opmlImportRootExternalID(
