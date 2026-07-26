@@ -51,6 +51,7 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 	case containerUnavailable
 	case importUnavailableWhileRefreshing
 	case accountNotReady
+	case feedDeletedCleanupFailed
 	case unknown
 
 	var errorDescription: String? {
@@ -61,6 +62,8 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 			return NNWLocalizedString("Subscriptions can’t be imported while the iCloud account is refreshing. Wait for the refresh to finish and try again.", comment: "Feeds CloudKit OPML import blocked by refresh.")
 		case .accountNotReady:
 			return NNWLocalizedString("The iCloud account is still being prepared. Wait a moment and try importing subscriptions again.", comment: "Feeds CloudKit account not ready for OPML import.")
+		case .feedDeletedCleanupFailed:
+			return NNWLocalizedString("The feed was removed, but its iCloud article cleanup failed. Try again later.", comment: "Feeds CloudKit feed deletion cleanup failed.")
 		case .invalidParameter, .unknown:
 			return NSLocalizedString("An unexpected CloudKit error occurred.", comment: "An unexpected CloudKit error occurred.")
 		}
@@ -508,6 +511,9 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		} catch CloudKitZoneError.corruptAccount {
 			// Account is corrupt. Leave the feed removed locally to clear the bad state.
 		} catch {
+			guard Self.feedRemovalNeedsRestore(after: error) else {
+				throw error
+			}
 			container.addFeedToTreeAtTopLevel(feed)
 			throw error
 		}
@@ -709,6 +715,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 			let feeds = feedExternalIDs.compactMap { account.existingFeed(withExternalID: $0) }
 			var failedFeeds: Set<Feed> = []
+			var cleanupFailed = false
 
 			await withTaskGroup(of: (Feed, Error?).self) { group in
 				for feed in feeds {
@@ -727,7 +734,11 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 				for await (feed, error) in group {
 					if let error {
-						failedFeeds.insert(feed)
+						if Self.feedRemovalNeedsRestore(after: error) {
+							failedFeeds.insert(feed)
+						} else {
+							cleanupFailed = true
+						}
 						postSyncError(error, account: account, operation: "Removing folder")
 					}
 				}
@@ -752,6 +763,9 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 				folder.replaceTopLevelFeeds([])
 				account.addFolderToTree(folder)
 				throw error
+			}
+			if cleanupFailed {
+				throw CloudKitAccountDelegateError.feedDeletedCleanupFailed
 			}
 		}
 	}
@@ -1330,8 +1344,9 @@ private extension CloudKitAccountDelegate {
 
 		syncProgress.addTasks(2)
 
+		let deletedFinalRecord: Bool
 		do {
-			_ = try await accountZone.removeFeed(feed, from: container)
+			deletedFinalRecord = try await accountZone.removeFeed(feed, from: container)
 			syncProgress.completeTask()
 		} catch {
 			syncProgress.completeTask()
@@ -1340,21 +1355,60 @@ private extension CloudKitAccountDelegate {
 			throw error
 		}
 
-		guard let feedExternalID = feed.externalID else {
+		guard deletedFinalRecord else {
 			syncProgress.completeTask()
 			return
 		}
 
 		do {
-			try await articlesZone.deleteArticles(feedExternalID, owner: account.activityOwner)
-			feed.dropConditionalGetInfo()
+			try await Self.completeFeedDeletion(
+				deletedFinalRecord: deletedFinalRecord,
+				feedExternalID: feed.externalID,
+				deleteArticles: { feedExternalID in
+					try await self.articlesZone.deleteArticles(feedExternalID, owner: account.activityOwner)
+					feed.dropConditionalGetInfo()
+				},
+				clearSettings: { await account.clearFeedSettings(feed) },
+				reportCleanupError: { self.postSyncError($0, account: account, operation: "Removing feed articles") }
+			)
 			syncProgress.completeTask()
 		} catch {
 			syncProgress.completeTask()
-			postSyncError(error, account: account, operation: "Removing feed articles")
 			throw error
 		}
 	}
+
+}
+
+extension CloudKitAccountDelegate {
+	static func feedRemovalNeedsRestore(after error: Error) -> Bool {
+		(error as? CloudKitAccountDelegateError) != .feedDeletedCleanupFailed
+	}
+
+	static func completeFeedDeletion(
+		deletedFinalRecord: Bool,
+		feedExternalID: String?,
+		deleteArticles: (String) async throws -> Void,
+		clearSettings: () async -> Void,
+		reportCleanupError: (Error) -> Void = { _ in }
+	) async throws {
+		guard deletedFinalRecord else {
+			return
+		}
+		guard let feedExternalID else {
+			throw CloudKitZoneError.corruptAccount
+		}
+		do {
+			try await deleteArticles(feedExternalID)
+		} catch {
+			reportCleanupError(error)
+			throw CloudKitAccountDelegateError.feedDeletedCleanupFailed
+		}
+		await clearSettings()
+	}
+}
+
+private extension CloudKitAccountDelegate {
 
 	// MARK: - Record Cleanup
 
