@@ -574,7 +574,14 @@ public extension CloudKitZone {
 						await self.delaySeconds(timeToWait)
 						self.saveUnchanged(record, retriesRemaining: retriesRemaining, completion: completion)
 					default:
-						if let ckError = error as? CKError, ckError.code == .networkFailure, retriesRemaining > 0 {
+						if retriesRemaining > 0,
+							let retryDelay = CloudKitZoneResult.targetTransientPartialFailureRetryDelay(
+								error,
+								targetRecordID: record.recordID
+							) {
+							await self.delaySeconds(retryDelay)
+							self.saveUnchanged(record, retriesRemaining: retriesRemaining - 1, completion: completion)
+						} else if let ckError = error as? CKError, ckError.code == .networkFailure, retriesRemaining > 0 {
 							await self.delaySeconds(networkFailureRetryDelay)
 							self.saveUnchanged(record, retriesRemaining: retriesRemaining - 1, completion: completion)
 						} else {

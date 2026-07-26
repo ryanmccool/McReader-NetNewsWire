@@ -60,6 +60,21 @@ public enum CloudKitZoneResult {
 			return .failure(error: CloudKitError(ckError))
 		}
 	}
+
+	static func targetTransientPartialFailureRetryDelay(
+		_ error: Error,
+		targetRecordID: CKRecord.ID
+	) -> TimeInterval? {
+		guard let error = error as? CKError,
+			error.code == .partialFailure,
+			let partialErrors = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: CKError],
+			partialErrors.count == 1,
+			let itemError = partialErrors[targetRecordID],
+			[.networkFailure, .networkUnavailable, .requestRateLimited, .serviceUnavailable, .zoneBusy].contains(itemError.code) else {
+			return nil
+		}
+		return (itemError.userInfo[CKErrorRetryAfterKey] as? NSNumber)?.doubleValue ?? 3
+	}
 }
 
 private extension CloudKitZoneResult {

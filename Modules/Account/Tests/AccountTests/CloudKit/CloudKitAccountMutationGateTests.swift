@@ -97,6 +97,43 @@ import XCTest
 		XCTAssertNil(gate.activeKind)
 	}
 
+	func testRelaunchRecoveryUsesManagerGateAndRejectsConcurrentReset() async throws {
+		let managerGate = CloudKitAccountMutationGate()
+		let originalAccountGate = try XCTUnwrap(AccountManager.cloudKitMutationGate(
+			for: .cloudKit,
+			managerGate: managerGate
+		))
+		let relaunchedAccountGate = try XCTUnwrap(AccountManager.cloudKitMutationGate(
+			for: .cloudKit,
+			managerGate: managerGate
+		))
+		XCTAssertTrue(originalAccountGate === relaunchedAccountGate)
+		XCTAssertNil(AccountManager.cloudKitMutationGate(for: .onMyMac, managerGate: managerGate))
+
+		let resetStarted = expectation(description: "reset started")
+		let releaseReset = AsyncStream.makeStream(of: Void.self)
+		let reset = Task {
+			try await originalAccountGate.withMutation(kind: .reset) {
+				resetStarted.fulfill()
+				for await _ in releaseReset.stream {
+					break
+				}
+			}
+		}
+		await fulfillment(of: [resetStarted])
+
+		do {
+			try await relaunchedAccountGate.withMutation(kind: .reset) {}
+			XCTFail("Expected concurrent relaunch recovery to use the active manager gate")
+		} catch AccountError.operationInProgress {
+			// Expected.
+		}
+
+		releaseReset.continuation.yield()
+		releaseReset.continuation.finish()
+		try await reset.value
+	}
+
 	func testArticleStatusOwnsGateAndRejectsReset() async throws {
 		let gate = CloudKitAccountMutationGate()
 		let statusStarted = expectation(description: "status sync started")

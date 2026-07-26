@@ -93,7 +93,22 @@ enum CloudKitAccountZoneError: LocalizedError {
 			folders[name] = record
 		}
 
-		var importResult = OPMLImportResult()
+		return try await Self.importFeeds(
+			rootExternalID: rootExternalID,
+			plan: plan,
+			folders: folders,
+			upsert: upsertFeed
+		)
+	}
+
+	static func importFeeds(
+		rootExternalID: String,
+		plan: CloudKitOPMLImportPlan,
+		folders: [String: CKRecord],
+		upsert: (String, String?, String?, String?, Set<String>) async throws -> CloudKitFeedUpsertResult
+	) async throws -> OPMLImportResult {
+		var importResult = OPMLImportResult(rejected: plan.rejectedCount)
+		var confirmedFeedCount = 0
 		for plannedFeed in plan.feeds {
 			var placements = Set(plannedFeed.folderNames.compactMap { folders[$0]?.externalID })
 			guard placements.count == plannedFeed.folderNames.count else {
@@ -103,13 +118,22 @@ enum CloudKitAccountZoneError: LocalizedError {
 				placements.insert(rootExternalID)
 			}
 
-			let result = try await upsertFeed(
-				urlString: plannedFeed.urlString,
-				name: nil,
-				editedName: plannedFeed.editedName,
-				homePageURL: plannedFeed.homePageURL,
-				containerExternalIDs: placements
-			)
+			let result: CloudKitFeedUpsertResult
+			do {
+				result = try await upsert(
+					plannedFeed.urlString,
+					nil,
+					plannedFeed.editedName,
+					plannedFeed.homePageURL,
+					placements
+				)
+			} catch {
+				guard confirmedFeedCount > 0 else {
+					throw error
+				}
+				throw OPMLImportPartialFailure(result: importResult, underlyingError: error)
+			}
+			confirmedFeedCount += 1
 			if result.wasAdded {
 				importResult.added += 1
 			} else if result.isUnchanged {

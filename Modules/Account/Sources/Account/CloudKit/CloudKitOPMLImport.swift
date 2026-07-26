@@ -16,9 +16,21 @@ public struct OPMLImportResult: Sendable, Equatable {
 	public var committedButNotApplied = false
 }
 
+public struct OPMLImportPartialFailure: Error {
+
+	public let result: OPMLImportResult
+	public let underlyingError: Error
+
+	init(result: OPMLImportResult, underlyingError: Error) {
+		self.result = result
+		self.underlyingError = underlyingError
+	}
+}
+
 struct CloudKitOPMLImportPlan: Sendable, Equatable {
 
 	let feeds: [PlannedCloudKitFeed]
+	let rejectedCount: Int
 }
 
 struct PlannedCloudKitFeed: Sendable, Equatable {
@@ -46,10 +58,16 @@ enum CloudKitOPMLPlanner {
 	static func makePlan(items: [OPMLItem]) throws -> CloudKitOPMLImportPlan {
 		var feeds = [PlannedCloudKitFeed]()
 		var indexesByURL = [String: Int]()
+		var rejectedCount = 0
 
 		func add(_ item: OPMLItem, folderName: String?) throws {
 			if let specifier = item.feedSpecifier {
-				try validateFeedURL(specifier.feedURL)
+				do {
+					try validateFeedURL(specifier.feedURL)
+				} catch AccountError.invalidParameter {
+					rejectedCount += 1
+					return
+				}
 
 				if let index = indexesByURL[specifier.feedURL] {
 					let existing = feeds[index]
@@ -91,11 +109,13 @@ enum CloudKitOPMLPlanner {
 		guard !feeds.isEmpty else {
 			throw AccountError.invalidParameter
 		}
-		return CloudKitOPMLImportPlan(feeds: feeds)
+		return CloudKitOPMLImportPlan(feeds: feeds, rejectedCount: rejectedCount)
 	}
 
 	private static func validateFeedURL(_ urlString: String) throws {
-		guard let components = URLComponents(string: urlString),
+		guard let url = URL(string: urlString),
+			url.absoluteString == urlString,
+			let components = URLComponents(string: urlString),
 			let scheme = components.scheme?.lowercased(),
 			["http", "https"].contains(scheme),
 			let host = components.host,

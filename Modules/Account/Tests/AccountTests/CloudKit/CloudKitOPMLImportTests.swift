@@ -25,6 +25,22 @@ final class CloudKitOPMLImportTests: XCTestCase {
 		}
 	}
 
+	func testPlannerRejectsURLsThatFoundationRewrites() {
+		for urlString in ["https://example.com/a b", "https://example.com/a|b"] {
+			XCTAssertThrowsError(try CloudKitOPMLPlanner.makePlan(items: [feed(urlString)]), urlString)
+		}
+	}
+
+	func testPlannerKeepsValidFeedsAndCountsInvalidFeedsAsRejected() throws {
+		let plan = try CloudKitOPMLPlanner.makePlan(items: [
+			feed("not a url"),
+			feed("https://example.com/feed")
+		])
+
+		XCTAssertEqual(plan.feeds.map(\.urlString), ["https://example.com/feed"])
+		XCTAssertEqual(plan.rejectedCount, 1)
+	}
+
 	func testPlannerCollapsesExactDuplicates() throws {
 		let plan = try CloudKitOPMLPlanner.makePlan(items: [
 			feed("https://example.com/feed", title: "First"),

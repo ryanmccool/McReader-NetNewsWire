@@ -185,18 +185,39 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		)
 	}
 
+	func testSettingsPartialOPMLImportFailureReportsConfirmedCountsAndOperationalError() {
+		let underlyingError = CloudKitAccountDelegateError.accountNotReady
+		let error = OPMLImportPartialFailure(
+			result: OPMLImportResult(added: 1, rejected: 2),
+			underlyingError: underlyingError
+		)
+
+		XCTAssertEqual(
+			SettingsViewController.opmlImportFailureMessage(error),
+			"Added: 1\nUpdated: 0\nUnchanged: 0\nRepositioned: 0\nRejected: 2\n\n\(underlyingError.localizedDescription)"
+		)
+	}
+
 	func testSettingsCloudKitResetRowIsVisibleForAccountOrInterruptedReset() {
 		XCTAssertTrue(SettingsViewController.shouldShowCloudKitResetRow(
 			hasAccount: true,
-			resetPhase: .idle
+			resetPhase: .idle,
+			resetIsAvailable: true
 		))
 		XCTAssertTrue(SettingsViewController.shouldShowCloudKitResetRow(
 			hasAccount: false,
-			resetPhase: .localAccountDeleted
+			resetPhase: .localAccountDeleted,
+			resetIsAvailable: true
 		))
 		XCTAssertFalse(SettingsViewController.shouldShowCloudKitResetRow(
 			hasAccount: false,
-			resetPhase: .idle
+			resetPhase: .idle,
+			resetIsAvailable: true
+		))
+		XCTAssertFalse(SettingsViewController.shouldShowCloudKitResetRow(
+			hasAccount: true,
+			resetPhase: .localAccountDeleted,
+			resetIsAvailable: false
 		))
 	}
 
@@ -204,17 +225,20 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		XCTAssertTrue(SettingsViewController.cloudKitResetRowIsEnabled(
 			hasAccount: true,
 			resetPhase: .idle,
-			isBusy: false
+			isBusy: false,
+			resetIsAvailable: true
 		))
 		XCTAssertFalse(SettingsViewController.cloudKitResetRowIsEnabled(
 			hasAccount: true,
 			resetPhase: .idle,
-			isBusy: true
+			isBusy: true,
+			resetIsAvailable: true
 		))
 		XCTAssertTrue(SettingsViewController.cloudKitResetRowIsEnabled(
 			hasAccount: false,
 			resetPhase: .localAccountDeleted,
-			isBusy: false
+			isBusy: false,
+			resetIsAvailable: true
 		))
 	}
 

@@ -107,6 +107,18 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		identifier == feedsContainerIdentifier
 	}
 
+	static func isResetAvailable(isEmbedded: Bool, containerIdentifier: String?) -> Bool {
+		isEmbedded && isResetContainerIdentifier(containerIdentifier)
+	}
+
+	static var resetIsAvailable: Bool {
+		#if MCREADER_EMBEDDED
+		isResetAvailable(isEmbedded: true, containerIdentifier: configuredContainer?.containerIdentifier)
+		#else
+		false
+		#endif
+	}
+
 	static func resolve<Container>(
 		configured: Container?,
 		defaultContainer: () -> Container
@@ -140,12 +152,6 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	let behaviors: AccountBehaviors = []
 	var isOPMLImportInProgress: Bool {
 		mutationGate.activeKind == .importOPML
-	}
-	var mutationInProgress: Bool {
-		mutationGate.activeKind != nil
-	}
-	var mutationGateForReset: CloudKitAccountMutationGate {
-		mutationGate
 	}
 
 	let server: String? = nil

@@ -64,6 +64,27 @@ import XCTest
 		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier(nil))
 	}
 
+	func testResetAvailabilityRequiresEmbeddedModeAndExactFeedsContainer() {
+		let feedsContainer = CloudKitAccountContainerConfiguration.feedsContainerIdentifier
+
+		XCTAssertTrue(CloudKitAccountContainerConfiguration.isResetAvailable(
+			isEmbedded: true,
+			containerIdentifier: feedsContainer
+		))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetAvailable(
+			isEmbedded: false,
+			containerIdentifier: feedsContainer
+		))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetAvailable(
+			isEmbedded: true,
+			containerIdentifier: nil
+		))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetAvailable(
+			isEmbedded: true,
+			containerIdentifier: "iCloud.ryanmccool.McReader"
+		))
+	}
+
 	func testResetStateSurvivesDeletingICloudAccountDefaults() {
 		let defaults = makeDefaults()
 		defaults.set("value", forKey: "iCloud-externalID")

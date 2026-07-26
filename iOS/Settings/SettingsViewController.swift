@@ -195,8 +195,11 @@ final class SettingsViewController: UITableViewController {
 			return traitCollection.userInterfaceIdiom == .phone ? ArticlesRow.allCases.count : ArticlesRow.allCases.count - 1
 		case .troubleshooting:
 			let defaultNumberOfRows = super.tableView(tableView, numberOfRowsInSection: section)
+			if !shouldShowCloudKitResetRow {
+				return defaultNumberOfRows - (AccountManager.shared.hasiCloudAccount ? 1 : 2)
+			}
 			if !AccountManager.shared.hasiCloudAccount {
-				return defaultNumberOfRows - (shouldShowCloudKitResetRow ? 1 : 2)
+				return defaultNumberOfRows - 1
 			}
 			return defaultNumberOfRows
 		default:
@@ -475,7 +478,11 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 	}
 
 	static func opmlImportFailureMessage(_ error: Error) -> String {
-		cloudKitAccountUserVisibleError(error).localizedDescription
+		if let partialFailure = error as? OPMLImportPartialFailure {
+			let failureMessage = cloudKitAccountUserVisibleError(partialFailure.underlyingError).localizedDescription
+			return "\(importResultMessage(partialFailure.result))\n\n\(failureMessage)"
+		}
+		return cloudKitAccountUserVisibleError(error).localizedDescription
 	}
 
 	static func importResultMessage(_ result: OPMLImportResult) -> String {
@@ -494,12 +501,25 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 		return message
 	}
 
-	static func shouldShowCloudKitResetRow(hasAccount: Bool, resetPhase: CloudKitAccountResetPhase) -> Bool {
-		hasAccount || resetPhase != .idle
+	static func shouldShowCloudKitResetRow(
+		hasAccount: Bool,
+		resetPhase: CloudKitAccountResetPhase,
+		resetIsAvailable: Bool
+	) -> Bool {
+		resetIsAvailable && (hasAccount || resetPhase != .idle)
 	}
 
-	static func cloudKitResetRowIsEnabled(hasAccount: Bool, resetPhase: CloudKitAccountResetPhase, isBusy: Bool) -> Bool {
-		shouldShowCloudKitResetRow(hasAccount: hasAccount, resetPhase: resetPhase) && !isBusy
+	static func cloudKitResetRowIsEnabled(
+		hasAccount: Bool,
+		resetPhase: CloudKitAccountResetPhase,
+		isBusy: Bool,
+		resetIsAvailable: Bool
+	) -> Bool {
+		shouldShowCloudKitResetRow(
+			hasAccount: hasAccount,
+			resetPhase: resetPhase,
+			resetIsAvailable: resetIsAvailable
+		) && !isBusy
 	}
 
 	static func cloudKitResetWarningMessage() -> String {
@@ -550,7 +570,8 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 private extension SettingsViewController {
 
 	var shouldShowCloudKitResetRow: Bool {
-		AccountManager.shared.hasiCloudAccount || AccountManager.shared.cloudKitResetCanRun || cloudKitResetInProgress
+		AccountManager.shared.cloudKitResetIsAvailable &&
+			(AccountManager.shared.hasiCloudAccount || AccountManager.shared.cloudKitResetCanRun || cloudKitResetInProgress)
 	}
 
 	func shouldRemapCloudKitResetRow(_ indexPath: IndexPath) -> Bool {

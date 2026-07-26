@@ -46,4 +46,41 @@ final class CloudKitSyncTests: XCTestCase {
 		])
 		XCTAssertFalse(CloudKitZoneDeletion.isMissingZoneError(mixedPartial))
 	}
+
+	func testTargetTransientPartialFailureReturnsRetryDelay() {
+		let targetID = CKRecord.ID(recordName: "target")
+		for code in [CKError.Code.requestRateLimited, .zoneBusy, .networkFailure] {
+			let itemError = CKError(code, userInfo: [CKErrorRetryAfterKey: NSNumber(value: 1.5)])
+			let partialError = CKError(.partialFailure, userInfo: [
+				CKPartialErrorsByItemIDKey: [targetID: itemError]
+			])
+
+			XCTAssertEqual(
+				CloudKitZoneResult.targetTransientPartialFailureRetryDelay(partialError, targetRecordID: targetID),
+				1.5,
+				"Expected \(code) to be retried"
+			)
+		}
+	}
+
+	func testTargetTransientPartialFailureRejectsUnrelatedMixedAndPermanentErrors() {
+		let targetID = CKRecord.ID(recordName: "target")
+		let unrelatedID = CKRecord.ID(recordName: "unrelated")
+		let unrelated = CKError(.partialFailure, userInfo: [
+			CKPartialErrorsByItemIDKey: [unrelatedID: CKError(.networkFailure)]
+		])
+		let mixed = CKError(.partialFailure, userInfo: [
+			CKPartialErrorsByItemIDKey: [
+				targetID: CKError(.networkFailure),
+				unrelatedID: CKError(.zoneBusy)
+			]
+		])
+		let permanent = CKError(.partialFailure, userInfo: [
+			CKPartialErrorsByItemIDKey: [targetID: CKError(.permissionFailure)]
+		])
+
+		XCTAssertNil(CloudKitZoneResult.targetTransientPartialFailureRetryDelay(unrelated, targetRecordID: targetID))
+		XCTAssertNil(CloudKitZoneResult.targetTransientPartialFailureRetryDelay(mixed, targetRecordID: targetID))
+		XCTAssertNil(CloudKitZoneResult.targetTransientPartialFailureRetryDelay(permanent, targetRecordID: targetID))
+	}
 }
