@@ -66,7 +66,8 @@ final class SettingsViewController: UITableViewController {
 		case about = 4
 	}
 
-	private var opmlAccount: Account?
+	private var opmlImportAccount: Account?
+	private var opmlImportInProgress = false
 	private var cloudKitResetInProgress = false
 
 	@IBOutlet var timelineSortOrderSwitch: UISwitch!
@@ -377,6 +378,9 @@ final class SettingsViewController: UITableViewController {
 	// MARK: Actions
 
 	@IBAction func done(_ sender: Any) {
+		guard Self.settingsDismissalIsAllowed(opmlImportInProgress: opmlImportInProgress) else {
+			return
+		}
 		dismiss(animated: true)
 	}
 
@@ -457,27 +461,17 @@ final class SettingsViewController: UITableViewController {
 extension SettingsViewController: UIDocumentPickerDelegate {
 
 	func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-		guard let account = opmlAccount else {
+		guard let account = opmlImportAccount, let url = urls.first else {
 			return
 		}
-		opmlAccount = nil
-		for url in urls {
-			account.importOPML(url) { result in
-				switch result {
-				case .success(let importResult):
-					let title = NNWLocalizedString("Import Complete", comment: "OPML import success title")
-					self.presentError(title: title, message: Self.importResultMessage(importResult))
-				case .failure(let error):
-					let title = NNWLocalizedString("Import Failed", comment: "Import Failed")
-					let message = Self.opmlImportFailureMessage(error)
-					self.presentError(title: title, message: message)
-				}
-			}
+		opmlImportAccount = nil
+		controller.dismiss(animated: true) { [weak self] in
+			self?.importOPML(url, into: account)
 		}
 	}
 
 	func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-		opmlAccount = nil
+		opmlImportAccount = nil
 	}
 
 	static func opmlImportFailureMessage(_ error: Error) -> String {
@@ -510,9 +504,27 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 
 	static func cloudKitResetWarningMessage() -> String {
 		NNWLocalizedString(
-			"This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Do not open Feeds in McReader build 157 or older after resetting, because an old build may restore deleted data.",
+			"This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Close McReader build 157 or older on every device before resetting, and do not reopen it because an old build may restore deleted data.",
 			comment: "First iCloud feed reset confirmation warning"
 		)
+	}
+
+	static func opmlImportProgressMessage() -> String {
+		NNWLocalizedString(
+			"Keep McReader/Feeds open until the import finishes.",
+			comment: "OPML import progress message"
+		)
+	}
+
+	static func cloudKitResetProgressMessage() -> String {
+		NNWLocalizedString(
+			"This may take a few minutes. Keep McReader/Feeds open.",
+			comment: "iCloud feed reset progress message"
+		)
+	}
+
+	static func settingsDismissalIsAllowed(opmlImportInProgress: Bool) -> Bool {
+		!opmlImportInProgress
 	}
 
 	static func cloudKitResetFinalConfirmationMessage(accountName: String) -> String {
@@ -600,7 +612,7 @@ private extension SettingsViewController {
 		tableView.reloadData()
 		let progressAlert = UIAlertController(
 			title: NNWLocalizedString("Resetting iCloud Feed Data…", comment: "iCloud feed reset progress title"),
-			message: NNWLocalizedString("This may take a few minutes. Keep NetNewsWire open.", comment: "iCloud feed reset progress message") + "\n\n",
+			message: Self.cloudKitResetProgressMessage() + "\n\n",
 			preferredStyle: .alert
 		)
 		let activityIndicator = UIActivityIndicatorView(style: .medium)
@@ -656,12 +668,12 @@ private extension SettingsViewController {
 	}
 
 	func importOPML(sourceView: UIView, sourceRect: CGRect) {
-		opmlAccount = nil
+		opmlImportAccount = nil
 		switch AccountManager.shared.activeAccounts.count {
 		case 0:
 			presentError(title: "Error", message: NNWLocalizedString("You must have at least one active account.", comment: "Missing active account"))
 		case 1:
-			opmlAccount = AccountManager.shared.activeAccounts.first
+			opmlImportAccount = AccountManager.shared.activeAccounts.first
 			importOPMLDocumentPicker()
 		default:
 			importOPMLAccountPicker(sourceView: sourceView, sourceRect: sourceRect)
@@ -679,7 +691,7 @@ private extension SettingsViewController {
 
 		for account in AccountManager.shared.sortedActiveAccounts {
 			let action = UIAlertAction(title: account.nameForDisplay, style: .default) { [weak self] _ in
-				self?.opmlAccount = account
+				self?.opmlImportAccount = account
 				self?.importOPMLDocumentPicker()
 			}
 			alert.addAction(action)
@@ -687,7 +699,7 @@ private extension SettingsViewController {
 
 		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
 		alert.addAction(UIAlertAction(title: cancelTitle, style: .cancel) { [weak self] _ in
-			self?.opmlAccount = nil
+			self?.opmlImportAccount = nil
 		})
 
 		self.present(alert, animated: true)
@@ -717,10 +729,64 @@ private extension SettingsViewController {
 		self.present(documentPicker, animated: true)
 	}
 
+	func importOPML(_ url: URL, into account: Account) {
+		opmlImportInProgress = true
+		setOPMLImportPresentationLocked(true)
+		let progressAlert = UIAlertController(
+			title: NNWLocalizedString("Importing Subscriptions…", comment: "OPML import progress title"),
+			message: Self.opmlImportProgressMessage() + "\n\n",
+			preferredStyle: .alert
+		)
+		let activityIndicator = UIActivityIndicatorView(style: .medium)
+		activityIndicator.translatesAutoresizingMaskIntoConstraints = false
+		activityIndicator.startAnimating()
+		progressAlert.view.addSubview(activityIndicator)
+		NSLayoutConstraint.activate([
+			activityIndicator.centerXAnchor.constraint(equalTo: progressAlert.view.centerXAnchor),
+			activityIndicator.bottomAnchor.constraint(equalTo: progressAlert.view.bottomAnchor, constant: -20)
+		])
+
+		present(progressAlert, animated: true) {
+			account.importOPML(url) { result in
+				self.finishOPMLImport(result, progressAlert: progressAlert)
+			}
+		}
+	}
+
+	func finishOPMLImport(_ result: Result<OPMLImportResult, Error>, progressAlert: UIAlertController) {
+		let title: String
+		let message: String
+		switch result {
+		case .success(let importResult):
+			title = NNWLocalizedString("Import Complete", comment: "OPML import success title")
+			message = Self.importResultMessage(importResult)
+		case .failure(let error):
+			title = NNWLocalizedString("Import Failed", comment: "Import Failed")
+			message = Self.opmlImportFailureMessage(error)
+		}
+
+		progressAlert.dismiss(animated: true) {
+			let presenter = self.viewIfLoaded?.window == nil ? self.presentingParentController : self
+			guard let presenter else {
+				self.opmlImportInProgress = false
+				self.setOPMLImportPresentationLocked(false)
+				return
+			}
+			presenter.presentError(title: title, message: message) { [weak self] in
+				self?.opmlImportInProgress = false
+				self?.setOPMLImportPresentationLocked(false)
+			}
+		}
+	}
+
+	func setOPMLImportPresentationLocked(_ locked: Bool) {
+		isModalInPresentation = locked
+		navigationController?.isModalInPresentation = locked
+	}
+
 	func exportOPML(sourceView: UIView, sourceRect: CGRect) {
-		if AccountManager.shared.accounts.count == 1 {
-			opmlAccount = AccountManager.shared.accounts.first!
-			exportOPMLDocumentPicker()
+		if let account = AccountManager.shared.accounts.first, AccountManager.shared.accounts.count == 1 {
+			exportOPMLDocumentPicker(account: account)
 		} else {
 			exportOPMLAccountPicker(sourceView: sourceView, sourceRect: sourceRect)
 		}
@@ -737,8 +803,7 @@ private extension SettingsViewController {
 
 		for account in AccountManager.shared.sortedAccounts {
 			let action = UIAlertAction(title: account.nameForDisplay, style: .default) { [weak self] _ in
-				self?.opmlAccount = account
-				self?.exportOPMLDocumentPicker()
+				self?.exportOPMLDocumentPicker(account: account)
 			}
 			alert.addAction(action)
 		}
@@ -749,9 +814,7 @@ private extension SettingsViewController {
 		self.present(alert, animated: true)
 	}
 
-	func exportOPMLDocumentPicker() {
-		guard let account = opmlAccount else { return }
-
+	func exportOPMLDocumentPicker(account: Account) {
 		let accountName = account.nameForDisplay.replacingOccurrences(of: " ", with: "").trimmingCharacters(in: .whitespaces)
 		let filename = "Subscriptions-\(accountName).opml"
 		let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
