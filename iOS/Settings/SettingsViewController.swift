@@ -527,6 +527,14 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 		!opmlImportInProgress
 	}
 
+	static func activeResultPresenter(
+		settings: UIViewController,
+		root: UIViewController?,
+		settingsIsVisible: Bool
+	) -> UIViewController? {
+		settingsIsVisible ? settings : root
+	}
+
 	static func cloudKitResetFinalConfirmationMessage(accountName: String) -> String {
 		let format = NNWLocalizedString(
 			"Permanently delete all synchronized data for the “%@” account? This cannot be undone.",
@@ -634,7 +642,7 @@ private extension SettingsViewController {
 				cloudKitResetInProgress = false
 				tableView.reloadData()
 				progressAlert.dismiss(animated: true) {
-					self.presentError(
+					self.activeResultPresenter()?.presentError(
 						title: NNWLocalizedString("Reset Complete", comment: "iCloud feed reset success title"),
 						message: NNWLocalizedString("Your iCloud feed data was reset. Use Import Subscriptions to add your feeds again.", comment: "iCloud feed reset success message")
 					)
@@ -645,7 +653,7 @@ private extension SettingsViewController {
 				let retryMessage = NNWLocalizedString("You can retry this reset.", comment: "iCloud feed reset retry guidance")
 				let message = "\(cloudKitAccountUserVisibleError(error).localizedDescription)\n\n\(retryMessage)"
 				progressAlert.dismiss(animated: true) {
-					self.presentError(
+					self.activeResultPresenter()?.presentError(
 						title: NNWLocalizedString("Reset Failed", comment: "iCloud feed reset failure title"),
 						message: message
 					)
@@ -766,8 +774,7 @@ private extension SettingsViewController {
 		}
 
 		progressAlert.dismiss(animated: true) {
-			let presenter = self.viewIfLoaded?.window == nil ? self.presentingParentController : self
-			guard let presenter else {
+			guard let presenter = self.activeResultPresenter() else {
 				self.opmlImportInProgress = false
 				self.setOPMLImportPresentationLocked(false)
 				return
@@ -782,6 +789,14 @@ private extension SettingsViewController {
 	func setOPMLImportPresentationLocked(_ locked: Bool) {
 		isModalInPresentation = locked
 		navigationController?.isModalInPresentation = locked
+	}
+
+	func activeResultPresenter() -> UIViewController? {
+		Self.activeResultPresenter(
+			settings: self,
+			root: presentingParentController,
+			settingsIsVisible: viewIfLoaded?.window != nil
+		)
 	}
 
 	func exportOPML(sourceView: UIView, sourceRect: CGRect) {

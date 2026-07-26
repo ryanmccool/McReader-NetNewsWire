@@ -1,5 +1,6 @@
 import CloudKit
 @testable import CloudKitSync
+import UIKit
 import XCTest
 @testable import Account
 @testable import NetNewsWireFeature
@@ -246,6 +247,27 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 	func testSettingsCannotDismissWhileOPMLImportIsInProgress() {
 		XCTAssertTrue(SettingsViewController.settingsDismissalIsAllowed(opmlImportInProgress: false))
 		XCTAssertFalse(SettingsViewController.settingsDismissalIsAllowed(opmlImportInProgress: true))
+	}
+
+	func testSettingsActiveResultPresenterUsesVisibleSettingsOrRootFallback() {
+		let settings = UIViewController()
+		let root = UIViewController()
+
+		XCTAssertTrue(SettingsViewController.activeResultPresenter(
+			settings: settings,
+			root: root,
+			settingsIsVisible: true
+		) === settings)
+		XCTAssertTrue(SettingsViewController.activeResultPresenter(
+			settings: settings,
+			root: root,
+			settingsIsVisible: false
+		) === root)
+		XCTAssertNil(SettingsViewController.activeResultPresenter(
+			settings: settings,
+			root: nil,
+			settingsIsVisible: false
+		))
 	}
 
 	func testSettingsCloudKitResetFinalConfirmationNamesAccount() {
