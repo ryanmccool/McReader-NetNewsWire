@@ -125,6 +125,37 @@ import XCTest
 		try await status.value
 		XCTAssertNil(gate.activeKind)
 	}
+
+	func testMarkReturnsBeforeSuspendedFlushCompletesAndFlushOwnsGate() async throws {
+		let gate = CloudKitAccountMutationGate()
+		let flushStarted = expectation(description: "flush started")
+		let flushFinished = expectation(description: "flush finished")
+		let releaseFlush = AsyncStream.makeStream(of: Void.self)
+		var markReturned = false
+
+		try await CloudKitAccountDelegate.performMarkArticlesMutation(
+			gate: gate,
+			localMutation: { true },
+			flush: {
+				XCTAssertEqual(gate.activeKind, .articleStatus)
+				flushStarted.fulfill()
+				for await _ in releaseFlush.stream {
+					break
+				}
+				flushFinished.fulfill()
+			}
+		)
+		markReturned = true
+
+		await fulfillment(of: [flushStarted])
+		XCTAssertTrue(markReturned)
+		XCTAssertEqual(gate.activeKind, .articleStatus)
+
+		releaseFlush.continuation.yield()
+		releaseFlush.continuation.finish()
+		await fulfillment(of: [flushFinished])
+		XCTAssertNil(gate.activeKind)
+	}
 }
 
 private enum TestError: Error {
