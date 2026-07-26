@@ -177,8 +177,13 @@ enum CloudKitAccountZoneError: LocalizedError {
 	}
 
 	func inventoryFolders() async throws -> [String: CKRecord] {
-		let query = CKQuery(recordType: CloudKitContainer.recordType, predicate: NSPredicate(value: true))
+		let query = Self.folderInventoryQuery()
 		return try Self.folderInventory(records: await self.query(query), rootExternalID: "")
+	}
+
+	static func folderInventoryQuery() -> CKQuery {
+		let predicate = NSPredicate(format: "isAccount = \"0\"")
+		return CKQuery(recordType: CloudKitContainer.recordType, predicate: predicate)
 	}
 
 	func upsertFeed(
