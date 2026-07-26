@@ -49,13 +49,21 @@ typealias CloudKitSyncErrorHandler = @Sendable (Error, String, String, String, I
 enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 	case invalidParameter
 	case containerUnavailable
+	case importUnavailableWhileRefreshing
+	case accountNotReady
 	case unknown
 
 	var errorDescription: String? {
-		if case .containerUnavailable = self {
+		switch self {
+		case .containerUnavailable:
 			return NSLocalizedString("The iCloud container for feeds is unavailable. Check iCloud access and try again.", comment: "Feeds CloudKit container unavailable.")
+		case .importUnavailableWhileRefreshing:
+			return NNWLocalizedString("Subscriptions can’t be imported while the iCloud account is refreshing. Wait for the refresh to finish and try again.", comment: "Feeds CloudKit OPML import blocked by refresh.")
+		case .accountNotReady:
+			return NNWLocalizedString("The iCloud account is still being prepared. Wait a moment and try importing subscriptions again.", comment: "Feeds CloudKit account not ready for OPML import.")
+		case .invalidParameter, .unknown:
+			return NSLocalizedString("An unexpected CloudKit error occurred.", comment: "An unexpected CloudKit error occurred.")
 		}
-		return NSLocalizedString("An unexpected CloudKit error occurred.", comment: "An unexpected CloudKit error occurred.")
 	}
 
 	static func userVisibleError(for error: Error) -> Error {
@@ -68,6 +76,10 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 		}
 		return CloudKitAccountDelegateError.containerUnavailable
 	}
+}
+
+public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
+	CloudKitAccountDelegateError.userVisibleError(for: error)
 }
 
 @MainActor public enum CloudKitAccountContainerConfiguration {
@@ -284,20 +296,21 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 
 	func importOPML(opmlFile: URL) async throws {
 		guard let account else {
-			return
+			throw AccountError.invalidParameter
 		}
-		guard refreshProgressInfo.isComplete else {
-			return
-		}
+		let rootExternalID = try Self.opmlImportRootExternalID(
+			refreshIsComplete: refreshProgressInfo.isComplete,
+			syncIsComplete: syncProgressInfo.isComplete,
+			rootExternalID: account.externalID
+		)
 
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
 		let opmlData = try Data(contentsOf: opmlFile)
 		let parserData = ParserData(url: opmlFile.absoluteString, data: opmlData)
 		let opmlDocument = try OPMLParser.parseOPML(with: parserData)
 
-		// TODO: throw appropriate error if OPML file is empty.
-		guard let opmlItems = opmlDocument.children, let rootExternalID = account.externalID else {
-			return
+		guard let opmlItems = opmlDocument.children else {
+			throw AccountError.invalidParameter
 		}
 		let normalizedItems = OPMLNormalizer.normalize(opmlItems)
 
@@ -308,14 +321,46 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 		}
 
 		do {
-			try await account.logActivity(kind: .importOPML, detail: opmlFile.lastPathComponent) {
-				try await accountZone.importOPML(rootExternalID: rootExternalID, items: normalizedItems)
-			}
-			try? await standardRefreshAll(for: account)
+			try await Self.performOPMLImport(
+				save: {
+					try await account.logActivity(kind: .importOPML, detail: opmlFile.lastPathComponent) {
+						try await self.accountZone.importOPML(rootExternalID: rootExternalID, items: normalizedItems)
+					}
+				},
+				refresh: { try await self.standardRefreshAll(for: account) },
+				reportRefreshError: { self.postSyncError($0, account: account, operation: "Refreshing after OPML import") }
+			)
 		} catch {
 			postSyncError(error, account: account, operation: "Importing OPML")
 			throw error
 		}
+	}
+
+	static func performOPMLImport(
+		save: () async throws -> Void,
+		refresh: () async throws -> Void,
+		reportRefreshError: (Error) -> Void
+	) async throws {
+		try await save()
+		do {
+			try await refresh()
+		} catch {
+			reportRefreshError(error)
+		}
+	}
+
+	static func opmlImportRootExternalID(
+		refreshIsComplete: Bool,
+		syncIsComplete: Bool,
+		rootExternalID: String?
+	) throws -> String {
+		guard refreshIsComplete, syncIsComplete else {
+			throw CloudKitAccountDelegateError.importUnavailableWhileRefreshing
+		}
+		guard let rootExternalID else {
+			throw CloudKitAccountDelegateError.accountNotReady
+		}
+		return rootExternalID
 	}
 
 	@discardableResult

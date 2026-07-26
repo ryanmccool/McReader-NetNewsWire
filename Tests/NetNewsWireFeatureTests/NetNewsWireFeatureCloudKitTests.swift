@@ -94,6 +94,78 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		XCTAssertEqual(mappedError.localizedDescription, "The iCloud container for feeds is unavailable. Check iCloud access and try again.")
 	}
 
+	func testOPMLImportRejectsActiveRefreshInsteadOfSilentlySucceeding() {
+		XCTAssertThrowsError(try CloudKitAccountDelegate.opmlImportRootExternalID(
+			refreshIsComplete: false,
+			syncIsComplete: true,
+			rootExternalID: "root"
+		)) { error in
+			XCTAssertEqual(error as? CloudKitAccountDelegateError, .importUnavailableWhileRefreshing)
+		}
+	}
+
+	func testOPMLImportRejectsActiveCloudKitSyncInsteadOfRacingIt() {
+		XCTAssertThrowsError(try CloudKitAccountDelegate.opmlImportRootExternalID(
+			refreshIsComplete: true,
+			syncIsComplete: false,
+			rootExternalID: "root"
+		)) { error in
+			XCTAssertEqual(error as? CloudKitAccountDelegateError, .importUnavailableWhileRefreshing)
+		}
+	}
+
+	func testOPMLImportRejectsAccountWithoutInitializedRoot() {
+		XCTAssertThrowsError(try CloudKitAccountDelegate.opmlImportRootExternalID(
+			refreshIsComplete: true,
+			syncIsComplete: true,
+			rootExternalID: nil
+		)) { error in
+			XCTAssertEqual(error as? CloudKitAccountDelegateError, .accountNotReady)
+		}
+	}
+
+	func testOPMLImportAcceptsInitializedIdleAccount() throws {
+		let rootExternalID = try CloudKitAccountDelegate.opmlImportRootExternalID(
+			refreshIsComplete: true,
+			syncIsComplete: true,
+			rootExternalID: "root"
+		)
+
+		XCTAssertEqual(rootExternalID, "root")
+	}
+
+	func testSettingsOPMLImportFailureMapsCloudKitAuthorizationError() {
+		let error = NSError(domain: CKErrorDomain, code: CKError.Code.badContainer.rawValue)
+
+		XCTAssertEqual(
+			SettingsViewController.opmlImportFailureMessage(error),
+			"The iCloud container for feeds is unavailable. Check iCloud access and try again."
+		)
+	}
+
+	func testCommittedOPMLImportDoesNotFailWhenFollowUpRefreshFails() async throws {
+		var saved = false
+		var reportedError: TestError?
+
+		try await CloudKitAccountDelegate.performOPMLImport(
+			save: { saved = true },
+			refresh: { throw TestError.unavailable },
+			reportRefreshError: { reportedError = $0 as? TestError }
+		)
+
+		XCTAssertTrue(saved)
+		XCTAssertEqual(reportedError, .unavailable)
+	}
+
+	func testSettingsOPMLImportFailureUsesOperationalErrorDescription() {
+		let error = CloudKitAccountDelegateError.accountNotReady
+
+		XCTAssertEqual(
+			SettingsViewController.opmlImportFailureMessage(error),
+			error.localizedDescription
+		)
+	}
+
 	func testRemoteNotificationIdentityRequiresMatchingContainerAndZone() {
 		let expectedZoneID = CKRecordZone.ID(zoneName: "Articles", ownerName: CKCurrentUserDefaultName)
 		let otherZoneID = CKRecordZone.ID(zoneName: "Other", ownerName: CKCurrentUserDefaultName)
