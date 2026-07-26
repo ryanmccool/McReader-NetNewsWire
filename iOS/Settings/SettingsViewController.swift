@@ -487,10 +487,18 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 
 	static func importResultMessage(_ result: OPMLImportResult) -> String {
 		let format = NNWLocalizedString(
-			"Added: %lld\nUpdated: %lld\nUnchanged: %lld\nRepositioned: %lld\nRejected: %lld",
+			"Folders added: %lld\nAdded: %lld\nUpdated: %lld\nUnchanged: %lld\nRepositioned: %lld\nRejected: %lld",
 			comment: "OPML import result counts"
 		)
-		var message = String(format: format, result.added, result.updated, result.unchanged, result.repositioned, result.rejected)
+		var message = String(
+			format: format,
+			result.foldersAdded,
+			result.added,
+			result.updated,
+			result.unchanged,
+			result.repositioned,
+			result.rejected
+		)
 		if result.committedButNotApplied {
 			let savedMessage = NNWLocalizedString(
 				"The records were saved to iCloud but have not appeared on this device yet. Refresh once to apply them.",

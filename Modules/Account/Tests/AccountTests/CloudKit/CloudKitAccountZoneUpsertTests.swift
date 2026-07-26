@@ -106,7 +106,8 @@ import CloudKitSync
 			_ = try await CloudKitAccountZone.importFeeds(
 				rootExternalID: "root",
 				plan: plan,
-				folders: [:]
+				folders: [:],
+				initialResult: OPMLImportResult(rejected: plan.rejectedCount)
 			) { _, _, _, _, _ in
 				upsertCount += 1
 				guard upsertCount == 1 else {
@@ -118,6 +119,67 @@ import CloudKitSync
 		} catch let error as OPMLImportPartialFailure {
 			XCTAssertEqual(error.result.added, 1)
 			XCTAssertEqual(error.result.rejected, 1)
+			XCTAssertTrue(error.underlyingError is TestError)
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
+	func testImportReportsRejectedStateWhenFirstFeedFails() async {
+		let plan = CloudKitOPMLImportPlan(
+			feeds: [PlannedCloudKitFeed(
+				urlString: "https://example.com/feed",
+				editedName: nil,
+				homePageURL: nil,
+				isTopLevel: true,
+				folderNames: []
+			)],
+			rejectedCount: 1
+		)
+
+		do {
+			_ = try await CloudKitAccountZone.importFeeds(
+				rootExternalID: "root",
+				plan: plan,
+				folders: [:],
+				initialResult: OPMLImportResult(rejected: plan.rejectedCount)
+			) { _, _, _, _, _ in
+				throw TestError.expected
+			}
+			XCTFail("Expected the first feed to fail")
+		} catch let error as OPMLImportPartialFailure {
+			XCTAssertEqual(error.result.rejected, 1)
+			XCTAssertTrue(error.underlyingError is TestError)
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
+	func testImportReportsCommittedFoldersWhenFirstFeedFails() async {
+		let plan = CloudKitOPMLImportPlan(
+			feeds: [PlannedCloudKitFeed(
+				urlString: "https://example.com/feed",
+				editedName: nil,
+				homePageURL: nil,
+				isTopLevel: false,
+				folderNames: ["Tech"]
+			)],
+			rejectedCount: 0
+		)
+		let folder = containerRecord(name: "Tech", externalID: "folder", isAccount: false)
+
+		do {
+			_ = try await CloudKitAccountZone.importFeeds(
+				rootExternalID: "root",
+				plan: plan,
+				folders: ["Tech": folder],
+				initialResult: OPMLImportResult(foldersAdded: 1)
+			) { _, _, _, _, _ in
+				throw TestError.expected
+			}
+			XCTFail("Expected the first feed to fail")
+		} catch let error as OPMLImportPartialFailure {
+			XCTAssertEqual(error.result.foldersAdded, 1)
 			XCTAssertTrue(error.underlyingError is TestError)
 		} catch {
 			XCTFail("Unexpected error: \(error)")

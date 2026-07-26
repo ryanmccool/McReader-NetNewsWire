@@ -112,11 +112,13 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	static var resetIsAvailable: Bool {
-		#if MCREADER_EMBEDDED
-		isResetAvailable(isEmbedded: true, containerIdentifier: configuredContainer?.containerIdentifier)
-		#else
-		false
-		#endif
+		guard let environment = NetNewsWireEnvironment.current else {
+			return false
+		}
+		guard case .embedded = environment.mode else {
+			return false
+		}
+		return isResetContainerIdentifier(environment.cloudKitContainerIdentifier)
 	}
 
 	static func resolve<Container>(

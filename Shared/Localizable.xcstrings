@@ -1188,7 +1188,7 @@
     "You must have at least one active account." : {
       "comment" : "Missing active account"
     },
-    "Added: %lld\nUpdated: %lld\nUnchanged: %lld\nRepositioned: %lld\nRejected: %lld" : {
+    "Folders added: %lld\nAdded: %lld\nUpdated: %lld\nUnchanged: %lld\nRepositioned: %lld\nRejected: %lld" : {
       "comment" : "OPML import result counts"
     },
     "Final Confirmation" : {
