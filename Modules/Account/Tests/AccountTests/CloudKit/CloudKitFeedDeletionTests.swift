@@ -27,6 +27,38 @@ import CloudKitSync
 		XCTAssertFalse(clearedSettings)
 	}
 
+	func testMembershipSaveUnknownItemPropagatesWithoutFinalCleanup() async {
+		let feedExternalID = "feed-id"
+		let record = CKRecord(
+			recordType: CloudKitAccountZone.CloudKitFeed.recordType,
+			recordID: recordID(feedExternalID)
+		)
+		record[CloudKitAccountZone.CloudKitFeed.Fields.containerExternalIDs] = ["source", "other"]
+		var cleanupRequested = false
+
+		do {
+			let deletedFinalRecord = try await CloudKitAccountZone.removeFeed(
+				fromContainerExternalID: "source",
+				feedExternalID: feedExternalID,
+				zoneID: zoneID,
+				fetch: { _ in record },
+				save: { _ in throw CloudKitError(CKError(.unknownItem)) },
+				delete: { _ in XCTFail("Membership-only removal must not delete the feed record") }
+			)
+			try await CloudKitAccountDelegate.completeFeedDeletion(
+				deletedFinalRecord: deletedFinalRecord,
+				feedExternalID: feedExternalID,
+				deleteArticles: { _ in cleanupRequested = true },
+				clearSettings: { cleanupRequested = true }
+			)
+			XCTFail("Expected membership save to fail")
+		} catch {
+			let underlyingError = (error as? CloudKitError)?.error as? CKError
+			XCTAssertEqual(underlyingError?.code, .unknownItem)
+			XCTAssertFalse(cleanupRequested)
+		}
+	}
+
 	func testFinalRemovalDeletesArticlesAndClearsSettings() async throws {
 		var deletedArticleFeedIDs = [String]()
 		var clearedSettings = false
