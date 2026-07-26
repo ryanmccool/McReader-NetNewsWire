@@ -27,10 +27,7 @@ public enum CloudKitAccountResetPhase: String, CaseIterable, Sendable {
 
 	var phase: CloudKitAccountResetPhase {
 		get {
-			guard let rawValue = userDefaults.string(forKey: Self.phaseDefaultsKey) else {
-				return .idle
-			}
-			return CloudKitAccountResetPhase(rawValue: rawValue) ?? .idle
+			Self.persistedPhase(in: userDefaults)
 		}
 		set {
 			if newValue == .idle {
@@ -39,6 +36,13 @@ public enum CloudKitAccountResetPhase: String, CaseIterable, Sendable {
 				userDefaults.set(newValue.rawValue, forKey: Self.phaseDefaultsKey)
 			}
 		}
+	}
+
+	static func persistedPhase(in userDefaults: UserDefaults) -> CloudKitAccountResetPhase {
+		guard let rawValue = userDefaults.string(forKey: phaseDefaultsKey) else {
+			return .idle
+		}
+		return CloudKitAccountResetPhase(rawValue: rawValue) ?? .idle
 	}
 
 	init(

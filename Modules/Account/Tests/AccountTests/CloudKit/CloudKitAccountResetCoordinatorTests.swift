@@ -56,8 +56,11 @@ import XCTest
 	}
 
 	func testResetContainerValidationRejectsMcReaderLibraryContainer() {
-		XCTAssertTrue(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.ryanmccool.McReader.Feeds"))
+		XCTAssertEqual(CloudKitAccountContainerConfiguration.feedsContainerIdentifier, "iCloud.ryanmccool.McReader.Feeds")
+		XCTAssertTrue(CloudKitAccountContainerConfiguration.isResetContainerIdentifier(CloudKitAccountContainerConfiguration.feedsContainerIdentifier))
 		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.ryanmccool.McReader"))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.example.Other.Feeds"))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.ryanmccool.McReader.Staging.Feeds"))
 		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier(nil))
 	}
 
@@ -141,6 +144,29 @@ import XCTest
 		}) { error in
 			XCTAssertEqual(error as? TestError, .unavailable)
 		}
+	}
+
+	func testPersistedResetSuppressesOrdinaryAutomaticSetup() {
+		let defaults = makeDefaults()
+		let coordinator = makeCoordinator(defaults: defaults)
+
+		XCTAssertTrue(CloudKitAccountDelegate.shouldStartAutomaticInitialSetup(externalID: nil, userDefaults: defaults))
+		coordinator.phase = .accountRecreated
+		XCTAssertFalse(CloudKitAccountDelegate.shouldStartAutomaticInitialSetup(externalID: nil, userDefaults: defaults))
+		XCTAssertFalse(CloudKitAccountDelegate.shouldStartAutomaticInitialSetup(externalID: "root", userDefaults: defaults))
+	}
+
+	func testAwaitingCachedFailedSetupRetriesInSameCall() async throws {
+		let failedTask = Task<Void, Error> { throw TestError.unavailable }
+		var retryCount = 0
+
+		let completedTask = try await CloudKitAccountDelegate.awaitInitialSetup(existingTask: failedTask) {
+			retryCount += 1
+			return Task {}
+		}
+
+		try await completedTask.value
+		XCTAssertEqual(retryCount, 1)
 	}
 }
 
