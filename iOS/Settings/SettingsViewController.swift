@@ -444,13 +444,17 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 				switch result {
 				case .success:
 					break
-				case .failure:
+				case .failure(let error):
 					let title = NNWLocalizedString("Import Failed", comment: "Import Failed")
-					let message = NNWLocalizedString("We were unable to process the selected file.  Please ensure that it is a properly formatted OPML file.", comment: "Import Failed Message")
+					let message = Self.opmlImportFailureMessage(error)
 					self.presentError(title: title, message: message)
 				}
 			}
 		}
+	}
+
+	static func opmlImportFailureMessage(_ error: Error) -> String {
+		cloudKitAccountUserVisibleError(error).localizedDescription
 	}
 
 }
