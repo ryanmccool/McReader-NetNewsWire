@@ -28,6 +28,40 @@ final class CloudKitSyncTests: XCTestCase {
 		XCTAssertEqual((state.snapshot().recordError as? CKError)?.code, .serverRecordChanged)
 	}
 
+	func testModifyStateDoesNotHidePerRecordFailureBehindOperationSuccess() {
+		let state = CloudKitZoneModifyCallbackState()
+		state.setRecordResult(.failure(CKError(.invalidArguments)))
+
+		let result = state.resolvedResult(operationResult: .success(()))
+
+		guard case .failure(let error) = result else {
+			return XCTFail("Expected the record failure to be preserved")
+		}
+		XCTAssertEqual((error as? CKError)?.code, .invalidArguments)
+	}
+
+	func testModifyStatePreservesOperationFailureWithoutRecordFailure() {
+		let state = CloudKitZoneModifyCallbackState()
+		let result = state.resolvedResult(operationResult: .failure(CKError(.zoneBusy)))
+
+		guard case .failure(let error) = result else {
+			return XCTFail("Expected the operation failure to be preserved")
+		}
+		XCTAssertEqual((error as? CKError)?.code, .zoneBusy)
+	}
+
+	func testModifyStateDoesNotHidePerRecordDeleteFailure() {
+		let state = CloudKitZoneModifyCallbackState()
+		state.setDeleteResult(.failure(CKError(.permissionFailure)))
+
+		let result = state.resolvedResult(operationResult: .success(()))
+
+		guard case .failure(let error) = result else {
+			return XCTFail("Expected the delete failure to be preserved")
+		}
+		XCTAssertEqual((error as? CKError)?.code, .permissionFailure)
+	}
+
 	func testZoneDeletionTreatsOnlyMissingZoneAsSuccess() {
 		XCTAssertTrue(CloudKitZoneDeletion.isMissingZoneError(CKError(.zoneNotFound)))
 		XCTAssertFalse(CloudKitZoneDeletion.isMissingZoneError(CKError(.zoneBusy)))

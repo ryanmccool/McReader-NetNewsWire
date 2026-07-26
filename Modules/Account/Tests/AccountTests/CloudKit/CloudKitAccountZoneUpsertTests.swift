@@ -16,6 +16,7 @@ import CloudKitSync
 	func testNewFeedUsesExactURLMD5RecordID() async throws {
 		let urlString = "https://EXAMPLE.com/feed/"
 		var savedRecord: CKRecord?
+		var unchangedSaveCount = 0
 
 		let result = try await CloudKitAccountZone.upsertFeed(
 			urlString: urlString,
@@ -25,12 +26,14 @@ import CloudKitSync
 			containerExternalIDs: ["root"],
 			zoneID: zoneID,
 			fetch: { _ in throw CloudKitError(CKError(.unknownItem)) },
-			save: { savedRecord = $0 }
+			saveNew: { savedRecord = $0 },
+			saveUnchanged: { _ in unchangedSaveCount += 1 }
 		)
 
 		XCTAssertEqual(savedRecord?.recordID.recordName, urlString.md5String)
 		XCTAssertEqual(savedRecord?[CloudKitAccountZone.CloudKitFeed.Fields.url] as? String, urlString)
 		XCTAssertTrue(result.wasAdded)
+		XCTAssertEqual(unchangedSaveCount, 0)
 	}
 
 	func testExistingFeedPreservesDownloadedNameAndOmittedHomepageWhileReplacingPlacements() async throws {
@@ -49,7 +52,8 @@ import CloudKitSync
 			containerExternalIDs: ["folder-b", "folder-a"],
 			zoneID: zoneID,
 			fetch: { _ in record },
-			save: { savedRecord = $0 }
+			saveNew: { _ in XCTFail("Existing records must not use the new-record save path") },
+			saveUnchanged: { savedRecord = $0 }
 		)
 
 		XCTAssertEqual(savedRecord?[CloudKitAccountZone.CloudKitFeed.Fields.name] as? String, "Downloaded Name")
@@ -73,7 +77,8 @@ import CloudKitSync
 			containerExternalIDs: ["root"],
 			zoneID: zoneID,
 			fetch: { _ in record },
-			save: { _ in saveCount += 1 }
+			saveNew: { _ in XCTFail("Existing records must not use the new-record save path") },
+			saveUnchanged: { _ in saveCount += 1 }
 		)
 
 		XCTAssertEqual(saveCount, 0)
@@ -209,7 +214,8 @@ import CloudKitSync
 				fetchCount += 1
 				return fetchCount == 1 ? first : refetched
 			},
-			save: { record in
+			saveNew: { _ in XCTFail("Existing records must not use the new-record save path") },
+			saveUnchanged: { record in
 				saveCount += 1
 				if saveCount == 1 {
 					let conflict = CKError(.serverRecordChanged)
