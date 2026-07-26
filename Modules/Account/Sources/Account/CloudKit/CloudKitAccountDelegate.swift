@@ -52,6 +52,7 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 	case importUnavailableWhileRefreshing
 	case accountNotReady
 	case feedDeletedCleanupFailed
+	case resetVerificationFailed
 	case unknown
 
 	var errorDescription: String? {
@@ -64,6 +65,8 @@ enum CloudKitAccountDelegateError: LocalizedError, Equatable, Sendable {
 			return NNWLocalizedString("The iCloud account is still being prepared. Wait a moment and try importing subscriptions again.", comment: "Feeds CloudKit account not ready for OPML import.")
 		case .feedDeletedCleanupFailed:
 			return NNWLocalizedString("The feed was removed, but its iCloud article cleanup failed. Try again later.", comment: "Feeds CloudKit feed deletion cleanup failed.")
+		case .resetVerificationFailed:
+			return NNWLocalizedString("The iCloud feed reset did not produce an empty account. Retry the reset.", comment: "Feeds CloudKit reset verification failed.")
 		case .invalidParameter, .unknown:
 			return NSLocalizedString("An unexpected CloudKit error occurred.", comment: "An unexpected CloudKit error occurred.")
 		}
@@ -99,6 +102,10 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		configuredContainer
 	}
 
+	static func isResetContainerIdentifier(_ identifier: String?) -> Bool {
+		identifier?.hasSuffix(".Feeds") == true
+	}
+
 	static func resolve<Container>(
 		configured: Container?,
 		defaultContainer: () -> Container
@@ -120,7 +127,8 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 	private let mainThreadOperationQueue = MainThreadOperationQueue()
 	private let refresher: LocalAccountRefresher
-	private let mutationGate = CloudKitAccountMutationGate()
+	private let mutationGate: CloudKitAccountMutationGate
+	private var initialSetupTask: Task<Void, Error>?
 	private var syncErrorHandler: CloudKitSyncErrorHandler?
 
 	private var lastNoChangeSyncDate: Date?
@@ -134,6 +142,9 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 	var mutationInProgress: Bool {
 		mutationGate.activeKind != nil
+	}
+	var mutationGateForReset: CloudKitAccountMutationGate {
+		mutationGate
 	}
 
 	let server: String? = nil
@@ -161,8 +172,9 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		}
 	}
 
-	init(dataFolder: String) {
+	init(dataFolder: String, mutationGate: CloudKitAccountMutationGate? = nil) {
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
+		self.mutationGate = mutationGate ?? CloudKitAccountMutationGate()
 		self.container = CloudKitAccountContainerConfiguration.resolve(
 			configured: CloudKitAccountContainerConfiguration.container,
 			defaultContainer: CKContainer.default
@@ -898,22 +910,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 		// Check to see if this is a new account and initialize anything we need
 		if account.externalID == nil {
-			Task {
-				do {
-					try await mutationGate.withMutation(kind: .refresh) {
-						let externalID = try await self.accountZone.findOrCreateAccount()
-						account.externalID = externalID
-						try? await self.initialRefreshAll(for: account)
-					}
-				} catch {
-					Self.logger.error("CloudKitAccountDelegate: \(#function, privacy: .public) error: \(error.localizedDescription)")
-					if let account = self.account {
-						self.postSyncError(error, account: account, operation: "Creating account")
-					}
-				}
-			}
-			subscribeToZoneChangesWithActivity(account: account, zone: accountZone)
-			subscribeToZoneChangesWithActivity(account: account, zone: articlesZone)
+			initialSetupTask = makeInitialSetupTask(for: account)
 		}
 
 	}
@@ -923,6 +920,55 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		accountZone.resetChangeToken()
 		articlesZone.resetChangeToken()
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
+	}
+
+	func deleteZoneIfPresent(_ zoneID: CKRecordZone.ID) async throws {
+		guard let configuredIdentifier = CloudKitAccountContainerConfiguration.container?.containerIdentifier,
+			configuredIdentifier == container.containerIdentifier,
+			CloudKitAccountContainerConfiguration.isResetContainerIdentifier(configuredIdentifier) else {
+			throw CloudKitAccountDelegateError.containerUnavailable
+		}
+		try await accountZone.deleteZoneIfPresent(zoneID)
+	}
+
+	func waitForInitialSetup() async throws {
+		guard let account else {
+			throw CloudKitAccountDelegateError.accountNotReady
+		}
+		let task = initialSetupTask ?? makeInitialSetupTask(for: account)
+		initialSetupTask = task
+		do {
+			try await task.value
+		} catch {
+			initialSetupTask = nil
+			throw error
+		}
+	}
+
+	static func performInitialSetup(
+		createAccountZone: () async throws -> Void,
+		createArticlesZone: () async throws -> Void,
+		createAccountRoot: () async throws -> Void,
+		subscribeAccountZone: () async throws -> Void,
+		subscribeArticlesZone: () async throws -> Void,
+		initialRefresh: () async throws -> Void,
+		verifyEmpty: () async throws -> Void
+	) async throws {
+		try await createAccountZone()
+		try await createArticlesZone()
+		try await createAccountRoot()
+		try await subscribeAccountZone()
+		try await subscribeArticlesZone()
+		try await initialRefresh()
+		try await verifyEmpty()
+	}
+
+	func verifyEmptyAccountTree() throws {
+		guard let account,
+			account.flattenedFeeds().isEmpty,
+			account.folders?.isEmpty == true else {
+			throw CloudKitAccountDelegateError.resetVerificationFailed
+		}
 	}
 
 	static func validateCredentials(credentials: Credentials, endpoint: URL?) async throws -> Credentials? {
@@ -1004,25 +1050,58 @@ private extension CloudKitAccountDelegate {
 
 private extension CloudKitAccountDelegate {
 
-	/// Push-subscription setup runs once per zone at first iCloud account add.
-	/// Wraps it in an activity so silent failures (offline, account issues) become
-	/// visible — without it, a failed subscription means no future remote pushes.
-	func subscribeToZoneChangesWithActivity(account: Account, zone: any CloudKitZone) {
-		let zoneName = zone.zoneID.zoneName
-		Task { [weak self] in
-			guard let self else {
-				return
-			}
+	func makeInitialSetupTask(for account: Account) -> Task<Void, Error> {
+		let resetOwnsGate = mutationGate.activeKind == .reset
+		return Task {
 			do {
-				try await account.logActivity(kind: .subscribeToCloudKitZone, detail: zoneName) {
-					try await zone.subscribeToZoneChanges()
+				if resetOwnsGate {
+					try await performInitialSetup(for: account, verifyEmpty: true)
+				} else {
+					try await mutationGate.withMutation(kind: .refresh) {
+						try await self.performInitialSetup(for: account, verifyEmpty: false)
+					}
 				}
 			} catch {
-				Self.logger.error("CloudKitAccountDelegate: subscribeToZoneChanges \(zoneName, privacy: .public) error: \(error.localizedDescription)")
-				if let account = self.account {
-					self.postSyncError(error, account: account, operation: "Subscribing to zone changes")
+				Self.logger.error("CloudKitAccountDelegate: initial setup error: \(error.localizedDescription)")
+				postSyncError(error, account: account, operation: "Creating account")
+				throw error
+			}
+		}
+	}
+
+	func performInitialSetup(for account: Account, verifyEmpty: Bool) async throws {
+		try await Self.performInitialSetup(
+			createAccountZone: { try await self.accountZone.createZoneRecord() },
+			createArticlesZone: { try await self.articlesZone.createZoneRecord() },
+			createAccountRoot: {
+				account.externalID = try await self.accountZone.findOrCreateAccount()
+			},
+			subscribeAccountZone: {
+				try await self.subscribeToZoneChangesWithActivity(account: account, zone: self.accountZone)
+			},
+			subscribeArticlesZone: {
+				try await self.subscribeToZoneChangesWithActivity(account: account, zone: self.articlesZone)
+			},
+			initialRefresh: { try await self.initialRefreshAll(for: account) },
+			verifyEmpty: {
+				if verifyEmpty {
+					try self.verifyEmptyAccountTree()
 				}
 			}
+		)
+	}
+
+	/// Without a successful subscription, this device receives no silent remote-change pushes.
+	func subscribeToZoneChangesWithActivity(account: Account, zone: any CloudKitZone) async throws {
+		let zoneName = zone.zoneID.zoneName
+		do {
+			try await account.logActivity(kind: .subscribeToCloudKitZone, detail: zoneName) {
+				try await zone.subscribeToZoneChanges()
+			}
+		} catch {
+			Self.logger.error("CloudKitAccountDelegate: subscribeToZoneChanges \(zoneName, privacy: .public) error: \(error.localizedDescription)")
+			postSyncError(error, account: account, operation: "Subscribing to zone changes")
+			throw error
 		}
 	}
 }

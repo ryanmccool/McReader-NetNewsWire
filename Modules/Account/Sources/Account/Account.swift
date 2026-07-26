@@ -292,12 +292,17 @@ public enum FetchType {
 		}
 	}
 
-	init(dataFolder: String, type: AccountType, accountID: String) {
+	init(
+		dataFolder: String,
+		type: AccountType,
+		accountID: String,
+		cloudKitMutationGate: CloudKitAccountMutationGate? = nil
+	) {
 		switch type {
 		case .onMyMac:
 			self.delegate = LocalAccountDelegate()
 		case .cloudKit:
-			self.delegate = CloudKitAccountDelegate(dataFolder: dataFolder)
+			self.delegate = CloudKitAccountDelegate(dataFolder: dataFolder, mutationGate: cloudKitMutationGate)
 		case .feedbin:
 			self.delegate = FeedbinAccountDelegate(dataFolder: dataFolder)
 		case .feedly:

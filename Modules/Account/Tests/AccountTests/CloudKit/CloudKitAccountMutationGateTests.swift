@@ -65,6 +65,37 @@ import XCTest
 
 		XCTAssertEqual(states, [.refresh, nil])
 	}
+
+	func testResetOwnsGateAcrossSuspensionAndRejectsAccountMutations() async throws {
+		let gate = CloudKitAccountMutationGate()
+		let resetStarted = expectation(description: "reset started")
+		let releaseReset = AsyncStream.makeStream(of: Void.self)
+
+		let reset = Task {
+			try await gate.withMutation(kind: .reset) {
+				resetStarted.fulfill()
+				for await _ in releaseReset.stream {
+					break
+				}
+			}
+		}
+
+		await fulfillment(of: [resetStarted])
+		XCTAssertEqual(gate.activeKind, .reset)
+		for kind in [CloudKitAccountMutationKind.importOPML, .feed, .folder, .refresh, .remoteNotification] {
+			do {
+				try await gate.withMutation(kind: kind) {}
+				XCTFail("Expected \(kind) to be rejected during reset")
+			} catch AccountError.operationInProgress {
+				// Expected.
+			}
+		}
+
+		releaseReset.continuation.yield()
+		releaseReset.continuation.finish()
+		try await reset.value
+		XCTAssertNil(gate.activeKind)
+	}
 }
 
 private enum TestError: Error {
