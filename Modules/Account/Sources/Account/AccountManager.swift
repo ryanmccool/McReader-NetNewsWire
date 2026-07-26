@@ -134,9 +134,7 @@ import ActivityLog
 	}
 
 	public var cloudKitResetCanRun: Bool {
-		let phase = CloudKitAccountResetPhase(
-			rawValue: AppConfig.defaults.string(forKey: CloudKitAccountResetCoordinator.phaseDefaultsKey) ?? ""
-		) ?? .idle
+		let phase = CloudKitAccountResetCoordinator.persistedPhase(in: AppConfig.defaults)
 		let cloudKitRefreshInProgress = iCloudAccount?.refreshInProgress ?? false
 		return (hasiCloudAccount || phase != .idle) && !cloudKitMutationInProgress && !cloudKitRefreshInProgress
 	}
@@ -233,9 +231,7 @@ import ActivityLog
 	}
 
 	public func resetCloudKitAccount() async throws {
-		let phase = CloudKitAccountResetPhase(
-			rawValue: AppConfig.defaults.string(forKey: CloudKitAccountResetCoordinator.phaseDefaultsKey) ?? ""
-		) ?? .idle
+		let phase = CloudKitAccountResetCoordinator.persistedPhase(in: AppConfig.defaults)
 		guard iCloudAccount != nil || phase != .idle else {
 			throw AccountError.invalidParameter
 		}

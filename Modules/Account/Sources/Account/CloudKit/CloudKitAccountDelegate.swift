@@ -89,6 +89,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 }
 
 @MainActor public enum CloudKitAccountContainerConfiguration {
+	public static let feedsContainerIdentifier = "iCloud.ryanmccool.McReader.Feeds"
 	private static var configuredContainer: CKContainer?
 
 	public static func configure(identifier: String) throws {
@@ -103,7 +104,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	static func isResetContainerIdentifier(_ identifier: String?) -> Bool {
-		identifier?.hasSuffix(".Feeds") == true
+		identifier == feedsContainerIdentifier
 	}
 
 	static func resolve<Container>(
@@ -263,6 +264,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func syncArticleStatus() async throws -> Bool {
+		try await mutationGate.withMutation(kind: .articleStatus) {
+			try await self.syncArticleStatusImpl()
+		}
+	}
+
+	private func syncArticleStatusImpl() async throws -> Bool {
 		guard let account else {
 			return false
 		}
@@ -273,8 +280,8 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 			return false
 		}
 
-		let sentCount = try await sendArticleStatus(account: account, showProgress: false)
-		try await refreshArticleStatus()
+		let sentCount = try await sendArticleStatusImpl(account: account, showProgress: false)
+		try await refreshArticleStatusImpl()
 
 		let didReceiveChanges = !(articlesZoneHasNoChanges && accountZoneHasNoChanges)
 		let didWork = sentCount > 0 || didReceiveChanges
@@ -304,15 +311,27 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func sendArticleStatus() async throws {
+		try await mutationGate.withMutation(kind: .articleStatus) {
+			try await self.sendArticleStatusImpl()
+		}
+	}
+
+	private func sendArticleStatusImpl() async throws {
 		guard let account else {
 			return
 		}
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
-		_ = try await sendArticleStatus(account: account, showProgress: false)
+		_ = try await sendArticleStatusImpl(account: account, showProgress: false)
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
 	}
 
 	func refreshArticleStatus() async throws {
+		try await mutationGate.withMutation(kind: .articleStatus) {
+			try await self.refreshArticleStatusImpl()
+		}
+	}
+
+	private func refreshArticleStatusImpl() async throws {
 		guard let account else {
 			return
 		}
@@ -845,6 +864,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func markArticles(articleIDs: Set<String>, statusKey: ArticleStatus.Key, flag: Bool) async throws {
+		try await mutationGate.withMutation(kind: .articleStatus) {
+			try await self.markArticlesImpl(articleIDs: articleIDs, statusKey: statusKey, flag: flag)
+		}
+	}
+
+	private func markArticlesImpl(articleIDs: Set<String>, statusKey: ArticleStatus.Key, flag: Bool) async throws {
 		guard let account else {
 			return
 		}
@@ -861,9 +886,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 			NotificationCenter.default.post(name: .AccountDidQueueArticleStatuses, object: account)
 		}
 		if let count = await syncDatabase.selectPendingCount(), count > 100 {
-			// Flush in the background so marking doesn't block the caller
-			// <https://github.com/Ranchero-Software/NetNewsWire/issues/5273>
-			Task { try? await sendArticleStatus() }
+			_ = try await sendArticleStatusImpl(account: account, showProgress: false)
 		}
 
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
@@ -909,7 +932,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		syncDatabase.resetAllSelectedForProcessing()
 
 		// Check to see if this is a new account and initialize anything we need
-		if account.externalID == nil {
+		if Self.shouldStartAutomaticInitialSetup(externalID: account.externalID, userDefaults: AppConfig.defaults) {
 			initialSetupTask = makeInitialSetupTask(for: account)
 		}
 
@@ -935,14 +958,35 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		guard let account else {
 			throw CloudKitAccountDelegateError.accountNotReady
 		}
-		let task = initialSetupTask ?? makeInitialSetupTask(for: account)
-		initialSetupTask = task
 		do {
-			try await task.value
+			initialSetupTask = try await Self.awaitInitialSetup(existingTask: initialSetupTask) {
+				self.makeInitialSetupTask(for: account)
+			}
 		} catch {
 			initialSetupTask = nil
 			throw error
 		}
+	}
+
+	static func shouldStartAutomaticInitialSetup(externalID: String?, userDefaults: UserDefaults) -> Bool {
+		externalID == nil && CloudKitAccountResetCoordinator.persistedPhase(in: userDefaults) == .idle
+	}
+
+	static func awaitInitialSetup(
+		existingTask: Task<Void, Error>?,
+		makeTask: () -> Task<Void, Error>
+	) async throws -> Task<Void, Error> {
+		if let existingTask {
+			do {
+				try await existingTask.value
+				return existingTask
+			} catch {
+				// Replace a cached failed task so this invocation performs the retry.
+			}
+		}
+		let task = makeTask()
+		try await task.value
+		return task
 	}
 
 	static func performInitialSetup(
@@ -985,6 +1029,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func fetchCloudKitStats(progress: @escaping CloudKitStatsProgressHandler) async throws -> CloudKitStats {
+		try await mutationGate.withMutation(kind: .articleStatus) {
+			try await self.fetchCloudKitStatsImpl(progress: progress)
+		}
+	}
+
+	private func fetchCloudKitStatsImpl(progress: @escaping CloudKitStatsProgressHandler) async throws -> CloudKitStats {
 		guard let account else {
 			throw CloudKitAccountDelegateError.unknown
 		}
@@ -1000,6 +1050,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func cleanUpCloudKit(dryRun: Bool, progress: @escaping @MainActor @Sendable (CloudKitCleanUpProgress) -> Void) async throws {
+		try await mutationGate.withMutation(kind: .articleStatus) {
+			try await self.cleanUpCloudKitImpl(dryRun: dryRun, progress: progress)
+		}
+	}
+
+	private func cleanUpCloudKitImpl(dryRun: Bool, progress: @escaping @MainActor @Sendable (CloudKitCleanUpProgress) -> Void) async throws {
 		guard let account else {
 			throw CloudKitAccountDelegateError.unknown
 		}
@@ -1169,7 +1225,7 @@ private extension CloudKitAccountDelegate {
 		let feeds = account.flattenedFeeds()
 
 		do {
-			try await refreshArticleStatus()
+			try await refreshArticleStatusImpl()
 			syncProgress.completeTask()
 		} catch {
 			postSyncError(error, account: account, operation: "Refreshing article status")
@@ -1184,7 +1240,7 @@ private extension CloudKitAccountDelegate {
 
 		if sendArticleStatus {
 			do {
-				_ = try await self.sendArticleStatus(account: account, showProgress: true)
+				_ = try await self.sendArticleStatusImpl(account: account, showProgress: true)
 			} catch {
 				postSyncError(error, account: account, operation: "Sending article status")
 				syncProgress.reset()
@@ -1329,29 +1385,39 @@ private extension CloudKitAccountDelegate {
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
 		Task {
 			do {
-				let articles = await account.fetchArticlesAsync(.feed(feed))
-
-				await storeArticleChanges(new: articles, updated: Set<Article>(), deleted: Set<Article>())
-				syncProgress.completeTask()
-
-				_ = try await sendArticleStatus(account: account, showProgress: true)
-
-				do {
-					try await articlesZone.fetchChangesInZone()
-				} catch {
-					Self.logger.error("CloudKitAccountDelegate: fetchChangesInZone error: \(error.localizedDescription)")
-					if let account = self.account {
-						postSyncError(error, account: account, operation: "Fetching zone changes")
-					}
+				try await mutationGate.withMutation(kind: .articleStatus) {
+					await self.sendNewArticlesToTheCloudImpl(account, feed)
 				}
 			} catch {
-				Self.logger.error("CloudKitAccountDelegate: \(#function, privacy: .public) error: \(error.localizedDescription)")
+				Self.logger.error("CloudKitAccountDelegate: \(#function, privacy: .public) skipped: \(error.localizedDescription)")
+			}
+		}
+	}
+
+	private func sendNewArticlesToTheCloudImpl(_ account: Account, _ feed: Feed) async {
+		do {
+			let articles = await account.fetchArticlesAsync(.feed(feed))
+
+			await storeArticleChanges(new: articles, updated: Set<Article>(), deleted: Set<Article>())
+			syncProgress.completeTask()
+
+			_ = try await sendArticleStatusImpl(account: account, showProgress: true)
+
+			do {
+				_ = try await articlesZone.fetchChangesInZone()
+			} catch {
+				Self.logger.error("CloudKitAccountDelegate: fetchChangesInZone error: \(error.localizedDescription)")
 				if let account = self.account {
-					postSyncError(error, account: account, operation: "Sending articles")
+					postSyncError(error, account: account, operation: "Fetching zone changes")
 				}
 			}
-			Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
+		} catch {
+			Self.logger.error("CloudKitAccountDelegate: \(#function, privacy: .public) error: \(error.localizedDescription)")
+			if let account = self.account {
+				postSyncError(error, account: account, operation: "Sending articles")
+			}
 		}
+		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
 	}
 
 	func postSyncError(_ error: Error, account: Account, operation: String, fileName: String = #fileID, functionName: String = #function, lineNumber: Int = #line) {
@@ -1395,7 +1461,7 @@ private extension CloudKitAccountDelegate {
 	}
 
 	/// Returns the number of statuses successfully sent.
-	func sendArticleStatus(account: Account, showProgress: Bool) async throws -> Int {
+	func sendArticleStatusImpl(account: Account, showProgress: Bool) async throws -> Int {
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
 		return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int, Error>) in
 			let op = CloudKitSendStatusOperation(account: account,

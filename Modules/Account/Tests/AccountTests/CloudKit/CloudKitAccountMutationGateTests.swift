@@ -82,7 +82,7 @@ import XCTest
 
 		await fulfillment(of: [resetStarted])
 		XCTAssertEqual(gate.activeKind, .reset)
-		for kind in [CloudKitAccountMutationKind.importOPML, .feed, .folder, .refresh, .remoteNotification] {
+		for kind in [CloudKitAccountMutationKind.importOPML, .feed, .folder, .articleStatus, .refresh, .remoteNotification] {
 			do {
 				try await gate.withMutation(kind: kind) {}
 				XCTFail("Expected \(kind) to be rejected during reset")
@@ -94,6 +94,35 @@ import XCTest
 		releaseReset.continuation.yield()
 		releaseReset.continuation.finish()
 		try await reset.value
+		XCTAssertNil(gate.activeKind)
+	}
+
+	func testArticleStatusOwnsGateAndRejectsReset() async throws {
+		let gate = CloudKitAccountMutationGate()
+		let statusStarted = expectation(description: "status sync started")
+		let releaseStatus = AsyncStream.makeStream(of: Void.self)
+
+		let status = Task {
+			try await gate.withMutation(kind: .articleStatus) {
+				statusStarted.fulfill()
+				for await _ in releaseStatus.stream {
+					break
+				}
+			}
+		}
+
+		await fulfillment(of: [statusStarted])
+		XCTAssertEqual(gate.activeKind, .articleStatus)
+		do {
+			try await gate.withMutation(kind: .reset) {}
+			XCTFail("Expected reset to reject an active status mutation")
+		} catch AccountError.operationInProgress {
+			// Expected.
+		}
+
+		releaseStatus.continuation.yield()
+		releaseStatus.continuation.finish()
+		try await status.value
 		XCTAssertNil(gate.activeKind)
 	}
 }

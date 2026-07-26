@@ -9,6 +9,7 @@ enum CloudKitAccountMutationKind: Sendable, Equatable {
 	case importOPML
 	case feed
 	case folder
+	case articleStatus
 	case reset
 	case refresh
 	case remoteNotification
