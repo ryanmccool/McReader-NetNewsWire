@@ -29,6 +29,17 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		XCTAssertEqual(receivedIdentifiers, ["iCloud.ryanmccool.McReader.Feeds"])
 	}
 
+	func testContainedRuntimeEnablesResetForExactConfiguredFeedsContainer() throws {
+		_ = try NetNewsWireFeatureRuntime(
+			configuration: makeConfiguration(),
+			cloudKitContainerConfigurator: { identifier in
+				XCTAssertEqual(identifier, CloudKitAccountContainerConfiguration.feedsContainerIdentifier)
+			}
+		)
+
+		XCTAssertTrue(AccountManager.shared.cloudKitResetIsAvailable)
+	}
+
 	func testRuntimePropagatesCloudKitContainerConfigurationFailure() throws {
 		let configuration = try makeConfiguration()
 
@@ -188,13 +199,13 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 	func testSettingsPartialOPMLImportFailureReportsConfirmedCountsAndOperationalError() {
 		let underlyingError = CloudKitAccountDelegateError.accountNotReady
 		let error = OPMLImportPartialFailure(
-			result: OPMLImportResult(added: 1, rejected: 2),
+			result: OPMLImportResult(foldersAdded: 1, added: 1, rejected: 2),
 			underlyingError: underlyingError
 		)
 
 		XCTAssertEqual(
 			SettingsViewController.opmlImportFailureMessage(error),
-			"Added: 1\nUpdated: 0\nUnchanged: 0\nRepositioned: 0\nRejected: 2\n\n\(underlyingError.localizedDescription)"
+			"Folders added: 1\nAdded: 1\nUpdated: 0\nUnchanged: 0\nRepositioned: 0\nRejected: 2\n\n\(underlyingError.localizedDescription)"
 		)
 	}
 
@@ -301,11 +312,11 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 	}
 
 	func testSettingsOPMLImportResultMessageFormatsConfirmedCounts() {
-		let result = OPMLImportResult(added: 2, updated: 3, unchanged: 4, repositioned: 5, rejected: 6)
+		let result = OPMLImportResult(foldersAdded: 1, added: 2, updated: 3, unchanged: 4, repositioned: 5, rejected: 6)
 
 		XCTAssertEqual(
 			SettingsViewController.importResultMessage(result),
-			"Added: 2\nUpdated: 3\nUnchanged: 4\nRepositioned: 5\nRejected: 6"
+			"Folders added: 1\nAdded: 2\nUpdated: 3\nUnchanged: 4\nRepositioned: 5\nRejected: 6"
 		)
 	}
 

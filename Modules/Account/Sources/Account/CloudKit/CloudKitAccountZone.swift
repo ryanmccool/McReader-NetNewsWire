@@ -87,16 +87,26 @@ enum CloudKitAccountZoneError: LocalizedError {
 
 	func importOPML(rootExternalID: String, plan: CloudKitOPMLImportPlan) async throws -> OPMLImportResult {
 		var folders = try await inventoryFolders()
+		var importResult = OPMLImportResult(rejected: plan.rejectedCount)
 		for name in Set(plan.feeds.flatMap(\.folderNames)).sorted() where folders[name] == nil {
 			let record = newContainerCKRecord(name: name)
-			try await save(record)
+			do {
+				try await save(record)
+			} catch {
+				guard importResult != OPMLImportResult() else {
+					throw error
+				}
+				throw OPMLImportPartialFailure(result: importResult, underlyingError: error)
+			}
 			folders[name] = record
+			importResult.foldersAdded += 1
 		}
 
 		return try await Self.importFeeds(
 			rootExternalID: rootExternalID,
 			plan: plan,
 			folders: folders,
+			initialResult: importResult,
 			upsert: upsertFeed
 		)
 	}
@@ -105,9 +115,10 @@ enum CloudKitAccountZoneError: LocalizedError {
 		rootExternalID: String,
 		plan: CloudKitOPMLImportPlan,
 		folders: [String: CKRecord],
+		initialResult: OPMLImportResult,
 		upsert: (String, String?, String?, String?, Set<String>) async throws -> CloudKitFeedUpsertResult
 	) async throws -> OPMLImportResult {
-		var importResult = OPMLImportResult(rejected: plan.rejectedCount)
+		var importResult = initialResult
 		var confirmedFeedCount = 0
 		for plannedFeed in plan.feeds {
 			var placements = Set(plannedFeed.folderNames.compactMap { folders[$0]?.externalID })
@@ -128,7 +139,7 @@ enum CloudKitAccountZoneError: LocalizedError {
 					placements
 				)
 			} catch {
-				guard confirmedFeedCount > 0 else {
+				guard confirmedFeedCount > 0 || importResult != OPMLImportResult() else {
 					throw error
 				}
 				throw OPMLImportPartialFailure(result: importResult, underlyingError: error)

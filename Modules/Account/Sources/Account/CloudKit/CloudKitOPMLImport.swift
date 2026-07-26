@@ -8,6 +8,7 @@ import RSParser
 
 public struct OPMLImportResult: Sendable, Equatable {
 
+	public var foldersAdded = 0
 	public var added = 0
 	public var updated = 0
 	public var unchanged = 0
