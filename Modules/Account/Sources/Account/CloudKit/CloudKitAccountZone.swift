@@ -220,7 +220,7 @@ enum CloudKitAccountZoneError: LocalizedError {
 		containerExternalIDSet.remove(fromContainerExternalID)
 
 		guard containerExternalIDSet.isEmpty else {
-			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet)
+			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet) as [String]
 			try await save(record)
 			return false
 		}
@@ -246,7 +246,7 @@ enum CloudKitAccountZoneError: LocalizedError {
 			var containerExternalIDSet = Set(containerExternalIDs)
 			containerExternalIDSet.remove(fromContainerExternalID)
 			containerExternalIDSet.insert(toContainerExternalID)
-			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet)
+			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet) as [String]
 			try await save(record)
 		}
 	}
@@ -260,7 +260,7 @@ enum CloudKitAccountZoneError: LocalizedError {
 		if let containerExternalIDs = record[CloudKitFeed.Fields.containerExternalIDs] as? [String] {
 			var containerExternalIDSet = Set(containerExternalIDs)
 			containerExternalIDSet.insert(toContainerExternalID)
-			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet)
+			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet) as [String]
 			try await save(record)
 		}
 	}
@@ -441,7 +441,7 @@ extension CloudKitAccountZone {
 			if let homePageURL {
 				record[CloudKitFeed.Fields.homePageURL] = homePageURL
 			}
-			record[CloudKitFeed.Fields.containerExternalIDs] = containerExternalIDs.sorted()
+			record[CloudKitFeed.Fields.containerExternalIDs] = containerExternalIDs.sorted() as [String]
 
 			guard !wasAdded else {
 				return CloudKitFeedUpsertResult(wasAdded: true, metadataChanged: false, placementChanged: false)
