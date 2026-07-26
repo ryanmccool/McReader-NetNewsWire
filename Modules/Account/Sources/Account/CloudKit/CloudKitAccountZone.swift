@@ -201,7 +201,8 @@ enum CloudKitAccountZoneError: LocalizedError {
 			containerExternalIDs: containerExternalIDs,
 			zoneID: zoneID,
 			fetch: { try await self.fetch(externalID: $0) },
-			save: { try await self.saveUnchanged($0) }
+			saveNew: { try await self.save($0) },
+			saveUnchanged: { try await self.saveUnchanged($0) }
 		)
 	}
 
@@ -462,7 +463,8 @@ extension CloudKitAccountZone {
 		containerExternalIDs: Set<String>,
 		zoneID: CKRecordZone.ID,
 		fetch: (String) async throws -> CKRecord,
-		save: (CKRecord) async throws -> Void
+		saveNew: (CKRecord) async throws -> Void,
+		saveUnchanged: (CKRecord) async throws -> Void
 	) async throws -> CloudKitFeedUpsertResult {
 		let externalID = urlString.md5String
 
@@ -519,7 +521,11 @@ extension CloudKitAccountZone {
 		}
 
 		do {
-			try await save(record)
+			if existingRecord == nil {
+				try await saveNew(record)
+			} else {
+				try await saveUnchanged(record)
+			}
 			return result
 		} catch {
 			guard cloudKitErrorCode(error) == .serverRecordChanged else {
@@ -528,7 +534,7 @@ extension CloudKitAccountZone {
 			let refetched = try await fetch(externalID)
 			let retryResult = apply(to: refetched, wasAdded: false)
 			if !retryResult.isUnchanged {
-				try await save(refetched)
+				try await saveUnchanged(refetched)
 			}
 			return retryResult
 		}

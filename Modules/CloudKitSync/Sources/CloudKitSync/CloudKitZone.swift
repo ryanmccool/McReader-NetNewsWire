@@ -102,6 +102,40 @@ public enum CloudKitRemoteNotificationResult: Equatable, Sendable {
 	}
 }
 
+final class CloudKitZoneModifyCallbackState: @unchecked Sendable {
+	private let lock = NSLock()
+	private var recordError: Error?
+
+	func setRecordResult(_ result: Result<CKRecord, Error>) {
+		guard case .failure(let error) = result else {
+			return
+		}
+		setError(error)
+	}
+
+	func setDeleteResult(_ result: Result<Void, Error>) {
+		guard case .failure(let error) = result else {
+			return
+		}
+		setError(error)
+	}
+
+	private func setError(_ error: Error) {
+		lock.lock()
+		recordError = recordError ?? error
+		lock.unlock()
+	}
+
+	func resolvedResult(operationResult: Result<Void, Error>) -> Result<Void, Error> {
+		lock.lock()
+		defer { lock.unlock() }
+		if let recordError {
+			return .failure(recordError)
+		}
+		return operationResult
+	}
+}
+
 final class CloudKitZoneFetchCallbackState: @unchecked Sendable {
 	struct Snapshot {
 		let savedChangeToken: CKServerChangeToken?
@@ -542,10 +576,14 @@ public extension CloudKitZone {
 
 	private func saveUnchanged(_ record: CKRecord, retriesRemaining: Int, completion: @escaping (Result<Void, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: saveUnchanged \(self.zoneID.zoneName, privacy: .public)")
+		let callbackState = CloudKitZoneModifyCallbackState()
 		let op = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: [])
 		op.savePolicy = .ifServerRecordUnchanged
 		op.isAtomic = true
 		op.qualityOfService = Self.qualityOfService
+		op.perRecordSaveBlock = { _, result in
+			callbackState.setRecordResult(result)
+		}
 
 		op.modifyRecordsResultBlock = { [weak self] result in
 			Task { @MainActor [weak self] in
@@ -554,7 +592,7 @@ public extension CloudKitZone {
 					return
 				}
 
-				switch result {
+				switch callbackState.resolvedResult(operationResult: result) {
 				case .success:
 					completion(.success(()))
 				case .failure(let error):
@@ -874,10 +912,17 @@ public extension CloudKitZone {
 			return
 		}
 
+		let callbackState = CloudKitZoneModifyCallbackState()
 		let op = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: recordIDsToDelete)
 		op.savePolicy = .changedKeys
 		op.isAtomic = true
 		op.qualityOfService = Self.qualityOfService
+		op.perRecordSaveBlock = { _, result in
+			callbackState.setRecordResult(result)
+		}
+		op.perRecordDeleteBlock = { _, result in
+			callbackState.setDeleteResult(result)
+		}
 
 		op.modifyRecordsResultBlock = { [weak self] result in
 			Task { @MainActor [weak self] in
@@ -886,7 +931,7 @@ public extension CloudKitZone {
 					return
 				}
 
-				switch result {
+				switch callbackState.resolvedResult(operationResult: result) {
 				case .success:
 					completion(.success(()))
 				case .failure(let error):
