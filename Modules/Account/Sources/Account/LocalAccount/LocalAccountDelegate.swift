@@ -68,23 +68,32 @@ import Secrets
 	@MainActor func refreshArticleStatus() async throws {
 	}
 
-	@MainActor func importOPML(opmlFile: URL) async throws {
+	@MainActor func importOPML(opmlFile: URL) async throws -> OPMLImportResult {
 		guard let account else {
-			return
+			return OPMLImportResult()
 		}
-		try account.logActivity(kind: .importOPML, detail: opmlFile.lastPathComponent) {
+		return try account.logActivity(kind: .importOPML, detail: opmlFile.lastPathComponent) {
 			let opmlData = try Data(contentsOf: opmlFile)
 			let parserData = ParserData(url: opmlFile.absoluteString, data: opmlData)
 			let opmlDocument = try OPMLParser.parseOPML(with: parserData)
 
 			// TODO: throw appropriate error for empty OPML
 			guard let children = opmlDocument.children else {
-				return
+				return OPMLImportResult()
+			}
+			let normalizedItems = OPMLNormalizer.normalize(children)
+			let feedCount = normalizedItems.reduce(into: 0) { count, item in
+				if item.feedSpecifier != nil {
+					count += 1
+				} else {
+					count += item.children?.count(where: { $0.feedSpecifier != nil }) ?? 0
+				}
 			}
 
 			BatchUpdate.shared.perform {
-				account.loadOPMLItems(children)
+				account.loadOPMLItems(normalizedItems)
 			}
+			return OPMLImportResult(added: feedCount)
 		}
 	}
 

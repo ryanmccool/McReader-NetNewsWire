@@ -515,7 +515,7 @@ public enum FetchType {
 
 		Task { @MainActor in
 			do {
-				try await delegate.importOPML(opmlFile: opmlFile)
+				_ = try await delegate.importOPML(opmlFile: opmlFile)
 				// Reset the last fetch date to get the article history for the added feeds.
 				lastArticleFetchStartTime = nil
 				try? await delegate.refreshAll()
