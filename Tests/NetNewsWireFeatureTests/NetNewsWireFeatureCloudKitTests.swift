@@ -148,14 +148,31 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		var saved = false
 		var reportedError: TestError?
 
-		try await CloudKitAccountDelegate.performOPMLImport(
-			save: { saved = true },
+		let result = try await CloudKitAccountDelegate.performOPMLImport(
+			save: {
+				saved = true
+				return OPMLImportResult(added: 1)
+			},
 			refresh: { throw TestError.unavailable },
+			verify: { false },
 			reportRefreshError: { reportedError = $0 as? TestError }
 		)
 
 		XCTAssertTrue(saved)
 		XCTAssertEqual(reportedError, .unavailable)
+		XCTAssertEqual(result.added, 1)
+		XCTAssertTrue(result.committedButNotApplied)
+	}
+
+	func testCommittedOPMLImportReportsAppliedWhenRefreshFailsAfterConvergence() async throws {
+		let result = try await CloudKitAccountDelegate.performOPMLImport(
+			save: { OPMLImportResult(unchanged: 1) },
+			refresh: { throw TestError.unavailable },
+			verify: { true },
+			reportRefreshError: { _ in }
+		)
+
+		XCTAssertFalse(result.committedButNotApplied)
 	}
 
 	func testSettingsOPMLImportFailureUsesOperationalErrorDescription() {

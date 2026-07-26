@@ -507,7 +507,7 @@ public enum FetchType {
 
 	// MARK: - OPML
 
-	public func importOPML(_ opmlFile: URL, completion: @escaping (Result<Void, Error>) -> Void) {
+	public func importOPML(_ opmlFile: URL, completion: @escaping (Result<OPMLImportResult, Error>) -> Void) {
 		guard !delegate.isOPMLImportInProgress else {
 			completion(.failure(AccountError.opmlImportInProgress))
 			return
@@ -515,11 +515,10 @@ public enum FetchType {
 
 		Task { @MainActor in
 			do {
-				_ = try await delegate.importOPML(opmlFile: opmlFile)
+				let result = try await delegate.importOPML(opmlFile: opmlFile)
 				// Reset the last fetch date to get the article history for the added feeds.
 				lastArticleFetchStartTime = nil
-				try? await delegate.refreshAll()
-				completion(.success(()))
+				completion(.success(result))
 			} catch {
 				completion(.failure(error))
 			}

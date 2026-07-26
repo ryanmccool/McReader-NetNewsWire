@@ -506,6 +506,59 @@ public extension CloudKitZone {
 		modify(recordsToSave: records, recordIDsToDelete: [], completion: completion)
 	}
 
+	/// Save a fetched record only if its server version has not changed.
+	func saveUnchanged(_ record: CKRecord, completion: @escaping (Result<Void, Error>) -> Void) {
+		saveUnchanged(record, retriesRemaining: networkFailureRetryCount, completion: completion)
+	}
+
+	private func saveUnchanged(_ record: CKRecord, retriesRemaining: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+		Self.logger.debug("CloudKitZone: saveUnchanged \(self.zoneID.zoneName, privacy: .public)")
+		let op = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: [])
+		op.savePolicy = .ifServerRecordUnchanged
+		op.isAtomic = true
+		op.qualityOfService = Self.qualityOfService
+
+		op.modifyRecordsResultBlock = { [weak self] result in
+			Task { @MainActor [weak self] in
+				guard let self else {
+					completion(.failure(CloudKitZoneError.unknown))
+					return
+				}
+
+				switch result {
+				case .success:
+					completion(.success(()))
+				case .failure(let error):
+					switch CloudKitZoneResult.resolve(error) {
+					case .zoneNotFound:
+						self.createZoneRecord { result in
+							switch result {
+							case .success:
+								self.saveUnchanged(record, completion: completion)
+							case .failure(let error):
+								completion(.failure(error))
+							}
+						}
+					case .userDeletedZone:
+						completion(.failure(CloudKitZoneError.userDeletedZone))
+					case .retry(let timeToWait):
+						await self.delaySeconds(timeToWait)
+						self.saveUnchanged(record, retriesRemaining: retriesRemaining, completion: completion)
+					default:
+						if let ckError = error as? CKError, ckError.code == .networkFailure, retriesRemaining > 0 {
+							await self.delaySeconds(networkFailureRetryDelay)
+							self.saveUnchanged(record, retriesRemaining: retriesRemaining - 1, completion: completion)
+						} else {
+							completion(.failure(CloudKitError(error)))
+						}
+					}
+				}
+			}
+		}
+
+		enqueue(op, completion: completion)
+	}
+
 	/// Saves or modifies the records as long as they are unchanged relative to the local version
 	func saveIfNew(_ records: [CKRecord], completion: @escaping (Result<Void, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: saveIfNew \(self.zoneID.zoneName, privacy: .public)")
@@ -1084,6 +1137,14 @@ public extension CloudKitZone {
 	func save(_ records: [CKRecord]) async throws {
 		try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
 			save(records) { result in
+				continuation.resume(with: result)
+			}
+		}
+	}
+
+	func saveUnchanged(_ record: CKRecord) async throws {
+		try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+			saveUnchanged(record) { result in
 				continuation.resume(with: result)
 			}
 		}
