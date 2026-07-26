@@ -19,6 +19,12 @@ final class CloudKitOPMLImportTests: XCTestCase {
 		}
 	}
 
+	func testPlannerRejectsHTTPURLsWithEmptyHosts() {
+		for urlString in ["https://", "https:///feed", "https://?q=1"] {
+			XCTAssertThrowsError(try CloudKitOPMLPlanner.makePlan(items: [feed(urlString)]), urlString)
+		}
+	}
+
 	func testPlannerCollapsesExactDuplicates() throws {
 		let plan = try CloudKitOPMLPlanner.makePlan(items: [
 			feed("https://example.com/feed", title: "First"),

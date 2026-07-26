@@ -98,7 +98,8 @@ enum CloudKitOPMLPlanner {
 		guard let components = URLComponents(string: urlString),
 			let scheme = components.scheme?.lowercased(),
 			["http", "https"].contains(scheme),
-			components.host != nil else {
+			let host = components.host,
+			!host.isEmpty else {
 			throw AccountError.invalidParameter
 		}
 	}
