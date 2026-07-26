@@ -505,6 +505,9 @@
     "iCloud Storage Stats" : {
       "comment" : "iCloud Storage Stats window title"
     },
+    "iCloud Feeds" : {
+      "comment" : "iCloud feeds account fallback name"
+    },
     "Icon Preview" : {
       "comment" : "Icon Preview"
     },
@@ -513,6 +516,9 @@
     },
     "Import Failed" : {
       "comment" : "Import Failed"
+    },
+    "Import Complete" : {
+      "comment" : "OPML import success title"
     },
     "Import Theme" : {
       "comment" : "Import Theme"
@@ -1181,6 +1187,45 @@
     },
     "You must have at least one active account." : {
       "comment" : "Missing active account"
+    },
+    "Added: %lld\nUpdated: %lld\nUnchanged: %lld\nRepositioned: %lld\nRejected: %lld" : {
+      "comment" : "OPML import result counts"
+    },
+    "Final Confirmation" : {
+      "comment" : "Final iCloud feed reset confirmation title"
+    },
+    "Permanently delete all synchronized data for the “%@” account? This cannot be undone." : {
+      "comment" : "Final iCloud feed reset confirmation naming the account"
+    },
+    "Reset Complete" : {
+      "comment" : "iCloud feed reset success title"
+    },
+    "Reset Failed" : {
+      "comment" : "iCloud feed reset failure title"
+    },
+    "Reset iCloud Feed Data" : {
+      "comment" : "Final destructive iCloud feed reset button"
+    },
+    "Reset iCloud Feed Data?" : {
+      "comment" : "First iCloud feed reset confirmation title"
+    },
+    "Resetting iCloud Feed Data…" : {
+      "comment" : "iCloud feed reset progress title"
+    },
+    "The records were saved to iCloud but have not appeared on this device yet. Refresh once to apply them." : {
+      "comment" : "OPML import was committed but has not converged locally"
+    },
+    "This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Do not open Feeds in McReader build 157 or older after resetting, because an old build may restore deleted data." : {
+      "comment" : "First iCloud feed reset confirmation warning"
+    },
+    "This may take a few minutes. Keep NetNewsWire open." : {
+      "comment" : "iCloud feed reset progress message"
+    },
+    "You can retry this reset." : {
+      "comment" : "iCloud feed reset retry guidance"
+    },
+    "Your iCloud feed data was reset. Use Import Subscriptions to add your feeds again." : {
+      "comment" : "iCloud feed reset success message"
     },
     "Your iCloud account syncs your feeds across your Mac and iOS devices" : {
       "comment" : "iCloud Account"

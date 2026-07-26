@@ -184,6 +184,74 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		)
 	}
 
+	func testSettingsCloudKitResetRowIsVisibleForAccountOrInterruptedReset() {
+		XCTAssertTrue(SettingsViewController.shouldShowCloudKitResetRow(
+			hasAccount: true,
+			resetPhase: .idle
+		))
+		XCTAssertTrue(SettingsViewController.shouldShowCloudKitResetRow(
+			hasAccount: false,
+			resetPhase: .localAccountDeleted
+		))
+		XCTAssertFalse(SettingsViewController.shouldShowCloudKitResetRow(
+			hasAccount: false,
+			resetPhase: .idle
+		))
+	}
+
+	func testSettingsCloudKitResetRowIsDisabledWhileBusy() {
+		XCTAssertTrue(SettingsViewController.cloudKitResetRowIsEnabled(
+			hasAccount: true,
+			resetPhase: .idle,
+			isBusy: false
+		))
+		XCTAssertFalse(SettingsViewController.cloudKitResetRowIsEnabled(
+			hasAccount: true,
+			resetPhase: .idle,
+			isBusy: true
+		))
+		XCTAssertTrue(SettingsViewController.cloudKitResetRowIsEnabled(
+			hasAccount: false,
+			resetPhase: .localAccountDeleted,
+			isBusy: false
+		))
+	}
+
+	func testSettingsCloudKitResetWarningNamesAllDeletedDataAndOldBuildRisk() {
+		let message = SettingsViewController.cloudKitResetWarningMessage()
+
+		for expectedText in ["subscriptions", "folders", "articles", "read/starred state", "every device", "build 157 or older"] {
+			XCTAssertTrue(message.localizedCaseInsensitiveContains(expectedText), "Missing \(expectedText) in: \(message)")
+		}
+	}
+
+	func testSettingsCloudKitResetFinalConfirmationNamesAccount() {
+		let message = SettingsViewController.cloudKitResetFinalConfirmationMessage(accountName: "Ryan's iCloud Feeds")
+
+		XCTAssertTrue(message.contains("Ryan's iCloud Feeds"))
+	}
+
+	func testSettingsOPMLImportResultMessageFormatsConfirmedCounts() {
+		let result = OPMLImportResult(added: 2, updated: 3, unchanged: 4, repositioned: 5, rejected: 6)
+
+		XCTAssertEqual(
+			SettingsViewController.importResultMessage(result),
+			"Added: 2\nUpdated: 3\nUnchanged: 4\nRepositioned: 5\nRejected: 6"
+		)
+	}
+
+	func testSettingsOPMLImportResultMessageExplainsCommittedButNotApplied() {
+		var result = OPMLImportResult(added: 2)
+		result.committedButNotApplied = true
+
+		let message = SettingsViewController.importResultMessage(result)
+
+		XCTAssertTrue(message.contains("Added: 2"))
+		XCTAssertTrue(message.localizedCaseInsensitiveContains("saved"))
+		XCTAssertTrue(message.localizedCaseInsensitiveContains("refresh once"))
+		XCTAssertFalse(message.localizedCaseInsensitiveContains("import again"))
+	}
+
 	func testRemoteNotificationIdentityRequiresMatchingContainerAndZone() {
 		let expectedZoneID = CKRecordZone.ID(zoneName: "Articles", ownerName: CKCurrentUserDefaultName)
 		let otherZoneID = CKRecordZone.ID(zoneName: "Other", ownerName: CKCurrentUserDefaultName)

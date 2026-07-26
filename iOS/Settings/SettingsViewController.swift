@@ -34,6 +34,7 @@ final class SettingsViewController: UITableViewController {
 		case accountStats = 2
 		case dinosaurs = 3
 		case cloudKitZoneStats = 4
+		case resetCloudKitFeeds = 5
 	}
 
 	private enum FeedsRow: Int {
@@ -65,7 +66,8 @@ final class SettingsViewController: UITableViewController {
 		case about = 4
 	}
 
-	private weak var opmlAccount: Account?
+	private var opmlAccount: Account?
+	private var cloudKitResetInProgress = false
 
 	@IBOutlet var timelineSortOrderSwitch: UISwitch!
 	@IBOutlet var groupByFeedSwitch: UISwitch!
@@ -90,6 +92,9 @@ final class SettingsViewController: UITableViewController {
 
 		NotificationCenter.default.addObserver(self, selector: #selector(accountsDidChange), name: .UserDidAddAccount, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(accountsDidChange), name: .UserDidDeleteAccount, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(accountsDidChange), name: .AccountRefreshDidBegin, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(accountsDidChange), name: .AccountRefreshDidFinish, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(accountsDidChange), name: .CloudKitAccountMutationStateDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(displayNameDidChange), name: .DisplayNameDidChange, object: nil)
 
 		tableView.register(UINib(nibName: "SettingsComboTableViewCell", bundle: .netNewsWire), forCellReuseIdentifier: "SettingsComboTableViewCell")
@@ -190,7 +195,7 @@ final class SettingsViewController: UITableViewController {
 		case .troubleshooting:
 			let defaultNumberOfRows = super.tableView(tableView, numberOfRowsInSection: section)
 			if !AccountManager.shared.hasiCloudAccount {
-				return defaultNumberOfRows - 1
+				return defaultNumberOfRows - (shouldShowCloudKitResetRow ? 1 : 2)
 			}
 			return defaultNumberOfRows
 		default:
@@ -216,6 +221,15 @@ final class SettingsViewController: UITableViewController {
 				acctCell.comboNameLabel?.text = account.nameForDisplay
 				cell = acctCell
 			}
+		case .troubleshooting where shouldRemapCloudKitResetRow(indexPath):
+			cell = super.tableView(tableView, cellForRowAt: IndexPath(
+				row: TroubleshootingRow.resetCloudKitFeeds.rawValue,
+				section: indexPath.section
+			))
+			configureCloudKitResetCell(cell)
+		case .troubleshooting where indexPath.row == TroubleshootingRow.resetCloudKitFeeds.rawValue:
+			cell = super.tableView(tableView, cellForRowAt: indexPath)
+			configureCloudKitResetCell(cell)
 		default:
 			cell = super.tableView(tableView, cellForRowAt: indexPath)
 
@@ -284,7 +298,8 @@ final class SettingsViewController: UITableViewController {
 			self.navigationController?.pushViewController(colorPalette, animated: true)
 		case .troubleshooting:
 			let viewController: UIViewController? = {
-				switch TroubleshootingRow(rawValue: indexPath.row) {
+				let row = shouldRemapCloudKitResetRow(indexPath) ? TroubleshootingRow.resetCloudKitFeeds : TroubleshootingRow(rawValue: indexPath.row)
+				switch row {
 				case .errorLog:
 					return UIHostingController(rootView: ErrorLogView())
 				case .accountStats:
@@ -304,6 +319,9 @@ final class SettingsViewController: UITableViewController {
 							}
 						}
 					}))
+				case .resetCloudKitFeeds:
+					confirmCloudKitReset()
+					return nil
 				default:
 					return nil
 				}
@@ -439,11 +457,16 @@ final class SettingsViewController: UITableViewController {
 extension SettingsViewController: UIDocumentPickerDelegate {
 
 	func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+		guard let account = opmlAccount else {
+			return
+		}
+		opmlAccount = nil
 		for url in urls {
-			opmlAccount?.importOPML(url) { result in
+			account.importOPML(url) { result in
 				switch result {
-				case .success:
-					break
+				case .success(let importResult):
+					let title = NNWLocalizedString("Import Complete", comment: "OPML import success title")
+					self.presentError(title: title, message: Self.importResultMessage(importResult))
 				case .failure(let error):
 					let title = NNWLocalizedString("Import Failed", comment: "Import Failed")
 					let message = Self.opmlImportFailureMessage(error)
@@ -453,8 +476,51 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 		}
 	}
 
+	func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+		opmlAccount = nil
+	}
+
 	static func opmlImportFailureMessage(_ error: Error) -> String {
 		cloudKitAccountUserVisibleError(error).localizedDescription
+	}
+
+	static func importResultMessage(_ result: OPMLImportResult) -> String {
+		let format = NNWLocalizedString(
+			"Added: %lld\nUpdated: %lld\nUnchanged: %lld\nRepositioned: %lld\nRejected: %lld",
+			comment: "OPML import result counts"
+		)
+		var message = String(format: format, result.added, result.updated, result.unchanged, result.repositioned, result.rejected)
+		if result.committedButNotApplied {
+			let savedMessage = NNWLocalizedString(
+				"The records were saved to iCloud but have not appeared on this device yet. Refresh once to apply them.",
+				comment: "OPML import was committed but has not converged locally"
+			)
+			message += "\n\n\(savedMessage)"
+		}
+		return message
+	}
+
+	static func shouldShowCloudKitResetRow(hasAccount: Bool, resetPhase: CloudKitAccountResetPhase) -> Bool {
+		hasAccount || resetPhase != .idle
+	}
+
+	static func cloudKitResetRowIsEnabled(hasAccount: Bool, resetPhase: CloudKitAccountResetPhase, isBusy: Bool) -> Bool {
+		shouldShowCloudKitResetRow(hasAccount: hasAccount, resetPhase: resetPhase) && !isBusy
+	}
+
+	static func cloudKitResetWarningMessage() -> String {
+		NNWLocalizedString(
+			"This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Do not open Feeds in McReader build 157 or older after resetting, because an old build may restore deleted data.",
+			comment: "First iCloud feed reset confirmation warning"
+		)
+	}
+
+	static func cloudKitResetFinalConfirmationMessage(accountName: String) -> String {
+		let format = NNWLocalizedString(
+			"Permanently delete all synchronized data for the “%@” account? This cannot be undone.",
+			comment: "Final iCloud feed reset confirmation naming the account"
+		)
+		return String(format: format, accountName)
 	}
 
 }
@@ -462,6 +528,119 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 // MARK: - Private
 
 private extension SettingsViewController {
+
+	var shouldShowCloudKitResetRow: Bool {
+		AccountManager.shared.hasiCloudAccount || AccountManager.shared.cloudKitResetCanRun || cloudKitResetInProgress
+	}
+
+	func shouldRemapCloudKitResetRow(_ indexPath: IndexPath) -> Bool {
+		indexPath.section == Section.troubleshooting.rawValue &&
+			!AccountManager.shared.hasiCloudAccount &&
+			indexPath.row == TroubleshootingRow.cloudKitZoneStats.rawValue
+	}
+
+	func configureCloudKitResetCell(_ cell: UITableViewCell) {
+		let enabled = AccountManager.shared.cloudKitResetCanRun && !cloudKitResetInProgress
+		cell.isUserInteractionEnabled = enabled
+		cell.textLabel?.text = NNWLocalizedString("Reset iCloud Feed Data", comment: "Destructive iCloud feed reset settings row")
+		cell.textLabel?.textColor = enabled ? .systemRed : .secondaryLabel
+		if cloudKitResetInProgress {
+			let activityIndicator = UIActivityIndicatorView(style: .medium)
+			activityIndicator.startAnimating()
+			cell.accessoryView = activityIndicator
+		} else {
+			cell.accessoryView = nil
+		}
+	}
+
+	func confirmCloudKitReset() {
+		guard AccountManager.shared.cloudKitResetCanRun, !cloudKitResetInProgress else {
+			tableView.reloadData()
+			return
+		}
+
+		let alert = UIAlertController(
+			title: NNWLocalizedString("Reset iCloud Feed Data?", comment: "First iCloud feed reset confirmation title"),
+			message: Self.cloudKitResetWarningMessage(),
+			preferredStyle: .alert
+		)
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Continue", comment: "Continue destructive reset button"), style: .destructive) { [weak self] _ in
+			self?.confirmCloudKitResetFinally()
+		})
+		present(alert, animated: true)
+	}
+
+	func confirmCloudKitResetFinally() {
+		guard AccountManager.shared.cloudKitResetCanRun, !cloudKitResetInProgress else {
+			tableView.reloadData()
+			return
+		}
+
+		let accountName = AccountManager.shared.iCloudAccount?.nameForDisplay ?? NNWLocalizedString("iCloud Feeds", comment: "iCloud feeds account fallback name")
+		let alert = UIAlertController(
+			title: NNWLocalizedString("Final Confirmation", comment: "Final iCloud feed reset confirmation title"),
+			message: Self.cloudKitResetFinalConfirmationMessage(accountName: accountName),
+			preferredStyle: .alert
+		)
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Reset iCloud Feed Data", comment: "Final destructive iCloud feed reset button"), style: .destructive) { [weak self] _ in
+			self?.resetCloudKitFeeds()
+		})
+		present(alert, animated: true)
+	}
+
+	func resetCloudKitFeeds() {
+		guard AccountManager.shared.cloudKitResetCanRun, !cloudKitResetInProgress else {
+			tableView.reloadData()
+			return
+		}
+
+		cloudKitResetInProgress = true
+		tableView.reloadData()
+		let progressAlert = UIAlertController(
+			title: NNWLocalizedString("Resetting iCloud Feed Data…", comment: "iCloud feed reset progress title"),
+			message: NNWLocalizedString("This may take a few minutes. Keep NetNewsWire open.", comment: "iCloud feed reset progress message") + "\n\n",
+			preferredStyle: .alert
+		)
+		let activityIndicator = UIActivityIndicatorView(style: .medium)
+		activityIndicator.translatesAutoresizingMaskIntoConstraints = false
+		activityIndicator.startAnimating()
+		progressAlert.view.addSubview(activityIndicator)
+		NSLayoutConstraint.activate([
+			activityIndicator.centerXAnchor.constraint(equalTo: progressAlert.view.centerXAnchor),
+			activityIndicator.bottomAnchor.constraint(equalTo: progressAlert.view.bottomAnchor, constant: -20)
+		])
+		present(progressAlert, animated: true)
+
+		Task { @MainActor [weak self] in
+			guard let self else {
+				return
+			}
+			do {
+				try await AccountManager.shared.resetCloudKitAccount()
+				cloudKitResetInProgress = false
+				tableView.reloadData()
+				progressAlert.dismiss(animated: true) {
+					self.presentError(
+						title: NNWLocalizedString("Reset Complete", comment: "iCloud feed reset success title"),
+						message: NNWLocalizedString("Your iCloud feed data was reset. Use Import Subscriptions to add your feeds again.", comment: "iCloud feed reset success message")
+					)
+				}
+			} catch {
+				cloudKitResetInProgress = false
+				tableView.reloadData()
+				let retryMessage = NNWLocalizedString("You can retry this reset.", comment: "iCloud feed reset retry guidance")
+				let message = "\(cloudKitAccountUserVisibleError(error).localizedDescription)\n\n\(retryMessage)"
+				progressAlert.dismiss(animated: true) {
+					self.presentError(
+						title: NNWLocalizedString("Reset Failed", comment: "iCloud feed reset failure title"),
+						message: message
+					)
+				}
+			}
+		}
+	}
 
 	func addFeed() {
 		self.dismiss(animated: true)
@@ -477,6 +656,7 @@ private extension SettingsViewController {
 	}
 
 	func importOPML(sourceView: UIView, sourceRect: CGRect) {
+		opmlAccount = nil
 		switch AccountManager.shared.activeAccounts.count {
 		case 0:
 			presentError(title: "Error", message: NNWLocalizedString("You must have at least one active account.", comment: "Missing active account"))
@@ -506,7 +686,9 @@ private extension SettingsViewController {
 		}
 
 		let cancelTitle = NNWLocalizedString("Cancel", comment: "Cancel button")
-		alert.addAction(UIAlertAction(title: cancelTitle, style: .cancel))
+		alert.addAction(UIAlertAction(title: cancelTitle, style: .cancel) { [weak self] _ in
+			self?.opmlAccount = nil
+		})
 
 		self.present(alert, animated: true)
 	}
