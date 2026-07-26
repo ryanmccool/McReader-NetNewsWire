@@ -126,6 +126,13 @@ import ActivityLog
 		return false
 	}
 
+	public var cloudKitMutationInProgress: Bool {
+		guard let delegate = iCloudAccount?.delegate as? CloudKitAccountDelegate else {
+			return false
+		}
+		return delegate.mutationInProgress
+	}
+
 	private var isActive = false
 
 	public init() {

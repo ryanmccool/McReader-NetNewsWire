@@ -117,6 +117,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 	private let mainThreadOperationQueue = MainThreadOperationQueue()
 	private let refresher: LocalAccountRefresher
+	private let mutationGate = CloudKitAccountMutationGate()
 	private var syncErrorHandler: CloudKitSyncErrorHandler?
 
 	private var lastNoChangeSyncDate: Date?
@@ -125,7 +126,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	weak var account: Account?
 
 	let behaviors: AccountBehaviors = []
-	let isOPMLImportInProgress = false
+	var isOPMLImportInProgress: Bool {
+		mutationGate.activeKind == .importOPML
+	}
+	var mutationInProgress: Bool {
+		mutationGate.activeKind != nil
+	}
 
 	let server: String? = nil
 	var credentials: Credentials?
@@ -184,6 +190,16 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {
+		do {
+			return try await mutationGate.withMutation(kind: .remoteNotification) {
+				await self.receiveRemoteNotificationImpl(userInfo: userInfo)
+			}
+		} catch {
+			return false
+		}
+	}
+
+	private func receiveRemoteNotificationImpl(userInfo: [AnyHashable: Any]) async -> Bool {
 		guard let account else {
 			return false
 		}
@@ -207,6 +223,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func refreshAll() async throws {
+		try await mutationGate.withMutation(kind: .refresh) {
+			try await self.refreshAllImpl()
+		}
+	}
+
+	private func refreshAllImpl() async throws {
 		guard let account else {
 			return
 		}
@@ -297,6 +319,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func importOPML(opmlFile: URL) async throws -> OPMLImportResult {
+		try await mutationGate.withMutation(kind: .importOPML) {
+			try await self.importOPMLImpl(opmlFile: opmlFile)
+		}
+	}
+
+	private func importOPMLImpl(opmlFile: URL) async throws -> OPMLImportResult {
 		guard let account else {
 			throw AccountError.invalidParameter
 		}
@@ -368,6 +396,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 	@discardableResult
 	func createFeed(url urlString: String, name: String?, container: Container, validateFeed: Bool) async throws -> Feed {
+		try await mutationGate.withMutation(kind: .feed) {
+			try await self.createFeedImpl(url: urlString, name: name, container: container, validateFeed: validateFeed)
+		}
+	}
+
+	private func createFeedImpl(url urlString: String, name: String?, container: Container, validateFeed: Bool) async throws -> Feed {
 		guard let account else {
 			throw AccountError.invalidParameter
 		}
@@ -386,6 +420,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func renameFeed(with feed: Feed, to name: String) async throws {
+		try await mutationGate.withMutation(kind: .feed) {
+			try await self.renameFeedImpl(with: feed, to: name)
+		}
+	}
+
+	private func renameFeedImpl(with feed: Feed, to name: String) async throws {
 		guard let account else {
 			return
 		}
@@ -409,6 +449,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func removeFeed(feed: Feed, container: Container) async throws {
+		try await mutationGate.withMutation(kind: .feed) {
+			try await self.removeFeedImpl(feed: feed, container: container)
+		}
+	}
+
+	private func removeFeedImpl(feed: Feed, container: Container) async throws {
 		guard let account else {
 			return
 		}
@@ -433,6 +479,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func moveFeed(feed: Feed, sourceContainer: Container, destinationContainer: Container) async throws {
+		try await mutationGate.withMutation(kind: .feed) {
+			try await self.moveFeedImpl(feed: feed, sourceContainer: sourceContainer, destinationContainer: destinationContainer)
+		}
+	}
+
+	private func moveFeedImpl(feed: Feed, sourceContainer: Container, destinationContainer: Container) async throws {
 		guard let account else {
 			return
 		}
@@ -456,6 +508,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func addFeed(feed: Feed, container: Container) async throws {
+		try await mutationGate.withMutation(kind: .feed) {
+			try await self.addFeedImpl(feed: feed, container: container)
+		}
+	}
+
+	private func addFeedImpl(feed: Feed, container: Container) async throws {
 		guard let account else {
 			return
 		}
@@ -478,6 +536,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func restoreFeed(feed: Feed, container: any Container) async throws {
+		try await mutationGate.withMutation(kind: .feed) {
+			try await self.restoreFeedImpl(feed: feed, container: container)
+		}
+	}
+
+	private func restoreFeedImpl(feed: Feed, container: any Container) async throws {
 		guard let account else {
 			return
 		}
@@ -511,6 +575,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func createFolder(name: String) async throws -> Folder {
+		try await mutationGate.withMutation(kind: .folder) {
+			try await self.createFolderImpl(name: name)
+		}
+	}
+
+	private func createFolderImpl(name: String) async throws -> Folder {
 		guard let account else {
 			throw AccountError.invalidParameter
 		}
@@ -537,6 +607,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func renameFolder(with folder: Folder, to name: String) async throws {
+		try await mutationGate.withMutation(kind: .folder) {
+			try await self.renameFolderImpl(with: folder, to: name)
+		}
+	}
+
+	private func renameFolderImpl(with folder: Folder, to name: String) async throws {
 		guard let account else {
 			return
 		}
@@ -560,6 +636,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func removeFolder(with folder: Folder) async throws {
+		try await mutationGate.withMutation(kind: .folder) {
+			try await self.removeFolderImpl(with: folder)
+		}
+	}
+
+	private func removeFolderImpl(with folder: Folder) async throws {
 		guard let account else {
 			return
 		}
@@ -640,6 +722,12 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func restoreFolder(folder: Folder) async throws {
+		try await mutationGate.withMutation(kind: .folder) {
+			try await self.restoreFolderImpl(folder: folder)
+		}
+	}
+
+	private func restoreFolderImpl(folder: Folder) async throws {
 		guard let account else {
 			throw AccountError.invalidParameter
 		}
@@ -668,7 +756,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 
 						group.addTask {
 							do {
-								try await self.restoreFeed(feed: feed, container: folder)
+								try await self.restoreFeedImpl(feed: feed, container: folder)
 								await self.syncProgress.completeTask()
 								return nil
 							} catch {
@@ -763,9 +851,11 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		if account.externalID == nil {
 			Task {
 				do {
-					let externalID = try await accountZone.findOrCreateAccount()
-					account.externalID = externalID
-					try? await self.initialRefreshAll(for: account)
+					try await mutationGate.withMutation(kind: .refresh) {
+						let externalID = try await self.accountZone.findOrCreateAccount()
+						account.externalID = externalID
+						try? await self.initialRefreshAll(for: account)
+					}
 				} catch {
 					Self.logger.error("CloudKitAccountDelegate: \(#function, privacy: .public) error: \(error.localizedDescription)")
 					if let account = self.account {

@@ -14,6 +14,7 @@ public enum AccountError: LocalizedError {
 	case createErrorNotFound
 	case createErrorAlreadySubscribed
 	case opmlImportInProgress
+	case operationInProgress
 	case invalidParameter
 	case invalidResponse
 	case urlNotFound
@@ -48,6 +49,8 @@ public enum AccountError: LocalizedError {
 			return NSLocalizedString("You are already subscribed to this feed and can’t add it again.", comment: "Already subscribed")
 		case .opmlImportInProgress:
 			return NSLocalizedString("An OPML import for this account is already running.", comment: "Import running")
+		case .operationInProgress:
+			return NSLocalizedString("Another iCloud account operation is already running. Wait for it to finish and try again.", comment: "iCloud account operation running")
 		case .invalidParameter:
 			return NSLocalizedString("Couldn’t fulfill the request due to an invalid parameter.", comment: "Invalid parameter")
 		case .invalidResponse:
