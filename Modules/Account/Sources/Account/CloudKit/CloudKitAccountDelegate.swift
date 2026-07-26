@@ -284,7 +284,9 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 			let op = CloudKitReceiveStatusOperation(articlesZone: articlesZone, accountID: account.accountID, accountDisplayName: account.nameForDisplay)
 			op.completionBlock = { mainThreadOperation in
 				Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
-				if mainThreadOperation.isCanceled {
+				if let receiveError = op.receiveError {
+					continuation.resume(throwing: receiveError)
+				} else if mainThreadOperation.isCanceled {
 					continuation.resume(throwing: CloudKitAccountDelegateError.unknown)
 				} else {
 					continuation.resume(returning: ())

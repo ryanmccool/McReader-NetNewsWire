@@ -74,7 +74,7 @@ final class CloudKitArticlesZone: CloudKitZone {
 	let userDefaults: UserDefaults
 
 	weak var container: CKContainer?
-	weak var database: CKDatabase?
+	let database: CKDatabase?
 	var delegate: CloudKitZoneDelegate?
 	var fetchChangesPageHandler: CloudKitZoneFetchPageHandler?
 

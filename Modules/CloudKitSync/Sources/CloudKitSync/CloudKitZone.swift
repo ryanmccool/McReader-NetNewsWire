@@ -19,6 +19,7 @@ public typealias CloudKitQueryPageHandler = @MainActor @Sendable ([CKRecord]) as
 public enum CloudKitZoneError: LocalizedError, Sendable {
 	case userDeletedZone
 	case corruptAccount
+	case databaseUnavailable
 	case unknown
 
 	public var errorDescription: String? {
@@ -27,6 +28,8 @@ public enum CloudKitZoneError: LocalizedError, Sendable {
 			return NSLocalizedString("The iCloud data was deleted. Please remove the application iCloud account and add it again to continue using the application's iCloud support.", comment: "User deleted zone.")
 		case .corruptAccount:
 			return NSLocalizedString("There is an unrecoverable problem with your application iCloud account. Please make sure you have iCloud and iCloud Drive enabled in System Preferences. Then remove the application iCloud account and add it again.", comment: "Corrupt account.")
+		case .databaseUnavailable:
+			return NSLocalizedString("The iCloud database is unavailable.", comment: "Missing CloudKit database")
 		default:
 			return NSLocalizedString("An unexpected CloudKit error occurred.", comment: "An unexpected CloudKit error occurred.")
 		}
@@ -88,6 +91,15 @@ final class CloudKitZoneFetchCallbackState: @unchecked Sendable {
 		let moreComing: Bool
 		let changedRecords: [CKRecord]
 		let deletedRecordKeys: [CloudKitRecordKey]
+		let recordError: Error?
+		let recordZoneResult: Result<Void, Error>?
+
+		var recordZoneError: Error? {
+			guard case .failure(let error) = recordZoneResult else {
+				return nil
+			}
+			return error
+		}
 	}
 
 	private let lock = NSLock()
@@ -95,6 +107,8 @@ final class CloudKitZoneFetchCallbackState: @unchecked Sendable {
 	private var moreComing = false
 	private var changedRecords = [CKRecord]()
 	private var deletedRecordKeys = [CloudKitRecordKey]()
+	private var recordError: Error?
+	private var recordZoneResult: Result<Void, Error>?
 
 	init(savedChangeToken: CKServerChangeToken?) {
 		self.savedChangeToken = savedChangeToken
@@ -119,6 +133,18 @@ final class CloudKitZoneFetchCallbackState: @unchecked Sendable {
 		lock.unlock()
 	}
 
+	func setRecordError(_ error: Error) {
+		lock.lock()
+		recordError = recordError ?? error
+		lock.unlock()
+	}
+
+	func setRecordZoneResult(_ result: Result<Void, Error>) {
+		lock.lock()
+		recordZoneResult = result
+		lock.unlock()
+	}
+
 	func snapshot() -> Snapshot {
 		lock.lock()
 		defer { lock.unlock() }
@@ -126,7 +152,9 @@ final class CloudKitZoneFetchCallbackState: @unchecked Sendable {
 			savedChangeToken: savedChangeToken,
 			moreComing: moreComing,
 			changedRecords: changedRecords,
-			deletedRecordKeys: deletedRecordKeys
+			deletedRecordKeys: deletedRecordKeys,
+			recordError: recordError,
+			recordZoneResult: recordZoneResult
 		)
 	}
 }
@@ -210,6 +238,14 @@ public extension CloudKitZone {
 		try? await Task.sleep(for: .seconds(seconds))
 	}
 
+	private func enqueue<Success>(_ operation: CKDatabaseOperation, completion: (Result<Success, Error>) -> Void) {
+		guard let database else {
+			completion(.failure(CloudKitZoneError.databaseUnavailable))
+			return
+		}
+		database.add(operation)
+	}
+
 	func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async throws -> CloudKitRemoteNotificationResult {
 		Self.logger.debug("CloudKitZone: receiveRemoteNotification \(self.zoneID.zoneName, privacy: .public) userInfo: \(userInfo)")
 		let note = CKRecordZoneNotification(fromRemoteNotificationDictionary: userInfo)
@@ -229,7 +265,7 @@ public extension CloudKitZone {
 	func createZoneRecord(completion: @escaping @MainActor (Result<Void, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: createZoneRecord \(self.zoneID.zoneName, privacy: .public)")
 		guard let database else {
-			completion(.failure(CloudKitZoneError.unknown))
+			completion(.failure(CloudKitZoneError.databaseUnavailable))
 			return
 		}
 
@@ -263,8 +299,7 @@ public extension CloudKitZone {
 	/// Issue a CKQuery and return the resulting CKRecords.
 	func query(_ ckQuery: CKQuery, desiredKeys: [String]? = nil, pageHandler: CloudKitQueryPageHandler? = nil, completion: @escaping (Result<[CKRecord], Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: query ckQuery \(self.zoneID.zoneName, privacy: .public)")
-		var records = [CKRecord]()
-		var pageStartIndex = 0
+		let callbackState = CloudKitZoneFetchCallbackState(savedChangeToken: nil)
 
 		let op = CKQueryOperation(query: ckQuery)
 		op.qualityOfService = Self.qualityOfService
@@ -274,23 +309,28 @@ public extension CloudKitZone {
 		}
 
 		op.recordMatchedBlock = { _, result in
-			Task { @MainActor in
-				if let record = try? result.get() {
-					records.append(record)
-				}
+			do {
+				callbackState.appendChangedRecord(try result.get())
+			} catch {
+				callbackState.setRecordError(error)
 			}
 		}
 
 		op.queryResultBlock = { [weak self] result in
+			let snapshot = callbackState.snapshot()
 			Task { @MainActor [weak self] in
 				guard let self else {
 					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
 
-				let pageRecords = Array(records[pageStartIndex...])
-				pageStartIndex = records.count
-				await pageHandler?(pageRecords)
+				if let recordError = snapshot.recordError {
+					completion(.failure(recordError))
+					return
+				}
+
+				let records = snapshot.changedRecords
+				await pageHandler?(records)
 
 				switch result {
 				case .success(let cursor):
@@ -325,14 +365,13 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
 	}
 
 	/// Query CKRecords using a CKQuery Cursor
 	func query(cursor: CKQueryOperation.Cursor, desiredKeys: [String]? = nil, carriedRecords: [CKRecord], pageHandler: CloudKitQueryPageHandler? = nil, completion: @escaping (Result<[CKRecord], Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: query cursor \(self.zoneID.zoneName, privacy: .public)")
-		var records = carriedRecords
-		let pageStartIndex = records.count
+		let callbackState = CloudKitZoneFetchCallbackState(savedChangeToken: nil)
 
 		let op = CKQueryOperation(cursor: cursor)
 		op.qualityOfService = Self.qualityOfService
@@ -342,21 +381,28 @@ public extension CloudKitZone {
 		}
 
 		op.recordMatchedBlock = { _, result in
-			Task { @MainActor in
-				if let record = try? result.get() {
-					records.append(record)
-				}
+			do {
+				callbackState.appendChangedRecord(try result.get())
+			} catch {
+				callbackState.setRecordError(error)
 			}
 		}
 
 		op.queryResultBlock = { [weak self] result in
+			let snapshot = callbackState.snapshot()
 			Task { @MainActor [weak self] in
 				guard let self else {
 					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
 
-				let pageRecords = Array(records[pageStartIndex...])
+				if let recordError = snapshot.recordError {
+					completion(.failure(recordError))
+					return
+				}
+
+				let pageRecords = snapshot.changedRecords
+				let records = carriedRecords + pageRecords
 				await pageHandler?(pageRecords)
 
 				switch result {
@@ -392,7 +438,7 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
 	}
 
 	/// Fetch a CKRecord by using its externalID
@@ -404,11 +450,15 @@ public extension CloudKitZone {
 		}
 
 		let recordID = CKRecord.ID(recordName: externalID, zoneID: zoneID)
+		guard let database else {
+			completion(.failure(CloudKitZoneError.databaseUnavailable))
+			return
+		}
 
 		// Wrapper to safely transfer non-Sendable values in @Sendable closure
 		let captures = CloudKitZoneCaptures(zone: self, completion: completion)
 
-		database?.fetch(withRecordID: recordID) { record, error in
+		database.fetch(withRecordID: recordID) { record, error in
 			Task { @MainActor in
 				guard let self = captures.zone else {
 					captures.completion(.failure(CloudKitZoneError.unknown))
@@ -467,6 +517,7 @@ public extension CloudKitZone {
 		op.modifyRecordsResultBlock = { [weak self] result in
 			Task { @MainActor [weak self] in
 				guard let self else {
+					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
 
@@ -524,15 +575,19 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
 	}
 
 	/// Save the CKSubscription
 	func save(_ subscription: CKSubscription, completion: @escaping (Result<CKSubscription, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: save subscription \(self.zoneID.zoneName, privacy: .public)")
+		guard let database else {
+			completion(.failure(CloudKitZoneError.databaseUnavailable))
+			return
+		}
 		let captures = CloudKitZoneCaptures(zone: self, completion: completion)
 
-		database?.save(subscription) { savedSubscription, error in
+		database.save(subscription) { savedSubscription, error in
 			Task { @MainActor in
 				guard let self = captures.zone else {
 					captures.completion(.failure(CloudKitZoneError.unknown))
@@ -566,24 +621,30 @@ public extension CloudKitZone {
 	func delete(ckQuery: CKQuery, pageHandler: CloudKitQueryPageHandler? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: delete ckQuery \(self.zoneID.zoneName, privacy: .public)")
 
-		var records = [CKRecord]()
+		let callbackState = CloudKitZoneFetchCallbackState(savedChangeToken: nil)
 
 		let op = CKQueryOperation(query: ckQuery)
 		op.qualityOfService = Self.qualityOfService
 		op.recordMatchedBlock = { _, result in
-			Task { @MainActor in
-				if let record = try? result.get() {
-					records.append(record)
-				}
+			do {
+				callbackState.appendChangedRecord(try result.get())
+			} catch {
+				callbackState.setRecordError(error)
 			}
 		}
 
 		op.queryResultBlock = { [weak self] result in
+			let snapshot = callbackState.snapshot()
 			Task { @MainActor [weak self] in
 				guard let self else {
 					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
+				if let recordError = snapshot.recordError {
+					completion(.failure(recordError))
+					return
+				}
+				let records = snapshot.changedRecords
 
 				switch result {
 				case .success(let cursor):
@@ -605,36 +666,42 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
 	}
 
 	/// Delete CKRecords using a CKQuery
 	func delete(cursor: CKQueryOperation.Cursor, carriedRecords: [CKRecord], pageHandler: CloudKitQueryPageHandler? = nil, completion: @escaping (Result<Void, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: delete cursor \(self.zoneID.zoneName, privacy: .public)")
 
-		var records = [CKRecord]()
+		let callbackState = CloudKitZoneFetchCallbackState(savedChangeToken: nil)
 
 		let op = CKQueryOperation(cursor: cursor)
 		op.qualityOfService = Self.qualityOfService
 		op.recordMatchedBlock = { _, result in
-			Task { @MainActor in
-				if let record = try? result.get() {
-					records.append(record)
-				}
+			do {
+				callbackState.appendChangedRecord(try result.get())
+			} catch {
+				callbackState.setRecordError(error)
 			}
 		}
 
 		op.queryResultBlock = { [weak self] result in
+			let snapshot = callbackState.snapshot()
 			Task { @MainActor [weak self] in
 				guard let self else {
 					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
+				if let recordError = snapshot.recordError {
+					completion(.failure(recordError))
+					return
+				}
+				let pageRecords = snapshot.changedRecords
+				let records = carriedRecords + pageRecords
 
 				switch result {
 				case .success(let cursor):
-					await pageHandler?(records)
-					records.append(contentsOf: carriedRecords)
+					await pageHandler?(pageRecords)
 
 					if let cursor {
 						self.delete(cursor: cursor, carriedRecords: records, pageHandler: pageHandler, completion: completion)
@@ -648,7 +715,7 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
 	}
 
 	/// Delete a CKRecord using its recordID
@@ -678,10 +745,14 @@ public extension CloudKitZone {
 	/// Delete a CKSubscription
 	func delete(subscriptionID: String, completion: @escaping (Result<Void, Error>) -> Void) {
 		Self.logger.debug("CloudKitZone: delete \(self.zoneID.zoneName, privacy: .public) subscriptionID \(subscriptionID)")
+		guard let database else {
+			completion(.failure(CloudKitZoneError.databaseUnavailable))
+			return
+		}
 		// Wrapper to safely transfer non-Sendable values in @Sendable closure
 		let captures = CloudKitZoneCaptures(zone: self, completion: completion)
 
-		database?.delete(withSubscriptionID: subscriptionID) { _, error in
+		database.delete(withSubscriptionID: subscriptionID) { _, error in
 			Task { @MainActor in
 				guard let self = captures.zone else {
 					captures.completion(.failure(CloudKitZoneError.unknown))
@@ -808,7 +879,7 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
 	}
 
 	/// Fetch changes in the CKZone since the last time we checked, one page at a time.
@@ -831,9 +902,12 @@ public extension CloudKitZone {
 
         op.recordWasChangedBlock = { _, result in
 			Self.logger.debug("CloudKitZone: fetchChangesInZone \(zoneName, privacy: .public) recordWasChangedBlock")
-			if let record = try? result.get() {
+			do {
+				let record = try result.get()
 				Self.logger.debug("CloudKitZone: fetchChangesInZone \(zoneName, privacy: .public) record created \(record.creationDate ?? Date.distantPast) updated \(record.modificationDate ?? Date.distantPast)")
 				callbackState.appendChangedRecord(record)
+			} catch {
+				callbackState.setRecordError(error)
 			}
         }
 
@@ -844,9 +918,13 @@ public extension CloudKitZone {
 
 		op.recordZoneFetchResultBlock = { _, result in
 			Self.logger.debug("CloudKitZone: fetchChangesInZone \(zoneName, privacy: .public) recordZoneFetchResultBlock")
-			if case .success(let (serverChangeToken, _, serverMoreComing)) = result {
+			switch result {
+			case .success(let (serverChangeToken, _, serverMoreComing)):
 				Self.logger.debug("CloudKitZone: fetchChangesInZone \(zoneName, privacy: .public) serverChangeToken \(serverChangeToken) moreComing \(serverMoreComing)")
 				callbackState.updateZoneResult(serverChangeToken: serverChangeToken, moreComing: serverMoreComing)
+				callbackState.setRecordZoneResult(.success(()))
+			case .failure(let error):
+				callbackState.setRecordZoneResult(.failure(error))
 			}
 		}
 
@@ -859,8 +937,19 @@ public extension CloudKitZone {
 					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
+				if let recordError = snapshot.recordError {
+					completion(.failure(recordError))
+					return
+				}
 
-				switch result {
+				let effectiveResult: Result<Void, Error>
+				if let recordZoneError = snapshot.recordZoneError {
+					effectiveResult = .failure(recordZoneError)
+				} else {
+					effectiveResult = result
+				}
+
+				switch effectiveResult {
 				case .success:
 					Self.logger.debug("CloudKitZone: fetchChangesInZone \(self.zoneID.zoneName, privacy: .public) success changedRecords count \(snapshot.changedRecords.count) deletedRecordKeys count \(snapshot.deletedRecordKeys.count) changeToken \(snapshot.savedChangeToken)")
 					do {
@@ -925,7 +1014,7 @@ public extension CloudKitZone {
 			}
 		}
 
-		database?.add(op)
+		enqueue(op, completion: completion)
     }
 
 	// MARK: - Async Wrappers

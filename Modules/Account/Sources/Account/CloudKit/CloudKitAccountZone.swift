@@ -26,7 +26,7 @@ enum CloudKitAccountZoneError: LocalizedError {
 	let userDefaults: UserDefaults
 
     weak var container: CKContainer?
-    weak var database: CKDatabase?
+	let database: CKDatabase?
 	var delegate: CloudKitZoneDelegate?
 	var fetchChangesPageHandler: CloudKitZoneFetchPageHandler?
 
@@ -203,16 +203,29 @@ enum CloudKitAccountZoneError: LocalizedError {
 	private func findOrCreateAccount(completion: @escaping @Sendable (Result<String, Error>) -> Void) {
 		let predicate = NSPredicate(format: "isAccount = \"1\"")
 		let ckQuery = CKQuery(recordType: CloudKitContainer.recordType, predicate: predicate)
+		guard let database else {
+			completion(.failure(CloudKitZoneError.databaseUnavailable))
+			return
+		}
 
-		database?.fetch(withQuery: ckQuery, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { [weak self] result in
+		database.fetch(withQuery: ckQuery, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { [weak self] result in
 			Task { @MainActor [weak self] in
 				guard let self else {
+					completion(.failure(CloudKitZoneError.unknown))
 					return
 				}
 
 				switch result {
 				case .success(let (matchResults, _)):
-					let records = matchResults.compactMap { try? $0.1.get() }
+					var records = [CKRecord]()
+					for (_, result) in matchResults {
+						do {
+							records.append(try result.get())
+						} catch {
+							completion(.failure(error))
+							return
+						}
+					}
 					if !records.isEmpty {
 						completion(.success(records[0].externalID))
 					} else {
