@@ -864,14 +864,37 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 	}
 
 	func markArticles(articleIDs: Set<String>, statusKey: ArticleStatus.Key, flag: Bool) async throws {
-		try await mutationGate.withMutation(kind: .articleStatus) {
-			try await self.markArticlesImpl(articleIDs: articleIDs, statusKey: statusKey, flag: flag)
+		try await Self.performMarkArticlesMutation(
+			gate: mutationGate,
+			localMutation: {
+				await self.markArticlesImpl(articleIDs: articleIDs, statusKey: statusKey, flag: flag)
+			},
+			flush: {
+				guard let account = self.account else { return }
+				_ = try await self.sendArticleStatusImpl(account: account, showProgress: false)
+			}
+		)
+	}
+
+	static func performMarkArticlesMutation(
+		gate: CloudKitAccountMutationGate,
+		localMutation: () async throws -> Bool,
+		flush: @escaping () async throws -> Void
+	) async throws {
+		let shouldFlush = try await gate.withMutation(kind: .articleStatus) {
+			try await localMutation()
+		}
+		guard shouldFlush else { return }
+		Task {
+			try? await gate.withMutation(kind: .articleStatus) {
+				try await flush()
+			}
 		}
 	}
 
-	private func markArticlesImpl(articleIDs: Set<String>, statusKey: ArticleStatus.Key, flag: Bool) async throws {
+	private func markArticlesImpl(articleIDs: Set<String>, statusKey: ArticleStatus.Key, flag: Bool) async -> Bool {
 		guard let account else {
-			return
+			return false
 		}
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public)")
 
@@ -885,11 +908,8 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 			lastNoChangeSyncDate = nil
 			NotificationCenter.default.post(name: .AccountDidQueueArticleStatuses, object: account)
 		}
-		if let count = await syncDatabase.selectPendingCount(), count > 100 {
-			_ = try await sendArticleStatusImpl(account: account, showProgress: false)
-		}
-
 		Self.logger.debug("CloudKitAccountDelegate: \(#function, privacy: .public) did complete")
+		return await syncDatabase.selectPendingCount().map { $0 > 100 } ?? false
 	}
 
 	func accountDidInitialize() {
