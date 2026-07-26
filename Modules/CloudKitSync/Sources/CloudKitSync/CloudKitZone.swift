@@ -36,6 +36,23 @@ public enum CloudKitZoneError: LocalizedError, Sendable {
 	}
 }
 
+enum CloudKitZoneDeletion {
+	static func isMissingZoneError(_ error: Error) -> Bool {
+		guard let error = error as? CKError else {
+			return false
+		}
+		if error.code == .zoneNotFound {
+			return true
+		}
+		guard error.code == .partialFailure,
+			let partialErrors = error.partialErrorsByItemID,
+			!partialErrors.isEmpty else {
+			return false
+		}
+		return partialErrors.values.allSatisfy { ($0 as? CKError)?.code == .zoneNotFound }
+	}
+}
+
 // Wrapper to safely transfer non-Sendable values in @Sendable closures
 // Generic over the Success type of the Result
 private struct CloudKitZoneCaptures<Success>: @unchecked Sendable {
@@ -232,6 +249,18 @@ public extension CloudKitZone {
 
 	func generateRecordID() -> CKRecord.ID {
 		CKRecord.ID(recordName: UUID().uuidString, zoneID: zoneID)
+	}
+
+	/// Deletes exactly the requested private-database zone. A previously deleted zone is success.
+	func deleteZoneIfPresent(_ zoneID: CKRecordZone.ID) async throws {
+		guard let database else {
+			throw CloudKitZoneError.databaseUnavailable
+		}
+		do {
+			_ = try await database.deleteRecordZone(withID: zoneID)
+		} catch where CloudKitZoneDeletion.isMissingZoneError(error) {
+			return
+		}
 	}
 
 	func delaySeconds(_ seconds: TimeInterval) async {

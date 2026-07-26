@@ -27,4 +27,23 @@ final class CloudKitSyncTests: XCTestCase {
 
 		XCTAssertEqual((state.snapshot().recordError as? CKError)?.code, .serverRecordChanged)
 	}
+
+	func testZoneDeletionTreatsOnlyMissingZoneAsSuccess() {
+		XCTAssertTrue(CloudKitZoneDeletion.isMissingZoneError(CKError(.zoneNotFound)))
+		XCTAssertFalse(CloudKitZoneDeletion.isMissingZoneError(CKError(.zoneBusy)))
+
+		let zoneID = CKRecordZone.ID(zoneName: "Account")
+		let missingPartial = CKError(.partialFailure, userInfo: [
+			CKPartialErrorsByItemIDKey: [zoneID: CKError(.zoneNotFound)]
+		])
+		XCTAssertTrue(CloudKitZoneDeletion.isMissingZoneError(missingPartial))
+
+		let mixedPartial = CKError(.partialFailure, userInfo: [
+			CKPartialErrorsByItemIDKey: [
+				zoneID: CKError(.zoneNotFound),
+				CKRecordZone.ID(zoneName: "Articles"): CKError(.zoneBusy)
+			]
+		])
+		XCTAssertFalse(CloudKitZoneDeletion.isMissingZoneError(mixedPartial))
+	}
 }

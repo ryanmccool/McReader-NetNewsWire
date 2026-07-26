@@ -133,6 +133,14 @@ import ActivityLog
 		return delegate.mutationInProgress
 	}
 
+	public var cloudKitResetCanRun: Bool {
+		let phase = CloudKitAccountResetPhase(
+			rawValue: AppConfig.defaults.string(forKey: CloudKitAccountResetCoordinator.phaseDefaultsKey) ?? ""
+		) ?? .idle
+		let cloudKitRefreshInProgress = iCloudAccount?.refreshInProgress ?? false
+		return (hasiCloudAccount || phase != .idle) && !cloudKitMutationInProgress && !cloudKitRefreshInProgress
+	}
+
 	private var isActive = false
 
 	public init() {
@@ -186,6 +194,13 @@ import ActivityLog
 	// MARK: - API
 
 	public func createAccount(type: AccountType) -> Account {
+		createAccount(type: type, cloudKitMutationGate: nil)
+	}
+
+	private func createAccount(
+		type: AccountType,
+		cloudKitMutationGate: CloudKitAccountMutationGate?
+	) -> Account {
 		if type == .cloudKit {
 			if let existingiCloudAccount = iCloudAccount {
 				return existingiCloudAccount
@@ -202,7 +217,12 @@ import ActivityLog
 			abort()
 		}
 
-		let account = Account(dataFolder: accountFolder, type: type, accountID: accountID)
+		let account = Account(
+			dataFolder: accountFolder,
+			type: type,
+			accountID: accountID,
+			cloudKitMutationGate: cloudKitMutationGate
+		)
 		accountsDictionary[accountID] = account
 
 		var userInfo = [String: Any]()
@@ -210,6 +230,55 @@ import ActivityLog
 		NotificationCenter.default.post(name: .UserDidAddAccount, object: self, userInfo: userInfo)
 
 		return account
+	}
+
+	public func resetCloudKitAccount() async throws {
+		let phase = CloudKitAccountResetPhase(
+			rawValue: AppConfig.defaults.string(forKey: CloudKitAccountResetCoordinator.phaseDefaultsKey) ?? ""
+		) ?? .idle
+		guard iCloudAccount != nil || phase != .idle else {
+			throw AccountError.invalidParameter
+		}
+
+		let deletingDelegate = iCloudAccount?.delegate as? CloudKitAccountDelegate
+		let mutationGate = deletingDelegate?.mutationGateForReset ?? CloudKitAccountMutationGate()
+		try await mutationGate.withMutation(kind: .reset) {
+			let accountBeingDeleted = self.iCloudAccount
+			accountBeingDeleted?.suspendNetwork()
+
+			let coordinator = CloudKitAccountResetCoordinator(
+				userDefaults: AppConfig.defaults,
+				deleteZone: { zoneID in
+					guard let deletingDelegate else {
+						throw AccountError.invalidParameter
+					}
+					try await deletingDelegate.deleteZoneIfPresent(zoneID)
+				},
+				deleteLocalAccount: {
+					if let account = self.iCloudAccount {
+						try self.deleteAccountForCloudKitReset(account)
+					}
+				},
+				recreateAccount: {
+					if self.iCloudAccount == nil {
+						_ = self.createAccount(type: .cloudKit, cloudKitMutationGate: mutationGate)
+					}
+				},
+				initializeCloud: {
+					guard let delegate = self.iCloudAccount?.delegate as? CloudKitAccountDelegate else {
+						throw CloudKitAccountDelegateError.accountNotReady
+					}
+					try await delegate.waitForInitialSetup()
+				},
+				verifyEmpty: {
+					guard let delegate = self.iCloudAccount?.delegate as? CloudKitAccountDelegate else {
+						throw CloudKitAccountDelegateError.accountNotReady
+					}
+					try delegate.verifyEmptyAccountTree()
+				}
+			)
+			try await coordinator.run()
+		}
 	}
 
 	public func deleteAccount(_ account: Account) {
@@ -236,6 +305,37 @@ import ActivityLog
 		var userInfo = [String: Any]()
 		userInfo[Account.UserInfoKey.account] = account
 		NotificationCenter.default.post(name: .UserDidDeleteAccount, object: self, userInfo: userInfo)
+	}
+
+	private func deleteAccountForCloudKitReset(_ account: Account) throws {
+		guard account.type == .cloudKit, !account.refreshInProgress else {
+			throw AccountError.operationInProgress
+		}
+
+		account.prepareForDeletion()
+		account.deleteSettings()
+		try Self.removeCloudKitAccountDirectory(atPath: account.dataFolder) {
+			try FileManager.default.removeItem(atPath: $0)
+		}
+
+		accountsDictionary.removeValue(forKey: account.accountID)
+		account.isDeleted = true
+		updateUnreadCount()
+
+		var userInfo = [String: Any]()
+		userInfo[Account.UserInfoKey.account] = account
+		NotificationCenter.default.post(name: .UserDidDeleteAccount, object: self, userInfo: userInfo)
+	}
+
+	static func removeCloudKitAccountDirectory(
+		atPath path: String,
+		removeItem: (String) throws -> Void
+	) throws {
+		do {
+			try removeItem(path)
+		} catch let error as CocoaError where error.code == .fileNoSuchFile {
+			// A previous reset attempt already removed the account directory.
+		}
 	}
 
 	public func duplicateServiceAccount(type: AccountType, username: String?) -> Bool {
