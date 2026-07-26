@@ -237,9 +237,12 @@ final class FeedSettingsDatabase: Sendable {
 
 	// MARK: - Deletion
 
-	func deleteSettings(for feedURL: String) {
-		serialDispatchQueue.async {
-			self.database.executeUpdate("DELETE FROM feedSettings WHERE feedURL = ?;", withArgumentsIn: [feedURL])
+	func deleteSettings(for feedURL: String) async {
+		await withCheckedContinuation { continuation in
+			serialDispatchQueue.async {
+				self.database.executeUpdate("DELETE FROM feedSettings WHERE feedURL = ?;", withArgumentsIn: [feedURL])
+				continuation.resume()
+			}
 		}
 	}
 

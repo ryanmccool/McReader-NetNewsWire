@@ -14,6 +14,29 @@ import RSParser
 import CloudKit
 import CloudKitSync
 
+enum CloudKitAbsenceResult {
+	static func isSatisfied(error: Error, targetRecordIDs: Set<CKRecord.ID>) -> Bool {
+		let underlyingError = (error as? CloudKitError)?.error ?? error
+		guard let cloudKitError = underlyingError as? CKError else {
+			return false
+		}
+		if cloudKitError.code == .unknownItem {
+			return true
+		}
+		guard cloudKitError.code == .partialFailure,
+			let partialErrors = cloudKitError.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: CKError],
+			!partialErrors.isEmpty else {
+			return false
+		}
+		return partialErrors.allSatisfy { itemID, error in
+			guard let recordID = itemID as? CKRecord.ID else {
+				return false
+			}
+			return targetRecordIDs.contains(recordID) && error.code == .unknownItem
+		}
+	}
+}
+
 enum CloudKitAccountZoneError: LocalizedError {
 	case unknown
 	case duplicateFolderName(String)
@@ -157,19 +180,20 @@ enum CloudKitAccountZoneError: LocalizedError {
 
 	/// Removes a feed from a container and optionally deletes it, returning true if deleted
 	func removeFeed(_ feed: Feed, from: Container) async throws -> Bool {
-		guard let fromContainerExternalID = from.externalID else {
+		guard let fromContainerExternalID = from.externalID, let feedExternalID = feed.externalID else {
 			throw CloudKitZoneError.corruptAccount
 		}
+		let targetRecordID = CKRecord.ID(recordName: feedExternalID, zoneID: zoneID)
 
 		do {
-			let record = try await fetch(externalID: feed.externalID)
+			let record = try await fetch(externalID: feedExternalID)
 
 			if let containerExternalIDs = record[CloudKitFeed.Fields.containerExternalIDs] as? [String] {
 				var containerExternalIDSet = Set(containerExternalIDs)
 				containerExternalIDSet.remove(fromContainerExternalID)
 
 				if containerExternalIDSet.isEmpty {
-					try await delete(externalID: feed.externalID)
+					try await delete(externalID: feedExternalID)
 					return true
 				} else {
 					record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet)
@@ -179,11 +203,10 @@ enum CloudKitAccountZoneError: LocalizedError {
 			}
 			return false
 		} catch {
-			if let ckError = ((error as? CloudKitError)?.error as? CKError), ckError.code == .unknownItem {
+			if CloudKitAbsenceResult.isSatisfied(error: error, targetRecordIDs: [targetRecordID]) {
 				return true
-			} else {
-				throw error
 			}
+			throw error
 		}
 	}
 

@@ -416,7 +416,7 @@ import os
 		do {
 			try await caller.deleteFeed(feedID: feedID, folder: folderName)
 
-			account.clearFeedSettings(feed)
+			await account.clearFeedSettings(feed)
 			account.removeAllInstancesOfFeedFromTreeAtAllLevels(feed)
 		} catch {
 			throw AccountError.wrapped(error, account)

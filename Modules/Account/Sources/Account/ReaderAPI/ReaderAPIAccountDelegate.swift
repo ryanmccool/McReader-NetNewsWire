@@ -350,7 +350,7 @@ final class ReaderAPIAccountDelegate: AccountDelegate {
 
 					do {
 						try await caller.deleteSubscription(subscriptionID: subscriptionID)
-						account.clearFeedSettings(feed)
+						await account.clearFeedSettings(feed)
 						refreshProgress.completeTask()
 					} catch {
 
@@ -459,7 +459,7 @@ final class ReaderAPIAccountDelegate: AccountDelegate {
 		do {
 			try await account.logActivity(kind: .removeFeed, detail: feed.url) {
 				try await caller.deleteSubscription(subscriptionID: subscriptionID)
-				account.clearFeedSettings(feed)
+				await account.clearFeedSettings(feed)
 				account.removeAllInstancesOfFeedFromTreeAtAllLevels(feed)
 			}
 		} catch {
@@ -671,6 +671,12 @@ private extension ReaderAPIAccountDelegate {
 
 				let subscriptions = try await caller.retrieveSubscriptions()
 				refreshProgress.completeTask()
+				if let subscriptions {
+					let subscriptionFeedIDs = Set(subscriptions.map(\.feedID))
+					for feed in account.flattenedFeeds() where !subscriptionFeedIDs.contains(feed.feedID) {
+						await account.clearFeedSettings(feed)
+					}
+				}
 
 				BatchUpdate.shared.perform {
 					self.syncFolders(account, tags)
@@ -761,7 +767,6 @@ private extension ReaderAPIAccountDelegate {
 			for folder in folders {
 				for feed in folder.topLevelFeeds {
 					if !subFeedIds.contains(feed.feedID) {
-						account.clearFeedSettings(feed)
 						folder.removeFeedFromTreeAtTopLevel(feed)
 					}
 				}
@@ -770,7 +775,6 @@ private extension ReaderAPIAccountDelegate {
 
 		for feed in account.topLevelFeeds {
 			if !subFeedIds.contains(feed.feedID) {
-				account.clearFeedSettings(feed)
 				account.removeFeedFromTreeAtTopLevel(feed)
 			}
 		}
