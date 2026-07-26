@@ -296,7 +296,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		}
 	}
 
-	func importOPML(opmlFile: URL) async throws {
+	func importOPML(opmlFile: URL) async throws -> OPMLImportResult {
 		guard let account else {
 			throw AccountError.invalidParameter
 		}
@@ -332,6 +332,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 				refresh: { try await self.standardRefreshAll(for: account) },
 				reportRefreshError: { self.postSyncError($0, account: account, operation: "Refreshing after OPML import") }
 			)
+			return OPMLImportResult()
 		} catch {
 			postSyncError(error, account: account, operation: "Importing OPML")
 			throw error

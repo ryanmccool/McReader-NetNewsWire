@@ -182,13 +182,13 @@ public enum FeedbinAccountDelegateError: String, Error, Sendable {
 		}
 	}
 
-	func importOPML(opmlFile: URL) async throws {
+	func importOPML(opmlFile: URL) async throws -> OPMLImportResult {
 		guard let account else {
-			return
+			return OPMLImportResult()
 		}
 		let opmlData = try Data(contentsOf: opmlFile)
 		guard !opmlData.isEmpty else {
-			return
+			return OPMLImportResult()
 		}
 
 		Self.logger.info("Feedbin: Did begin importing OPML")
@@ -213,6 +213,7 @@ public enum FeedbinAccountDelegateError: String, Error, Sendable {
 			Self.logger.info("Feedbin: OPML import failed: \(error.localizedDescription)")
 			throw AccountError.wrapped(error, account)
 		}
+		return OPMLImportResult()
 	}
 
 	func createFolder(name: String) async throws -> Folder {

@@ -37,7 +37,7 @@ import Secrets
 	func sendArticleStatus() async throws
 	func refreshArticleStatus() async throws
 
-	func importOPML(opmlFile: URL) async throws
+	func importOPML(opmlFile: URL) async throws -> OPMLImportResult
 
 	func createFolder(name: String) async throws -> Folder
 	func renameFolder(with folder: Folder, to name: String) async throws

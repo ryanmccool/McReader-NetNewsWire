@@ -275,7 +275,8 @@ import Secrets
 		return !feedIDsAndItems.isEmpty
 	}
 
-	@MainActor func importOPML(opmlFile: URL) async throws {
+	@MainActor func importOPML(opmlFile: URL) async throws -> OPMLImportResult {
+		OPMLImportResult()
 	}
 
 	@MainActor func createFolder(name: String) async throws -> Folder {

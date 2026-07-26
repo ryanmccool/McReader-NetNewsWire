@@ -265,14 +265,15 @@ final class ReaderAPIAccountDelegate: AccountDelegate {
 		}
 	}
 
-	@MainActor func importOPML(opmlFile: URL) async throws {
+	@MainActor func importOPML(opmlFile: URL) async throws -> OPMLImportResult {
 		guard let account else {
-			return
+			return OPMLImportResult()
 		}
 		try await account.logActivity(kind: .importOPML, detail: opmlFile.lastPathComponent) {
 			let opmlData = try Data(contentsOf: opmlFile)
 			try await caller.importOPML(opmlData: opmlData)
 		}
+		return OPMLImportResult()
 	}
 
 	@MainActor func createFolder(name: String) async throws -> Folder {
