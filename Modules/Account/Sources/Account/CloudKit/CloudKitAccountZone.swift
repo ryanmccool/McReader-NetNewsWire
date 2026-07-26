@@ -183,25 +183,51 @@ enum CloudKitAccountZoneError: LocalizedError {
 		guard let fromContainerExternalID = from.externalID, let feedExternalID = feed.externalID else {
 			throw CloudKitZoneError.corruptAccount
 		}
+		return try await Self.removeFeed(
+			fromContainerExternalID: fromContainerExternalID,
+			feedExternalID: feedExternalID,
+			zoneID: zoneID,
+			fetch: { try await self.fetch(externalID: $0) },
+			save: { try await self.save($0) },
+			delete: { try await self.delete(externalID: $0) }
+		)
+	}
+
+	static func removeFeed(
+		fromContainerExternalID: String,
+		feedExternalID: String,
+		zoneID: CKRecordZone.ID,
+		fetch: (String) async throws -> CKRecord,
+		save: (CKRecord) async throws -> Void,
+		delete: (String) async throws -> Void
+	) async throws -> Bool {
 		let targetRecordID = CKRecord.ID(recordName: feedExternalID, zoneID: zoneID)
 
+		let record: CKRecord
 		do {
-			let record = try await fetch(externalID: feedExternalID)
-
-			if let containerExternalIDs = record[CloudKitFeed.Fields.containerExternalIDs] as? [String] {
-				var containerExternalIDSet = Set(containerExternalIDs)
-				containerExternalIDSet.remove(fromContainerExternalID)
-
-				if containerExternalIDSet.isEmpty {
-					try await delete(externalID: feedExternalID)
-					return true
-				} else {
-					record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet)
-					try await save(record)
-					return false
-				}
+			record = try await fetch(feedExternalID)
+		} catch {
+			if CloudKitAbsenceResult.isSatisfied(error: error, targetRecordIDs: [targetRecordID]) {
+				return true
 			}
+			throw error
+		}
+
+		guard let containerExternalIDs = record[CloudKitFeed.Fields.containerExternalIDs] as? [String] else {
 			return false
+		}
+		var containerExternalIDSet = Set(containerExternalIDs)
+		containerExternalIDSet.remove(fromContainerExternalID)
+
+		guard containerExternalIDSet.isEmpty else {
+			record[CloudKitFeed.Fields.containerExternalIDs] = Array(containerExternalIDSet)
+			try await save(record)
+			return false
+		}
+
+		do {
+			try await delete(feedExternalID)
+			return true
 		} catch {
 			if CloudKitAbsenceResult.isSatisfied(error: error, targetRecordIDs: [targetRecordID]) {
 				return true
