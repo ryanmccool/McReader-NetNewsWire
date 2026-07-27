@@ -479,7 +479,9 @@ extension CloudKitAccountZone {
 			if let name {
 				record[CloudKitFeed.Fields.name] = name
 			}
-			record[CloudKitFeed.Fields.editedName] = editedName
+			if editedName != nil || !wasAdded {
+				record[CloudKitFeed.Fields.editedName] = editedName
+			}
 			if let homePageURL {
 				record[CloudKitFeed.Fields.homePageURL] = homePageURL
 			}

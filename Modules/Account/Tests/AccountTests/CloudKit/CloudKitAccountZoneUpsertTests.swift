@@ -36,6 +36,30 @@ import CloudKitSync
 		XCTAssertEqual(unchangedSaveCount, 0)
 	}
 
+	func testNewFeedDoesNotSaveAbsentOptionalFieldsAsChanges() async throws {
+		var savedRecord: CKRecord?
+
+		_ = try await CloudKitAccountZone.upsertFeed(
+			urlString: "https://example.com/feed",
+			name: nil,
+			editedName: nil,
+			homePageURL: nil,
+			containerExternalIDs: ["root"],
+			zoneID: zoneID,
+			fetch: { _ in throw CloudKitError(CKError(.unknownItem)) },
+			saveNew: { savedRecord = $0 },
+			saveUnchanged: { _ in XCTFail("New records must not use the unchanged-record save path") }
+		)
+
+		XCTAssertEqual(
+			Set(savedRecord?.changedKeys() ?? []),
+			[
+				CloudKitAccountZone.CloudKitFeed.Fields.url,
+				CloudKitAccountZone.CloudKitFeed.Fields.containerExternalIDs,
+			]
+		)
+	}
+
 	func testExistingFeedPreservesDownloadedNameAndOmittedHomepageWhileReplacingPlacements() async throws {
 		let record = feedRecord(urlString: "https://example.com/feed")
 		record[CloudKitAccountZone.CloudKitFeed.Fields.name] = "Downloaded Name"
