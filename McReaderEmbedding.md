@@ -1,6 +1,6 @@
 # McReader integration policy
 
-This is McReader's fork of [NetNewsWire](https://github.com/Ranchero-Software/NetNewsWire), retained under its [MIT license](LICENSE). The reviewed upstream merge-base is `08d10f50167954821a161df877de9fd785e33557`. McReader's root gitlink is the authoritative downstream pin; it and the upstream merge-base are different baselines and must not be conflated.
+This is McReader's fork of [NetNewsWire](https://github.com/Ranchero-Software/NetNewsWire), retained under its [MIT license](LICENSE). The reviewed upstream merge-base is `5fb251ac745edd4329b96ab9e19940fd352772f8` (`iOS-7.1.2-7112`). McReader's root gitlink is the authoritative downstream pin; it and the upstream merge-base are different baselines and must not be conflated.
 
 The intended remotes are `origin = https://github.com/ryanmccool/McReader-NetNewsWire.git` and `upstream = https://github.com/Ranchero-Software/NetNewsWire.git`. Verify them before updating. A checkout with `origin` still pointing to Ranchero or with no `upstream` remote is misconfigured and must not be pushed.
 
