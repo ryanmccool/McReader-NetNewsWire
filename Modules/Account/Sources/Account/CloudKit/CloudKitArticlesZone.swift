@@ -84,7 +84,7 @@ final class CloudKitArticlesZone: CloudKitZone {
 		static let recordType = "Article"
 		struct Fields {
 			static let articleStatus = "articleStatus"
-			static let feedURL = "webFeedURL"
+			static let feedURL = "webFeedURLString"
 			static let uniqueID = "uniqueID"
 			static let title = "title"
 			static let contentHTML = "contentHTML"

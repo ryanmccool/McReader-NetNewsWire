@@ -104,7 +104,7 @@ public enum CloudKitRemoteNotificationResult: Equatable, Sendable {
 
 final class CloudKitZoneModifyCallbackState: @unchecked Sendable {
 	private let lock = NSLock()
-	private var recordError: Error?
+	private var recordErrors = [Error]()
 
 	func setRecordResult(_ result: Result<CKRecord, Error>) {
 		guard case .failure(let error) = result else {
@@ -122,14 +122,22 @@ final class CloudKitZoneModifyCallbackState: @unchecked Sendable {
 
 	private func setError(_ error: Error) {
 		lock.lock()
-		recordError = recordError ?? error
+		recordErrors.append(error)
 		lock.unlock()
 	}
 
 	func resolvedResult(operationResult: Result<Void, Error>) -> Result<Void, Error> {
 		lock.lock()
 		defer { lock.unlock() }
-		if let recordError {
+		if let recordError = recordErrors.first(where: { error in
+			(error as? CKError)?.code != .batchRequestFailed
+		}) {
+			return .failure(recordError)
+		}
+		if case .failure = operationResult {
+			return operationResult
+		}
+		if let recordError = recordErrors.first {
 			return .failure(recordError)
 		}
 		return operationResult

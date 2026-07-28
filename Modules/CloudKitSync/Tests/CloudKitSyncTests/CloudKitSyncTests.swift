@@ -50,6 +50,31 @@ final class CloudKitSyncTests: XCTestCase {
 		XCTAssertEqual((error as? CKError)?.code, .zoneBusy)
 	}
 
+	func testModifyStatePrefersPrimaryRecordFailureOverBatchRejection() {
+		let state = CloudKitZoneModifyCallbackState()
+		state.setRecordResult(.failure(CKError(.batchRequestFailed)))
+		state.setRecordResult(.failure(CKError(.invalidArguments)))
+
+		let result = state.resolvedResult(operationResult: .failure(CKError(.partialFailure)))
+
+		guard case .failure(let error) = result else {
+			return XCTFail("Expected the primary record failure to be preserved")
+		}
+		XCTAssertEqual((error as? CKError)?.code, .invalidArguments)
+	}
+
+	func testModifyStatePreservesOperationFailureWhenRecordFailureIsBatchRejection() {
+		let state = CloudKitZoneModifyCallbackState()
+		state.setRecordResult(.failure(CKError(.batchRequestFailed)))
+
+		let result = state.resolvedResult(operationResult: .failure(CKError(.zoneBusy)))
+
+		guard case .failure(let error) = result else {
+			return XCTFail("Expected the operation failure to be preserved")
+		}
+		XCTAssertEqual((error as? CKError)?.code, .zoneBusy)
+	}
+
 	func testModifyStateDoesNotHidePerRecordDeleteFailure() {
 		let state = CloudKitZoneModifyCallbackState()
 		state.setDeleteResult(.failure(CKError(.permissionFailure)))

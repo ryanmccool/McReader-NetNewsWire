@@ -368,6 +368,10 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		XCTAssertEqual(CloudKitRemoteNotificationResult.changes.merging(.noChanges), .changes)
 	}
 
+	func testArticleUsesReplacementStringFeedURLField() {
+		XCTAssertEqual(CloudKitArticlesZone.CloudKitArticle.Fields.feedURL, "webFeedURLString")
+	}
+
 	func testFetchCallbackStateSnapshotsMutationsBeforeResultProcessing() {
 		let zoneID = CKRecordZone.ID(zoneName: "Articles", ownerName: CKCurrentUserDefaultName)
 		let changedRecord = CKRecord(recordType: "ArticleStatus", recordID: CKRecord.ID(recordName: "changed", zoneID: zoneID))
