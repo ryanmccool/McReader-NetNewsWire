@@ -304,7 +304,11 @@ struct SidebarItemNode: Hashable, Sendable {
 		}
 	}
 
-	init(rootSplitViewController: RootSplitViewController, capabilities: NetNewsWireFeatureCapabilities) {
+	init(
+		rootSplitViewController: RootSplitViewController,
+		capabilities: NetNewsWireFeatureCapabilities,
+		publishingActions: NetNewsWirePublishingActions
+	) {
 		self.rootSplitViewController = rootSplitViewController
 		self.activityManager = ActivityManager(mayDonateActivities: capabilities.mayDonateActivities)
 		self.rootSplitViewController.minimumPrimaryColumnWidth = 300
@@ -329,6 +333,7 @@ struct SidebarItemNode: Hashable, Sendable {
 
 		self.articleViewController = rootSplitViewController.viewController(for: .secondary) as? ArticleViewController
 		self.articleViewController?.coordinator = self
+		self.articleViewController?.publishingActions = publishingActions
 		self.articleViewController?.navigationController?.delegate = self
 
 		for sectionNode in treeController.rootNode.childNodes {

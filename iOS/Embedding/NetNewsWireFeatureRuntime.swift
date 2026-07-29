@@ -29,12 +29,25 @@ public final class NetNewsWireFeatureRuntime {
 		self.configuration = configuration
 	}
 
-	public func makeHost() throws -> NetNewsWireFeatureHost {
-		try NetNewsWireFeatureHost(capabilities: configuration.capabilities, globalMutationSeams: .live)
+	public func makeHost(
+		publishingActions: NetNewsWirePublishingActions = .disabled
+	) throws -> NetNewsWireFeatureHost {
+		try NetNewsWireFeatureHost(
+			capabilities: configuration.capabilities,
+			globalMutationSeams: .live,
+			publishingActions: publishingActions
+		)
 	}
 
-	func makeHost(globalMutationSeams: NetNewsWireHostGlobalMutationSeams) throws -> NetNewsWireFeatureHost {
-		try NetNewsWireFeatureHost(capabilities: configuration.capabilities, globalMutationSeams: globalMutationSeams)
+	func makeHost(
+		globalMutationSeams: NetNewsWireHostGlobalMutationSeams,
+		publishingActions: NetNewsWirePublishingActions = .disabled
+	) throws -> NetNewsWireFeatureHost {
+		try NetNewsWireFeatureHost(
+			capabilities: configuration.capabilities,
+			globalMutationSeams: globalMutationSeams,
+			publishingActions: publishingActions
+		)
 	}
 
 	public func receiveRemoteNotification(userInfo: [AnyHashable: Any]) async -> Bool {

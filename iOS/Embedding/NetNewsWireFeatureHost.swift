@@ -73,11 +73,13 @@ final class NetNewsWireFeatureSceneLifecycle {
 @MainActor
 public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 	public let viewController: UIViewController
+	let publishingActions: NetNewsWirePublishingActions
 	private let lifecycle: NetNewsWireFeatureSceneLifecycle
 
 	internal init(
 		capabilities: NetNewsWireFeatureCapabilities,
-		globalMutationSeams: NetNewsWireHostGlobalMutationSeams
+		globalMutationSeams: NetNewsWireHostGlobalMutationSeams,
+		publishingActions: NetNewsWirePublishingActions
 	) throws {
 		_ = AppDelegate.bootstrapEmbeddedIfNeeded(capabilities: capabilities, globalMutationSeams: globalMutationSeams)
 		let storyboard = UIStoryboard.main
@@ -85,6 +87,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 			throw NetNewsWireFeatureConfigurationError.missingRootController
 		}
 		self.viewController = rootSplitViewController
+		self.publishingActions = publishingActions
 		self.lifecycle = NetNewsWireFeatureSceneLifecycle(
 			resetFocus: { rootSplitViewController.coordinator.resetFocus() },
 			didEnterBackground: { rootSplitViewController.coordinator.didEnterBackground() },
@@ -93,7 +96,8 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 		NetNewsWireSceneSetup.configure(
 			rootSplitViewController: rootSplitViewController,
 			stateRestorationActivity: nil,
-			capabilities: capabilities
+			capabilities: capabilities,
+			publishingActions: publishingActions
 		)
 	}
 

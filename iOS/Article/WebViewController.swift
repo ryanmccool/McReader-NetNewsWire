@@ -186,6 +186,17 @@ final class WebViewController: UIViewController {
 		webView?.becomeFirstResponder()
 	}
 
+	func selectedPlainText() async -> String? {
+		guard let value = try? await webView?.evaluateJavaScript("window.getSelection().toString()"),
+			let text = value as? String else { return nil }
+		return Self.normalizedSelectedPlainText(text)
+	}
+
+	static func normalizedSelectedPlainText(_ text: String) -> String? {
+		let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+		return trimmed.isEmpty ? nil : trimmed
+	}
+
 	func canScrollDown() -> Bool {
 		guard let webView = webView else { return false }
 		return webView.scrollView.contentOffset.y < finalScrollPosition(scrollingUp: false)

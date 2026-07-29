@@ -55,6 +55,33 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 		XCTAssertIdentical(NetNewsWireSceneSetup.restorationActivity(activity, capabilities: .standalone), activity)
 	}
 
+	func testHostsKeepDistinctPublishingActions() throws {
+		var firstHostSendCount = 0
+		var secondHostSendCount = 0
+		let runtime = try NetNewsWireFeatureRuntime(
+			configuration: makeConfiguration(),
+			cloudKitContainerConfigurator: { _ in }
+		)
+		let firstHost = try runtime.makeHost(publishingActions: NetNewsWirePublishingActions { _, _ in
+			firstHostSendCount += 1
+		})
+		let secondHost = try runtime.makeHost(publishingActions: NetNewsWirePublishingActions { _, _ in
+			secondHostSendCount += 1
+		})
+		let capture = NetNewsWirePublishingCapture(
+			selectedText: nil,
+			title: "Article",
+			creator: nil,
+			preferredURL: URL(string: "https://example.com/article")!
+		)
+
+		firstHost.publishingActions.send(capture, .capture)
+		secondHost.publishingActions.send(capture, .post)
+
+		XCTAssertEqual(firstHostSendCount, 1)
+		XCTAssertEqual(secondHostSendCount, 1)
+	}
+
 	private func makeConfiguration() throws -> NetNewsWireFeatureConfiguration {
 		try NetNewsWireFeatureConfiguration(
 			dataDirectoryURL: NetNewsWireFeatureTestEnvironment.values.dataDirectoryURL,

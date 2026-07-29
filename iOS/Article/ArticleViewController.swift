@@ -53,6 +53,7 @@ final class ArticleViewController: UIViewController {
 	}()
 
 	weak var coordinator: SceneCoordinator!
+	var publishingActions = NetNewsWirePublishingActions.disabled
 
 	private let poppableDelegate = PoppableGestureRecognizerDelegate()
 	private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "ArticleViewController")
@@ -150,6 +151,7 @@ final class ArticleViewController: UIViewController {
 				actionBarButtonItem
 			]
 		}
+		configurePublishingMenu()
 
 		pageViewController = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: [:])
 		pageViewController.delegate = self
@@ -557,6 +559,65 @@ extension ArticleViewController: UIGestureRecognizerDelegate {
 // MARK: Private
 
 private extension ArticleViewController {
+	func configurePublishingMenu() {
+		guard publishingActions.isEnabled else { return }
+
+		let captureLink = UIAction(title: "Capture Link") { [weak self] _ in
+			self?.sendLink(intent: .capture)
+		}
+		let postLink = UIAction(title: "Post Link...") { [weak self] _ in
+			self?.sendLink(intent: .post)
+		}
+		let selectionActions = UIDeferredMenuElement.uncached { [weak self] completion in
+			guard let self,
+				let webViewController = currentWebViewController,
+				let article = webViewController.article,
+				var capture = publishingCapture(article: article, selectedText: nil) else {
+				completion([])
+				return
+			}
+
+			Task { @MainActor in
+				guard let selectedText = await webViewController.selectedPlainText() else {
+					completion([])
+					return
+				}
+				capture.selectedText = selectedText
+				let captureSelection = UIAction(title: "Capture Selection") { [weak self] _ in
+					self?.publishingActions.send(capture, .capture)
+				}
+				let postSelection = UIAction(title: "Post Selection...") { [weak self] _ in
+					self?.publishingActions.send(capture, .post)
+				}
+				completion([captureSelection, postSelection])
+			}
+		}
+		let share = UIAction(title: NNWLocalizedString("Share", comment: "Share button"), image: Assets.Images.share) { [weak self] _ in
+			self?.currentWebViewController?.showActivityDialog(popOverBarButtonItem: self?.actionBarButtonItem)
+		}
+
+		actionBarButtonItem.menu = UIMenu(children: [captureLink, postLink, selectionActions, share])
+		actionBarButtonItem.target = nil
+		actionBarButtonItem.action = nil
+	}
+
+	func sendLink(intent: NetNewsWirePublishingIntent) {
+		guard let article = currentWebViewController?.article,
+			let capture = publishingCapture(article: article, selectedText: nil) else { return }
+		publishingActions.send(capture, intent)
+	}
+
+	func publishingCapture(article: Article?, selectedText: String?) -> NetNewsWirePublishingCapture? {
+		guard let article, let preferredURL = article.preferredURL else { return nil }
+		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
+		let creator = byline.isEmpty ? article.feed?.nameForDisplay : byline
+		return NetNewsWirePublishingCapture(
+			selectedText: selectedText,
+			title: article.title ?? "",
+			creator: creator,
+			preferredURL: preferredURL
+		)
+	}
 
 	func createWebViewController(_ article: Article?, updateView: Bool = true) -> WebViewController {
 		let controller = WebViewController()

@@ -15,7 +15,8 @@ import Account
 	static func configure(
 		rootSplitViewController: RootSplitViewController,
 		stateRestorationActivity: NSUserActivity?,
-		capabilities: NetNewsWireFeatureCapabilities
+		capabilities: NetNewsWireFeatureCapabilities,
+		publishingActions: NetNewsWirePublishingActions
 	) -> SceneCoordinator {
 		rootSplitViewController.presentsWithGesture = true
 		rootSplitViewController.showsSecondaryOnlyButton = true
@@ -25,7 +26,11 @@ import Account
 			rootSplitViewController.preferredDisplayMode = .twoBesideSecondary
 		}
 
-		let coordinator = SceneCoordinator(rootSplitViewController: rootSplitViewController, capabilities: capabilities)
+		let coordinator = SceneCoordinator(
+			rootSplitViewController: rootSplitViewController,
+			capabilities: capabilities,
+			publishingActions: publishingActions
+		)
 		rootSplitViewController.coordinator = coordinator
 		rootSplitViewController.delegate = coordinator
 		coordinator.restoreWindowState(activity: restorationActivity(stateRestorationActivity, capabilities: capabilities))
@@ -52,7 +57,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 		coordinator = NetNewsWireSceneSetup.configure(
 			rootSplitViewController: rootViewController,
 			stateRestorationActivity: session.stateRestorationActivity,
-			capabilities: .standalone
+			capabilities: .standalone,
+			publishingActions: .disabled
 		)
 
 		updateUserInterfaceStyle()
