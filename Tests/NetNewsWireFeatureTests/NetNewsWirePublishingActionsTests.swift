@@ -64,5 +64,31 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertNil(WebViewController.normalizedSelectedPlainText(" \n\t "))
 	}
 
+	func testPublishingMenuAccessibilityLabelPreservesDisabledShareLabel() {
+		let localize = { (key: String, comment: String) in "\(key)|\(comment)" }
+
+		XCTAssertEqual(NetNewsWirePublishingMenuText.accessibilityLabel(
+			actionsEnabled: false,
+			existingLabel: "Share",
+			localize: localize
+		), "Share")
+		XCTAssertEqual(NetNewsWirePublishingMenuText.accessibilityLabel(
+			actionsEnabled: true,
+			existingLabel: "Share",
+			localize: localize
+		), "Publishing actions|Publishing actions accessibility label")
+	}
+
+	func testPublishingMenuTitlesUseCommandLocalizationKeys() {
+		let titles = NetNewsWirePublishingMenuText.actionTitles { key, comment in
+			"\(key)|\(comment)"
+		}
+
+		XCTAssertEqual(titles.captureLink, "Capture Link|Command")
+		XCTAssertEqual(titles.postLink, "Post Link...|Command")
+		XCTAssertEqual(titles.captureSelection, "Capture Selection|Command")
+		XCTAssertEqual(titles.postSelection, "Post Selection...|Command")
+	}
+
 	private func assertSendable<T: Sendable>(_ value: T) {}
 }

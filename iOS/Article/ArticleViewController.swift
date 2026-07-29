@@ -560,12 +560,19 @@ extension ArticleViewController: UIGestureRecognizerDelegate {
 
 private extension ArticleViewController {
 	func configurePublishingMenu() {
+		let localize = { NNWLocalizedString($0, comment: $1) }
+		actionBarButtonItem.accessibilityLabel = NetNewsWirePublishingMenuText.accessibilityLabel(
+			actionsEnabled: publishingActions.isEnabled,
+			existingLabel: actionBarButtonItem.accessibilityLabel,
+			localize: localize
+		)
 		guard publishingActions.isEnabled else { return }
+		let titles = NetNewsWirePublishingMenuText.actionTitles(localize: localize)
 
-		let captureLink = UIAction(title: "Capture Link") { [weak self] _ in
+		let captureLink = UIAction(title: titles.captureLink) { [weak self] _ in
 			self?.sendLink(intent: .capture)
 		}
-		let postLink = UIAction(title: "Post Link...") { [weak self] _ in
+		let postLink = UIAction(title: titles.postLink) { [weak self] _ in
 			self?.sendLink(intent: .post)
 		}
 		let selectionActions = UIDeferredMenuElement.uncached { [weak self] completion in
@@ -583,10 +590,10 @@ private extension ArticleViewController {
 					return
 				}
 				capture.selectedText = selectedText
-				let captureSelection = UIAction(title: "Capture Selection") { [weak self] _ in
+				let captureSelection = UIAction(title: titles.captureSelection) { [weak self] _ in
 					self?.publishingActions.send(capture, .capture)
 				}
-				let postSelection = UIAction(title: "Post Selection...") { [weak self] _ in
+				let postSelection = UIAction(title: titles.postSelection) { [weak self] _ in
 					self?.publishingActions.send(capture, .post)
 				}
 				completion([captureSelection, postSelection])

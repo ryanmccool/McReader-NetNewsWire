@@ -39,3 +39,30 @@ public struct NetNewsWirePublishingActions {
 
 	public static let disabled = NetNewsWirePublishingActions(send: { _, _ in }, isEnabled: false)
 }
+
+struct NetNewsWirePublishingMenuText {
+	struct ActionTitles {
+		let captureLink: String
+		let postLink: String
+		let captureSelection: String
+		let postSelection: String
+	}
+
+	static func accessibilityLabel(
+		actionsEnabled: Bool,
+		existingLabel: String?,
+		localize: (String, String) -> String
+	) -> String? {
+		guard actionsEnabled else { return existingLabel }
+		return localize("Publishing actions", "Publishing actions accessibility label")
+	}
+
+	static func actionTitles(localize: (String, String) -> String) -> ActionTitles {
+		ActionTitles(
+			captureLink: localize("Capture Link", "Command"),
+			postLink: localize("Post Link...", "Command"),
+			captureSelection: localize("Capture Selection", "Command"),
+			postSelection: localize("Post Selection...", "Command")
+		)
+	}
+}

@@ -181,6 +181,12 @@
     "Canceled." : {
       "comment" : "Scan status text when canceled"
     },
+    "Capture Link" : {
+      "comment" : "Command"
+    },
+    "Capture Selection" : {
+      "comment" : "Command"
+    },
     "Choose a location for the exported OPML file." : {
       "comment" : "Export OPML"
     },
@@ -767,11 +773,20 @@
     "Pending" : {
       "comment" : "Pending"
     },
+    "Post Link..." : {
+      "comment" : "Command"
+    },
+    "Post Selection..." : {
+      "comment" : "Command"
+    },
     "Previous Article" : {
       "comment" : "Previous Article"
     },
     "Processing - Reader View" : {
       "comment" : "Processing - Reader View"
+    },
+    "Publishing actions" : {
+      "comment" : "Publishing actions accessibility label"
     },
     "Read" : {
       "comment" : "Read row label"
