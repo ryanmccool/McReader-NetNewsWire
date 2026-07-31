@@ -358,10 +358,32 @@
 		state.listenersInstalled = true;
 	}
 
+	function discardResolvedState(root) {
+		if (root) {
+			for (const mark of Array.from(root.querySelectorAll(markSelector))) {
+				const parent = mark.parentNode;
+				if (!parent) {
+					continue;
+				}
+				while (mark.firstChild) {
+					parent.insertBefore(mark.firstChild, mark);
+				}
+				parent.removeChild(mark);
+				parent.normalize();
+			}
+		}
+		state.resolved = [];
+	}
+
 	function prepare(generation, rendition) {
+		const nextRendition = String(rendition || "");
+		const nextRoot = bodyRoot();
+		if (state.generation !== generation || state.rendition !== nextRendition || state.root !== nextRoot) {
+			discardResolvedState(state.root);
+		}
 		state.generation = generation;
-		state.rendition = String(rendition || "");
-		state.root = bodyRoot();
+		state.rendition = nextRendition;
+		state.root = nextRoot;
 		installListeners();
 		return Boolean(state.root);
 	}

@@ -127,6 +127,40 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(positions.compactMap { $0["startOffset"] as? Int }, [0, 9])
 	}
 
+	func testPrepareClearsResolvedStateOnlyWhenRenderIdentityChanges() async throws {
+		try await loadArticle(#"<p>alpha beta</p>"#)
+		let highlight = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "alpha",
+			start: 0
+		)
+		_ = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
+
+		_ = try await valueResult(#"window.nnwHighlights.prepare(42, "v1:feed-body")"#)
+		let identicalPositions = try await arrayResult("window.nnwHighlights.positions()")
+		let identicalMarkCount = try await intResult("document.querySelectorAll('#bodyContainer mark.nnw-saved-highlight').length")
+
+		_ = try await valueResult("""
+		(() => {
+			const oldRoot = document.getElementById("bodyContainer");
+			oldRoot.id = "previousBodyContainer";
+			const newRoot = document.createElement("div");
+			newRoot.id = "bodyContainer";
+			newRoot.className = "articleBody";
+			newRoot.textContent = "new render";
+			document.body.appendChild(newRoot);
+			return window.nnwHighlights.prepare(43, "v1:reader-view");
+		})()
+		""")
+		let changedPositions = try await arrayResult("window.nnwHighlights.positions()")
+		let previousMarkCount = try await intResult("document.querySelectorAll('#previousBodyContainer mark.nnw-saved-highlight').length")
+
+		XCTAssertEqual(identicalPositions.count, 1)
+		XCTAssertEqual(identicalMarkCount, 1)
+		XCTAssertTrue(changedPositions.isEmpty)
+		XCTAssertEqual(previousMarkCount, 0)
+	}
+
 	func testMarkTapPostsUUIDGenerationAndBoundingRectangle() async throws {
 		try await loadArticle(#"<p>alpha beta</p>"#)
 		let id = "123e4567-e89b-12d3-a456-426614174000"
