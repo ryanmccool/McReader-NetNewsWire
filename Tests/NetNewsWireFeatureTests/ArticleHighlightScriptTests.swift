@@ -172,8 +172,21 @@ final class ArticleHighlightScriptTests: XCTestCase {
 
 		XCTAssertEqual(message["id"] as? String, id)
 		XCTAssertEqual(message["generation"] as? Int, 42)
+		XCTAssertEqual(message["articleKey"] as? String, "article-key")
+		XCTAssertEqual(message["rendition"] as? String, "v1:feed-body")
 		XCTAssertGreaterThan(rectangle["width"] as? Double ?? 0, 0)
 		XCTAssertGreaterThan(rectangle["height"] as? Double ?? 0, 0)
+	}
+
+	func testSelectionChangePostsCompleteRenderIdentity() async throws {
+		try await loadArticle(#"<p id="target">alpha beta</p>"#)
+
+		try await selectText(in: "target", from: 0, to: 5)
+		let message = try await messageRecorder.nextMessage(named: "highlightSelectionChanged")
+
+		XCTAssertEqual(message["generation"] as? Int, 42)
+		XCTAssertEqual(message["articleKey"] as? String, "article-key")
+		XCTAssertEqual(message["rendition"] as? String, "v1:feed-body")
 	}
 
 	func testRestoreAbortsWhenPrepareChangesGenerationDuringFingerprint() async throws {
@@ -289,7 +302,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		navigationDelegate.didFinish = { loaded.fulfill() }
 		webView.loadHTMLString("<html><body><header>ignored metadata</header><div id=\"bodyContainer\" class=\"articleBody\">\(body)</div></body></html>", baseURL: nil)
 		await fulfillment(of: [loaded], timeout: 20)
-		_ = try await valueResult(#"window.nnwHighlights.prepare(42, "v1:feed-body")"#)
+		_ = try await valueResult(#"window.nnwHighlights.prepare(42, "v1:feed-body", "article-key")"#)
 	}
 
 	private func selectText(in elementID: String, from start: Int, to end: Int) async throws {

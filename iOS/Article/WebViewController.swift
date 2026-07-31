@@ -70,32 +70,29 @@ enum ArticleHighlightSelectionEligibility {
 	}
 
 	static func deleteBeforeRemoval(
+		isCurrent: () -> Bool,
 		delete: () async throws -> Void,
 		remove: () async -> Void
 	) async throws {
+		guard isCurrent() else { return }
 		try await delete()
+		guard isCurrent() else { return }
 		await remove()
 	}
 }
 
-struct ArticleHighlightTapMessage {
-	let id: UUID
-	let generation: UInt64
-	let rect: CGRect
+struct ArticleHighlightMessageRenderState {
+	let state: ArticleHighlightRenderState
 
 	init?(body: Any) {
 		guard let body = body as? [String: Any],
-			let idString = body["id"] as? String,
-			let id = UUID(uuidString: idString),
-			let generation = Self.uint64(body["generation"]) else {
-			return nil
-		}
-		let rect = body["rect"] as? [String: Any]
-		self.id = id
-		self.generation = generation
-		self.rect = CGRect(
-			x: Self.double(rect?["x"]), y: Self.double(rect?["y"]),
-			width: Self.double(rect?["width"]), height: Self.double(rect?["height"])
+			let generation = Self.uint64(body["generation"]),
+			let articleKey = body["articleKey"] as? String,
+			!articleKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+			let renditionRaw = body["rendition"] as? String,
+			let rendition = ArticleHighlightRenderState.Rendition(rawValue: renditionRaw) else { return nil }
+		state = ArticleHighlightRenderState(
+			generation: generation, articleKey: articleKey, rendition: rendition
 		)
 	}
 
@@ -105,9 +102,44 @@ struct ArticleHighlightTapMessage {
 		if let value = value as? NSNumber, value.int64Value >= 0 { return value.uint64Value }
 		return nil
 	}
+}
+
+struct ArticleHighlightTapMessage {
+	let id: UUID
+	let renderState: ArticleHighlightRenderState
+	let rect: CGRect
+
+	init?(body: Any) {
+		guard let body = body as? [String: Any],
+			let idString = body["id"] as? String,
+			let id = UUID(uuidString: idString),
+			let messageState = ArticleHighlightMessageRenderState(body: body) else {
+			return nil
+		}
+		let rect = body["rect"] as? [String: Any]
+		self.id = id
+		self.renderState = messageState.state
+		self.rect = CGRect(
+			x: Self.double(rect?["x"]), y: Self.double(rect?["y"]),
+			width: Self.double(rect?["width"]), height: Self.double(rect?["height"])
+		)
+	}
 
 	private static func double(_ value: Any?) -> Double {
 		(value as? NSNumber)?.doubleValue ?? 0
+	}
+}
+
+struct ArticleHighlightRemovalRequest {
+	let id: UUID
+	let renderState: ArticleHighlightRenderState
+
+	func performIfCurrent(
+		isCurrent: (ArticleHighlightRenderState) -> Bool,
+		perform: (UUID, ArticleHighlightRenderState) -> Void
+	) {
+		guard isCurrent(renderState) else { return }
+		perform(id, renderState)
 	}
 }
 
@@ -885,7 +917,7 @@ private extension WebViewController {
 
 	func prepareAndRestoreHighlights(in webView: PreloadedWebView, state: ArticleHighlightRenderState) async {
 		guard highlightLifecycle.accepts(webView: webView, state: state) else { return }
-		let prepareScript = "window.nnwHighlights.prepare(\(state.generation), \(javaScriptJSON(state.rendition.rawValue) ?? "null"))"
+		let prepareScript = "window.nnwHighlights.prepare(\(state.generation), \(javaScriptJSON(state.rendition.rawValue) ?? "null"), \(javaScriptJSON(state.articleKey) ?? "null"))"
 		guard let prepared = try? await webView.evaluateJavaScript(prepareScript) as? Bool, prepared,
 			highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
 
@@ -933,8 +965,8 @@ private extension WebViewController {
 	func highlightSelectionChanged(in messageWebView: WKWebView, body: Any) {
 		guard let webView = messageWebView as? PreloadedWebView,
 			let body = body as? [String: Any],
-			let generation = messageGeneration(body["generation"]),
-			highlightLifecycle.accepts(webView: webView, generation: generation) else { return }
+			let messageState = ArticleHighlightMessageRenderState(body: body),
+			highlightLifecycle.accepts(webView: webView, state: messageState.state) else { return }
 		let selectedText = body["selectedText"] as? String ?? ""
 		let overlap = body["overlapsSavedHighlight"] as? Bool ?? true
 		let eligible = ArticleHighlightSelectionEligibility.isEligible(
@@ -950,17 +982,21 @@ private extension WebViewController {
 	func highlightWasTapped(in messageWebView: WKWebView, body: Any) {
 		guard let webView = messageWebView as? PreloadedWebView,
 			let message = ArticleHighlightTapMessage(body: body),
-			highlightLifecycle.accepts(webView: webView, generation: message.generation),
+			highlightLifecycle.accepts(webView: webView, state: message.renderState),
 			highlightRecords[message.id] != nil else { return }
+		let request = ArticleHighlightRemovalRequest(id: message.id, renderState: message.renderState)
 
 		let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 		alert.addAction(UIAlertAction(
 			title: NNWLocalizedString("Remove Highlight", comment: "Remove saved article highlight"),
 			style: .destructive
 		) { [weak self, weak webView] _ in
-			guard let self, let webView, let state = self.highlightLifecycle.currentState,
-				self.highlightLifecycle.accepts(webView: webView, state: state) else { return }
-			self.removeHighlight(message.id, from: webView, state: state)
+			guard let self, let webView else { return }
+			request.performIfCurrent(isCurrent: { state in
+				self.highlightLifecycle.accepts(webView: webView, state: state)
+			}) { id, state in
+				self.removeHighlight(id, from: webView, state: state)
+			}
 		})
 		alert.addAction(UIAlertAction(title: NNWLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
 		if let popover = alert.popoverPresentationController {
@@ -1016,14 +1052,16 @@ private extension WebViewController {
 	}
 
 	func removeHighlight(_ id: UUID, from webView: PreloadedWebView, state: ArticleHighlightRenderState) {
+		guard highlightLifecycle.accepts(webView: webView, state: state) else { return }
 		highlightMutationTask?.cancel()
 		highlightMutationTask = Task { [weak self, weak webView] in
 			guard let self, let webView else { return }
 			do {
-				try await ArticleHighlightMutation.deleteBeforeRemoval {
+				try await ArticleHighlightMutation.deleteBeforeRemoval(isCurrent: {
+					self.highlightLifecycle.accepts(webView: webView, state: state) && !Task.isCancelled
+				}) {
 					try await self.highlightActions.delete(id)
 				} remove: {
-					guard self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
 					self.highlightRecords[id] = nil
 					let idJSON = self.javaScriptJSON(id.uuidString.lowercased()) ?? "null"
 					_ = try? await webView.evaluateJavaScript("window.nnwHighlights.remove(\(idJSON))")
@@ -1063,13 +1101,6 @@ private extension WebViewController {
 		json.removeFirst()
 		json.removeLast()
 		return json
-	}
-
-	func messageGeneration(_ value: Any?) -> UInt64? {
-		if let value = value as? UInt64 { return value }
-		if let value = value as? Int, value >= 0 { return UInt64(value) }
-		if let value = value as? NSNumber, value.int64Value >= 0 { return value.uint64Value }
-		return nil
 	}
 
 	func highlightPositions(from value: Any) -> [UUID: Int] {

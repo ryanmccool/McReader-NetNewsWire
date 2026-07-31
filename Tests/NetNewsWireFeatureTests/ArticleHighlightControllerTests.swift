@@ -98,7 +98,7 @@ final class ArticleHighlightControllerTests: XCTestCase {
 	func testDeleteCompletesBeforeDOMRemoval() async throws {
 		var events = [String]()
 
-		try await ArticleHighlightMutation.deleteBeforeRemoval {
+		try await ArticleHighlightMutation.deleteBeforeRemoval(isCurrent: { true }) {
 			events.append("delete")
 		} remove: {
 			events.append("remove")
@@ -111,7 +111,7 @@ final class ArticleHighlightControllerTests: XCTestCase {
 		var removed = false
 
 		do {
-			try await ArticleHighlightMutation.deleteBeforeRemoval {
+			try await ArticleHighlightMutation.deleteBeforeRemoval(isCurrent: { true }) {
 				throw TestError.expected
 			} remove: {
 				removed = true
@@ -124,18 +124,103 @@ final class ArticleHighlightControllerTests: XCTestCase {
 		XCTAssertFalse(removed)
 	}
 
+	func testStaleRemoveRejectsBeforePersistenceDelete() async throws {
+		var deleteCount = 0
+		var removeCount = 0
+
+		try await ArticleHighlightMutation.deleteBeforeRemoval(isCurrent: { false }) {
+			deleteCount += 1
+		} remove: {
+			removeCount += 1
+		}
+
+		XCTAssertEqual(deleteCount, 0)
+		XCTAssertEqual(removeCount, 0)
+	}
+
+	func testRemoveRechecksStateAfterDeleteBeforeDOMMutation() async throws {
+		var isCurrent = true
+		var removeCount = 0
+
+		try await ArticleHighlightMutation.deleteBeforeRemoval(isCurrent: { isCurrent }) {
+			isCurrent = false
+		} remove: {
+			removeCount += 1
+		}
+
+		XCTAssertEqual(removeCount, 0)
+	}
+
 	func testTapMessageRoutesOnlyValidUUIDAndGeneration() throws {
 		let id = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000007"))
 		let message = try XCTUnwrap(ArticleHighlightTapMessage(body: [
 			"id": id.uuidString.lowercased(),
 			"generation": 12,
+			"articleKey": "article-key",
+			"rendition": "v1:feed-body",
 			"rect": ["x": 1.0, "y": 2.0, "width": 3.0, "height": 4.0]
 		]))
 
 		XCTAssertEqual(message.id, id)
-		XCTAssertEqual(message.generation, 12)
+		XCTAssertEqual(message.renderState, ArticleHighlightRenderState(
+			generation: 12, articleKey: "article-key", rendition: .feedBody
+		))
 		XCTAssertEqual(message.rect, CGRect(x: 1, y: 2, width: 3, height: 4))
 		XCTAssertNil(ArticleHighlightTapMessage(body: ["id": "not-a-uuid", "generation": 12]))
+	}
+
+	func testMessageRenderStateRejectsArticleKeyAndRenditionMismatch() throws {
+		let lifecycle = ArticleHighlightLifecycle()
+		let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+		let currentState = try XCTUnwrap(lifecycle.beginRender(
+			webView: webView, articleKey: "article-key", rendition: .feedBody
+		))
+		let matching = try XCTUnwrap(ArticleHighlightMessageRenderState(body: [
+			"generation": currentState.generation,
+			"articleKey": currentState.articleKey,
+			"rendition": currentState.rendition.rawValue
+		]))
+		let wrongArticle = try XCTUnwrap(ArticleHighlightMessageRenderState(body: [
+			"generation": currentState.generation,
+			"articleKey": "other-article",
+			"rendition": currentState.rendition.rawValue
+		]))
+		let wrongRendition = try XCTUnwrap(ArticleHighlightMessageRenderState(body: [
+			"generation": currentState.generation,
+			"articleKey": currentState.articleKey,
+			"rendition": ArticleHighlightRenderState.Rendition.readerView.rawValue
+		]))
+
+		XCTAssertTrue(lifecycle.accepts(webView: webView, state: matching.state))
+		XCTAssertFalse(lifecycle.accepts(webView: webView, state: wrongArticle.state))
+		XCTAssertFalse(lifecycle.accepts(webView: webView, state: wrongRendition.state))
+	}
+
+	func testRetainedTapRemovalStateIsRejectedAfterRenderChange() throws {
+		let lifecycle = ArticleHighlightLifecycle()
+		let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+		let acceptedState = try XCTUnwrap(lifecycle.beginRender(
+			webView: webView, articleKey: "article-key", rendition: .feedBody
+		))
+		let message = try XCTUnwrap(ArticleHighlightTapMessage(body: [
+			"id": "00000000-0000-0000-0000-000000000007",
+			"generation": acceptedState.generation,
+			"articleKey": acceptedState.articleKey,
+			"rendition": acceptedState.rendition.rawValue
+		]))
+		let request = ArticleHighlightRemovalRequest(id: message.id, renderState: message.renderState)
+		var removeCount = 0
+		let retainedAlertCallback = {
+			request.performIfCurrent(isCurrent: { state in
+				lifecycle.accepts(webView: webView, state: state)
+			}) { _, _ in
+				removeCount += 1
+			}
+		}
+		_ = lifecycle.beginRender(webView: webView, articleKey: "next-article", rendition: .readerView)
+
+		retainedAlertCallback()
+		XCTAssertEqual(removeCount, 0)
 	}
 
 	func testPooledWebViewResetsDelegateAndCachedEligibilityWhenDetached() {

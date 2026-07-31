@@ -6,6 +6,7 @@
 	const contextLimit = 48;
 	const state = {
 		generation: null,
+		articleKey: null,
 		rendition: null,
 		root: null,
 		listenersInstalled: false,
@@ -330,7 +331,11 @@
 	function post(name, payload) {
 		const handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers[name];
 		if (handler) {
-			handler.postMessage(Object.assign({ generation: state.generation }, payload));
+			handler.postMessage(Object.assign({
+				generation: state.generation,
+				articleKey: state.articleKey,
+				rendition: state.rendition
+			}, payload));
 		}
 	}
 
@@ -375,13 +380,16 @@
 		state.resolved = [];
 	}
 
-	function prepare(generation, rendition) {
+	function prepare(generation, rendition, articleKey) {
 		const nextRendition = String(rendition || "");
+		const nextArticleKey = arguments.length >= 3 ? String(articleKey || "") : state.articleKey;
 		const nextRoot = bodyRoot();
-		if (state.generation !== generation || state.rendition !== nextRendition || state.root !== nextRoot) {
+		if (state.generation !== generation || state.articleKey !== nextArticleKey
+			|| state.rendition !== nextRendition || state.root !== nextRoot) {
 			discardResolvedState(state.root);
 		}
 		state.generation = generation;
+		state.articleKey = nextArticleKey;
 		state.rendition = nextRendition;
 		state.root = nextRoot;
 		installListeners();
@@ -389,11 +397,12 @@
 	}
 
 	function captureRender() {
-		return { generation: state.generation, rendition: state.rendition, root: state.root };
+		return { generation: state.generation, articleKey: state.articleKey, rendition: state.rendition, root: state.root };
 	}
 
 	function renderIsCurrent(render) {
-		return state.generation === render.generation && state.rendition === render.rendition
+		return state.generation === render.generation && state.articleKey === render.articleKey
+			&& state.rendition === render.rendition
 			&& state.root === render.root && Boolean(render.root && render.root.isConnected && bodyRoot() === render.root);
 	}
 
