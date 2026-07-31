@@ -24,25 +24,25 @@
 		return document.getElementById("bodyContainer") || document.querySelector(".articleBody");
 	}
 
-	function isIncludedTextNode(node) {
-		for (let element = node.parentElement; element && element !== state.root; element = element.parentElement) {
+	function isIncludedTextNode(node, root) {
+		if (!root || !root.contains(node)) {
+			return false;
+		}
+		for (let element = node.parentElement; element && element !== root; element = element.parentElement) {
 			if (element.matches("script, style, " + markSelector)) {
 				return false;
 			}
 		}
-		return Boolean(node.parentElement);
+		return Boolean(node.parentElement && (node.parentElement === root || root.contains(node.parentElement)));
 	}
 
-	function snapshot() {
-		if (!state.root || !state.root.isConnected) {
-			state.root = bodyRoot();
+	function snapshot(root) {
+		if (!root || !root.isConnected) {
+			return { root, nodes: [], starts: [], rawText: "", text: "", normalizedBoundaries: [], rawToNormalized: [] };
 		}
-		if (!state.root) {
-			return { nodes: [], starts: [], rawText: "", text: "" };
-		}
-		const walker = document.createTreeWalker(state.root, NodeFilter.SHOW_TEXT, {
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
 			acceptNode(node) {
-				return isIncludedTextNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+				return isIncludedTextNode(node, root) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
 			}
 		});
 		const nodes = [];
@@ -53,12 +53,62 @@
 			nodes.push(node);
 			rawText += node.data;
 		}
-		return { nodes, starts, rawText, text: normalize(rawText) };
+		const units = [];
+		const segments = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(rawText);
+		for (const segment of segments) {
+			const rawStart = segment.index;
+			const rawEnd = rawStart + segment.segment.length;
+			if (/^\s+$/u.test(segment.segment)) {
+				const previous = units[units.length - 1];
+				if (previous && previous.text === " ") {
+					previous.rawEnd = rawEnd;
+				} else {
+					units.push({ rawStart, rawEnd, text: " " });
+				}
+			} else {
+				units.push({ rawStart, rawEnd, text: segment.segment.normalize("NFC") });
+			}
+		}
+		while (units.length > 0 && units[0].text === " ") {
+			units.shift();
+		}
+		while (units.length > 0 && units[units.length - 1].text === " ") {
+			units.pop();
+		}
+
+		const normalizedBoundaries = [];
+		const rawToNormalized = new Array(rawText.length + 1);
+		let text = "";
+		for (const unit of units) {
+			const normalizedStart = text.length;
+			const rawUnit = rawText.slice(unit.rawStart, unit.rawEnd);
+			text += unit.text;
+			const normalizedEnd = text.length;
+			for (let offset = 0; offset <= unit.text.length; offset += 1) {
+				normalizedBoundaries[normalizedStart + offset] = unit.text === rawUnit
+					? unit.rawStart + offset
+					: (offset === unit.text.length ? unit.rawEnd : unit.rawStart);
+			}
+			for (let rawOffset = unit.rawStart; rawOffset <= unit.rawEnd; rawOffset += 1) {
+				rawToNormalized[rawOffset] = unit.text === rawUnit
+					? normalizedStart + rawOffset - unit.rawStart
+					: (rawOffset === unit.rawEnd ? normalizedEnd : normalizedStart);
+			}
+		}
+		const firstRawOffset = units.length > 0 ? units[0].rawStart : 0;
+		const lastRawOffset = units.length > 0 ? units[units.length - 1].rawEnd : rawText.length;
+		for (let rawOffset = 0; rawOffset <= firstRawOffset; rawOffset += 1) {
+			rawToNormalized[rawOffset] = 0;
+		}
+		for (let rawOffset = lastRawOffset; rawOffset <= rawText.length; rawOffset += 1) {
+			rawToNormalized[rawOffset] = text.length;
+		}
+		return { root, nodes, starts, rawText, text, normalizedBoundaries, rawToNormalized };
 	}
 
-	function nodePath(node) {
+	function nodePath(node, root) {
 		const path = [];
-		for (let current = node; current && current !== state.root; current = current.parentNode) {
+		for (let current = node; current && current !== root; current = current.parentNode) {
 			const parent = current.parentNode;
 			if (!parent) {
 				return null;
@@ -68,11 +118,11 @@
 		return path.reverse();
 	}
 
-	function nodeAtPath(path) {
-		if (!Array.isArray(path) || !state.root) {
+	function nodeAtPath(path, root) {
+		if (!Array.isArray(path) || !root) {
 			return null;
 		}
-		let node = state.root;
+		let node = root;
 		for (const index of path) {
 			if (!Number.isInteger(index) || index < 0 || index >= node.childNodes.length) {
 				return null;
@@ -82,7 +132,7 @@
 		return node;
 	}
 
-	function rangeFromDOMData(data) {
+	function rangeFromDOMData(data, root) {
 		if (typeof data === "string") {
 			try {
 				data = JSON.parse(data);
@@ -93,8 +143,8 @@
 		if (!data || data.version !== 1) {
 			return null;
 		}
-		const startNode = nodeAtPath(data.startPath);
-		const endNode = nodeAtPath(data.endPath);
+		const startNode = nodeAtPath(data.startPath, root);
+		const endNode = nodeAtPath(data.endPath, root);
 		if (!startNode || !endNode || startNode.nodeType !== Node.TEXT_NODE || endNode.nodeType !== Node.TEXT_NODE) {
 			return null;
 		}
@@ -111,27 +161,17 @@
 		}
 	}
 
-	function rawBoundary(snapshotValue, normalizedOffset) {
-		let low = 0;
-		let high = snapshotValue.rawText.length;
-		while (low < high) {
-			const middle = Math.floor((low + high) / 2);
-			if (normalizedPrefixLength(snapshotValue.rawText.slice(0, middle)) < normalizedOffset) {
-				low = middle + 1;
-			} else {
-				high = middle;
-			}
-		}
-		return low;
-	}
-
-	function normalizedPrefixLength(prefix) {
-		return normalize(prefix + "x").slice(0, -1).length;
-	}
-
-	function pointAtRawOffset(snapshotValue, rawOffset) {
+	function pointAtRawOffset(snapshotValue, rawOffset, bias) {
 		if (snapshotValue.nodes.length === 0) {
 			return null;
+		}
+		if (bias === "backward") {
+			for (let index = 0; index < snapshotValue.nodes.length; index += 1) {
+				const end = snapshotValue.starts[index] + snapshotValue.nodes[index].length;
+				if (rawOffset <= end) {
+					return { node: snapshotValue.nodes[index], offset: Math.max(0, rawOffset - snapshotValue.starts[index]) };
+				}
+			}
 		}
 		for (let index = snapshotValue.nodes.length - 1; index >= 0; index -= 1) {
 			if (rawOffset >= snapshotValue.starts[index]) {
@@ -145,8 +185,16 @@
 	}
 
 	function rangeAtOffsets(snapshotValue, start, end) {
-		const startPoint = pointAtRawOffset(snapshotValue, rawBoundary(snapshotValue, start));
-		const endPoint = pointAtRawOffset(snapshotValue, rawBoundary(snapshotValue, end));
+		if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end > snapshotValue.text.length || start >= end) {
+			return null;
+		}
+		const startRawOffset = snapshotValue.normalizedBoundaries[start];
+		const endRawOffset = snapshotValue.normalizedBoundaries[end];
+		if (!Number.isInteger(startRawOffset) || !Number.isInteger(endRawOffset)) {
+			return null;
+		}
+		const startPoint = pointAtRawOffset(snapshotValue, startRawOffset, "forward");
+		const endPoint = pointAtRawOffset(snapshotValue, endRawOffset, "backward");
 		if (!startPoint || !endPoint) {
 			return null;
 		}
@@ -165,8 +213,26 @@
 		if (index < 0) {
 			return null;
 		}
-		const prefix = snapshotValue.rawText.slice(0, snapshotValue.starts[index] + offset);
-		return normalizedPrefixLength(prefix);
+		return snapshotValue.rawToNormalized[snapshotValue.starts[index] + offset] ?? null;
+	}
+
+	function rangeIsEligible(range, root) {
+		if (!root || !root.contains(range.startContainer) || !root.contains(range.endContainer)
+			|| !isIncludedTextNode(range.startContainer, root) || !isIncludedTextNode(range.endContainer, root)) {
+			return false;
+		}
+		for (const excluded of root.querySelectorAll("script, style, " + markSelector)) {
+			if (range.intersectsNode(excluded)) {
+				return false;
+			}
+		}
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+			if (range.intersectsNode(node) && !isIncludedTextNode(node, root)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	function sha256(bytes) {
@@ -277,7 +343,7 @@
 		});
 		document.addEventListener("click", function(event) {
 			const mark = event.target.closest ? event.target.closest(markSelector) : null;
-			if (!mark) {
+			if (!mark || !state.root || !state.root.contains(mark)) {
 				return;
 			}
 			const rect = mark.getBoundingClientRect();
@@ -300,21 +366,35 @@
 		return Boolean(state.root);
 	}
 
+	function captureRender() {
+		return { generation: state.generation, rendition: state.rendition, root: state.root };
+	}
+
+	function renderIsCurrent(render) {
+		return state.generation === render.generation && state.rendition === render.rendition
+			&& state.root === render.root && Boolean(render.root && render.root.isConnected && bodyRoot() === render.root);
+	}
+
 	async function makeSelectionAnchor() {
+		const render = captureRender();
 		const range = selectionRange();
-		if (!range || overlapsMark(range)) {
+		if (!range || overlapsMark(range) || !rangeIsEligible(range, render.root)) {
 			return null;
 		}
 		const selectedText = normalize(range.toString());
 		if (!selectedText) {
 			return null;
 		}
-		const snapshotValue = snapshot();
+		const snapshotValue = snapshot(render.root);
 		const startOffset = normalizedOffsetForPoint(snapshotValue, range.startContainer, range.startOffset);
 		const endOffset = normalizedOffsetForPoint(snapshotValue, range.endContainer, range.endOffset);
-		const startPath = nodePath(range.startContainer);
-		const endPath = nodePath(range.endContainer);
+		const startPath = nodePath(range.startContainer, render.root);
+		const endPath = nodePath(range.endContainer, render.root);
 		if (startOffset === null || endOffset === null || !startPath || !endPath) {
+			return null;
+		}
+		const renderedTextFingerprint = await fingerprint(snapshotValue.text);
+		if (!renderIsCurrent(render)) {
 			return null;
 		}
 		return {
@@ -330,8 +410,8 @@
 				endPath,
 				endOffset: range.endOffset
 			},
-			renditionKindRaw: state.rendition,
-			renderedTextFingerprint: await fingerprint(snapshotValue.text)
+			renditionKindRaw: render.rendition,
+			renderedTextFingerprint
 		};
 	}
 
@@ -385,30 +465,60 @@
 		return leftTime - rightTime || String(left.id || "").localeCompare(String(right.id || ""));
 	}
 
-	function unwrap(mark) {
+	function unwrap(mark, render) {
 		const parent = mark.parentNode;
-		if (!parent) {
-			return;
+		if (!parent || !renderIsCurrent(render) || !render.root.contains(mark)) {
+			return false;
 		}
 		while (mark.firstChild) {
+			if (!renderIsCurrent(render)) {
+				return false;
+			}
 			parent.insertBefore(mark.firstChild, mark);
 		}
+		if (!renderIsCurrent(render)) {
+			return false;
+		}
 		parent.removeChild(mark);
+		if (!renderIsCurrent(render)) {
+			return false;
+		}
 		parent.normalize();
+		return true;
 	}
 
-	function clear() {
-		if (state.root) {
-			Array.from(state.root.querySelectorAll(markSelector)).forEach(unwrap);
+	function clearRender(render) {
+		if (!renderIsCurrent(render)) {
+			return false;
+		}
+		if (render.root) {
+			for (const mark of Array.from(render.root.querySelectorAll(markSelector))) {
+				if (!unwrap(mark, render)) {
+					return false;
+				}
+			}
+		}
+		if (!renderIsCurrent(render)) {
+			return false;
 		}
 		state.resolved = [];
 		return true;
 	}
 
+	function clear() {
+		return clearRender(captureRender());
+	}
+
 	async function restore(records) {
-		clear();
-		const snapshotValue = snapshot();
+		const render = captureRender();
+		if (!clearRender(render)) {
+			return [];
+		}
+		const snapshotValue = snapshot(render.root);
 		const renderedFingerprint = await fingerprint(snapshotValue.text);
+		if (!renderIsCurrent(render)) {
+			return [];
+		}
 		const resolved = [];
 		for (const record of Array.isArray(records) ? records : []) {
 			const id = String(record.id || "").toLowerCase();
@@ -419,9 +529,9 @@
 			let range = null;
 			let start = null;
 			let end = null;
-			if (record.renditionKindRaw === state.rendition && record.renderedTextFingerprint === renderedFingerprint) {
-				range = rangeFromDOMData(record.domRangeData);
-				if (range && normalize(range.toString()) === selectedText) {
+			if (record.renditionKindRaw === render.rendition && record.renderedTextFingerprint === renderedFingerprint) {
+				range = rangeFromDOMData(record.domRangeData, render.root);
+				if (range && rangeIsEligible(range, render.root) && normalize(range.toString()) === selectedText) {
 					start = normalizedOffsetForPoint(snapshotValue, range.startContainer, range.startOffset);
 					end = normalizedOffsetForPoint(snapshotValue, range.endContainer, range.endOffset);
 				} else {
@@ -436,7 +546,7 @@
 				start = candidate.start;
 				end = candidate.end;
 				range = rangeAtOffsets(snapshotValue, start, end);
-				if (!range || normalize(range.toString()) !== selectedText) {
+				if (!range || !rangeIsEligible(range, render.root) || normalize(range.toString()) !== selectedText) {
 					continue;
 				}
 			}
@@ -450,26 +560,51 @@
 			}
 		}
 		for (const candidate of accepted.slice().sort((left, right) => right.start - left.start || right.end - left.end)) {
+			if (!renderIsCurrent(render) || !rangeIsEligible(candidate.range, render.root)) {
+				return [];
+			}
 			const mark = document.createElement("mark");
+			if (!renderIsCurrent(render)) {
+				return [];
+			}
 			mark.className = "nnw-saved-highlight";
+			if (!renderIsCurrent(render)) {
+				return [];
+			}
 			mark.dataset.nnwHighlightId = candidate.id;
-			mark.appendChild(candidate.range.extractContents());
+			if (!renderIsCurrent(render)) {
+				return [];
+			}
+			const contents = candidate.range.extractContents();
+			if (!renderIsCurrent(render)) {
+				return [];
+			}
+			mark.appendChild(contents);
+			if (!renderIsCurrent(render)) {
+				return [];
+			}
 			candidate.range.insertNode(mark);
+		}
+		if (!renderIsCurrent(render)) {
+			return [];
 		}
 		state.resolved = accepted.map(candidate => ({ id: candidate.id, startOffset: candidate.start, endOffset: candidate.end }));
 		return accepted.map(candidate => ({ id: candidate.id, startOffset: candidate.start, endOffset: candidate.end }));
 	}
 
 	function remove(id) {
+		const render = captureRender();
 		const normalizedID = String(id || "").toLowerCase();
-		if (!state.root) {
+		if (!render.root) {
 			return false;
 		}
-		const mark = Array.from(state.root.querySelectorAll(markSelector)).find(element => element.dataset.nnwHighlightId === normalizedID);
+		const mark = Array.from(render.root.querySelectorAll(markSelector)).find(element => element.dataset.nnwHighlightId === normalizedID);
 		if (!mark) {
 			return false;
 		}
-		unwrap(mark);
+		if (!unwrap(mark, render) || !renderIsCurrent(render)) {
+			return false;
+		}
 		state.resolved = state.resolved.filter(position => position.id !== normalizedID);
 		return true;
 	}

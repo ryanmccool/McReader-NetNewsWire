@@ -76,7 +76,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 
 		XCTAssertEqual(restored.count, 1)
 		XCTAssertEqual(restored.first?["id"] as? String, unique["id"] as? String)
-		let markedText = try await stringResult("document.querySelector('mark').textContent")
+		let markedText = try await stringResult("document.querySelector('mark')?.textContent || ''")
 		XCTAssertEqual(markedText, "repeated")
 	}
 
@@ -140,6 +140,97 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(message["generation"] as? Int, 42)
 		XCTAssertGreaterThan(rectangle["width"] as? Double ?? 0, 0)
 		XCTAssertGreaterThan(rectangle["height"] as? Double ?? 0, 0)
+	}
+
+	func testRestoreAbortsWhenPrepareChangesGenerationDuringFingerprint() async throws {
+		try await loadArticle(#"<p>alpha beta</p>"#)
+		let records = json([record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "alpha",
+			start: 0
+		)])
+
+		let restored = try await arrayResult("""
+		(() => {
+			const pending = window.nnwHighlights.restore(\(records));
+			window.nnwHighlights.prepare(43, "v1:reader-view");
+			return pending;
+		})()
+		""")
+
+		let markCount = try await intResult("document.querySelectorAll('mark.nnw-saved-highlight').length")
+		let positions = try await arrayResult("window.nnwHighlights.positions()")
+		XCTAssertTrue(restored.isEmpty)
+		XCTAssertEqual(markCount, 0)
+		XCTAssertTrue(positions.isEmpty)
+	}
+
+	func testQuoteFallbackMapsComposedNFCTextToCompleteDecomposedDOMRange() async throws {
+		try await loadArticle("<p>before e\u{301} after</p>")
+		let highlight = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "é",
+			start: 7
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
+		let markedText = try await stringResult("document.querySelector('mark')?.textContent || ''")
+
+		XCTAssertEqual(restored.count, 1)
+		XCTAssertEqual(markedText, "e\u{301}")
+	}
+
+	func testRestoreRejectsDOMAndQuoteRangesThatEnterOrCrossExcludedSubtrees() async throws {
+		try await loadArticle(#"<p id="target">alpha<script>evil</script>beta<style>.x{}</style>gamma</p>"#)
+		try await selectText(in: "target", from: 0, to: 5)
+		let anchor = try await objectResult("window.nnwHighlights.makeSelectionAnchor()")
+		let fingerprint = try XCTUnwrap(anchor["renderedTextFingerprint"] as? String)
+		var invalidDOM = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "evil",
+			start: 5
+		)
+		invalidDOM["renderedTextFingerprint"] = fingerprint
+		invalidDOM["domRangeData"] = [
+			"version": 1,
+			"startPath": [0, 1, 0],
+			"startOffset": 0,
+			"endPath": [0, 1, 0],
+			"endOffset": 4
+		]
+		let crossingQuote = record(
+			id: "00000000-0000-0000-0000-000000000002",
+			selectedText: "alphabeta",
+			start: 0
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([invalidDOM, crossingQuote])))")
+		let markCount = try await intResult("document.querySelectorAll('mark.nnw-saved-highlight').length")
+		let scriptText = try await stringResult("document.querySelector('script').textContent")
+		let styleText = try await stringResult("document.querySelector('style').textContent")
+
+		XCTAssertTrue(restored.isEmpty)
+		XCTAssertEqual(markCount, 0)
+		XCTAssertEqual(scriptText, "evil")
+		XCTAssertEqual(styleText, ".x{}")
+	}
+
+	func testMarkTapIgnoresMatchingMarkOutsideCurrentRoot() async throws {
+		try await loadArticle(#"<p>alpha beta</p>"#)
+		_ = try await valueResult("""
+		(() => {
+			const mark = document.createElement("mark");
+			mark.className = "nnw-saved-highlight";
+			mark.dataset.nnwHighlightId = "123e4567-e89b-12d3-a456-426614174000";
+			mark.textContent = "outside";
+			document.body.appendChild(mark);
+			mark.click();
+			return true;
+		})()
+		""")
+		try await Task.sleep(for: .milliseconds(100))
+
+		XCTAssertEqual(messageRecorder.messageCount(named: "highlightWasTapped"), 0)
 	}
 
 	private func loadArticle(_ body: String) async throws {
@@ -288,6 +379,10 @@ private final class MessageRecorder: NSObject, WKScriptMessageHandler {
 			try await Task.sleep(for: .milliseconds(10))
 		}
 		throw ScriptError.timedOut
+	}
+
+	func messageCount(named name: String) -> Int {
+		messages.count { $0.0 == name }
 	}
 }
 
