@@ -118,3 +118,27 @@ enum NetNewsWireHighlightPublishing {
 		return url
 	}
 }
+
+@MainActor
+struct NetNewsWireHighlightPostAction {
+	private let articleKey: String
+	private let webViewIdentifier: ObjectIdentifier
+
+	init(articleKey: String, webViewController: AnyObject) {
+		self.articleKey = articleKey
+		self.webViewIdentifier = ObjectIdentifier(webViewController)
+	}
+
+	func perform(
+		currentArticleKey: String?,
+		currentWebViewController: AnyObject?,
+		post: () async -> Void
+	) async {
+		guard currentArticleKey == articleKey,
+			let currentWebViewController,
+			ObjectIdentifier(currentWebViewController) == webViewIdentifier else {
+			return
+		}
+		await post()
+	}
+}

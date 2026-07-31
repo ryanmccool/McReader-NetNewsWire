@@ -627,13 +627,23 @@ private extension ArticleViewController {
 		}
 		let highlightActions = UIDeferredMenuElement.uncached { [weak self] completion in
 			Task { @MainActor in
-				guard let self, await self.highlightPublishingCapture() != nil else {
+				guard let self,
+					let webViewController = self.currentWebViewController,
+					let articleKey = self.articleKey(for: webViewController.article),
+					await self.highlightPublishingCapture(
+						webViewController: webViewController,
+						articleKey: articleKey
+					) != nil else {
 					completion([])
 					return
 				}
+				let postAction = NetNewsWireHighlightPostAction(
+					articleKey: articleKey,
+					webViewController: webViewController
+				)
 				let postHighlights = UIAction(title: titles.postHighlights) { [weak self] _ in
 					Task { @MainActor in
-						await self?.postHighlights()
+						await self?.postHighlights(postAction)
 					}
 				}
 				completion([postHighlights])
@@ -666,20 +676,33 @@ private extension ArticleViewController {
 		)
 	}
 
-	func postHighlights() async {
-		guard let capture = await highlightPublishingCapture() else {
+	func postHighlights(_ action: NetNewsWireHighlightPostAction) async {
+		guard let webViewController = currentWebViewController,
+			let articleKey = articleKey(for: webViewController.article) else {
 			return
 		}
-		publishingActions.send(capture, .post)
+		await action.perform(
+			currentArticleKey: articleKey,
+			currentWebViewController: webViewController
+		) { [weak self] in
+			guard let self,
+				let capture = await self.highlightPublishingCapture(
+					webViewController: webViewController,
+					articleKey: articleKey
+				) else {
+				return
+			}
+			self.publishingActions.send(capture, .post)
+		}
 	}
 
-	func highlightPublishingCapture() async -> NetNewsWirePublishingCapture? {
-		guard let webViewController = currentWebViewController,
+	func highlightPublishingCapture(
+		webViewController: WebViewController,
+		articleKey: String
+	) async -> NetNewsWirePublishingCapture? {
+		guard currentWebViewController === webViewController,
 			let article = webViewController.article,
-			let articleKey = ArticleHighlightIdentity.articleKey(
-				feedURL: article.feed?.url,
-				uniqueID: article.uniqueID
-			) else {
+			self.articleKey(for: article) == articleKey else {
 			return nil
 		}
 		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -696,13 +719,17 @@ private extension ArticleViewController {
 			}
 		)
 		guard currentWebViewController === webViewController,
-			ArticleHighlightIdentity.articleKey(
-				feedURL: webViewController.article?.feed?.url,
-				uniqueID: webViewController.article?.uniqueID
-			) == articleKey else {
+			self.articleKey(for: webViewController.article) == articleKey else {
 			return nil
 		}
 		return capture
+	}
+
+	func articleKey(for article: Article?) -> String? {
+		ArticleHighlightIdentity.articleKey(
+			feedURL: article?.feed?.url,
+			uniqueID: article?.uniqueID
+		)
 	}
 
 }

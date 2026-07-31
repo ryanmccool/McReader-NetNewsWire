@@ -180,6 +180,51 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertNil(invalidURLCapture)
 	}
 
+	func testResolvedHighlightActionRejectsNewArticleBeforeLoadAndFreshLoadsValidTap() async throws {
+		let articleAWebView = NSObject()
+		let articleBWebView = NSObject()
+		let action = NetNewsWireHighlightPostAction(
+			articleKey: "article-a",
+			webViewController: articleAWebView
+		)
+		let url = try XCTUnwrap(URL(string: "https://example.com/article-a"))
+		var loads = 0
+		var posts = [NetNewsWirePublishingCapture]()
+		var currentRecords = [makeRecord(selectedText: "Initial excerpt", preferredURL: url)]
+		let invoke: @MainActor (String, AnyObject) async -> Void = { articleKey, webViewController in
+			await action.perform(
+				currentArticleKey: articleKey,
+				currentWebViewController: webViewController
+			) {
+				let capture = await NetNewsWireHighlightPublishing.capture(
+					articleKey: "article-a",
+					currentTitle: "Article A",
+					currentCreator: nil,
+					currentPreferredURL: url,
+					load: { _ in
+						loads += 1
+						return currentRecords
+					},
+					resolvedPositions: { [:] }
+				)
+				if let capture {
+					posts.append(capture)
+				}
+			}
+		}
+
+		await invoke("article-b", articleAWebView)
+		await invoke("article-a", articleBWebView)
+		await invoke("article-b", articleBWebView)
+		XCTAssertEqual(loads, 0)
+		XCTAssertTrue(posts.isEmpty)
+
+		currentRecords = [makeRecord(selectedText: "Fresh excerpt", preferredURL: url)]
+		await invoke("article-a", articleAWebView)
+		XCTAssertEqual(loads, 1)
+		XCTAssertEqual(posts.map(\.selectedText), ["Fresh excerpt"])
+	}
+
 	private func assertSendable<T: Sendable>(_ value: T) {}
 
 	private func makeRecord(
