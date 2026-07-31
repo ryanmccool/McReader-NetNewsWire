@@ -490,6 +490,9 @@
     "Here" : {
       "comment" : "Here"
     },
+    "Highlight" : {
+      "comment" : "Article selection command"
+    },
     "Hide Read Articles" : {
       "comment" : "Command"
     },
@@ -773,6 +776,9 @@
     "Pending" : {
       "comment" : "Pending"
     },
+    "Post Highlights..." : {
+      "comment" : "Publishing command for saved article highlights"
+    },
     "Post Link..." : {
       "comment" : "Command"
     },
@@ -814,6 +820,9 @@
     },
     "Remove" : {
       "comment" : "Remove"
+    },
+    "Remove Highlight" : {
+      "comment" : "Remove saved article highlight"
     },
     "Remove Account" : {
       "comment" : "Remove Account"

@@ -16,6 +16,101 @@ import SafariServices
 import MessageUI
 import Images
 
+enum ArticleHighlightSelectionEligibility {
+	static func isEligible(enabled: Bool, articleKey: String?, selectedText: String, overlapsSavedHighlight: Bool) -> Bool {
+		enabled && articleKey != nil
+			&& !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+			&& !overlapsSavedHighlight
+	}
+}
+
+@MainActor final class ArticleHighlightLifecycle {
+	private weak var webView: WKWebView?
+	private(set) var currentState: ArticleHighlightRenderState?
+	private(set) var generation: UInt64 = 0
+	var selectionIsEligible = false
+	var observation: NetNewsWireHighlightObservation?
+
+	@discardableResult
+	func beginRender(
+		webView: WKWebView,
+		articleKey: String?,
+		rendition: ArticleHighlightRenderState.Rendition
+	) -> ArticleHighlightRenderState? {
+		observation?.cancel()
+		observation = nil
+		selectionIsEligible = false
+		generation &+= 1
+		self.webView = webView
+		currentState = articleKey.map {
+			ArticleHighlightRenderState(generation: generation, articleKey: $0, rendition: rendition)
+		}
+		return currentState
+	}
+
+	func accepts(webView: WKWebView, state: ArticleHighlightRenderState?) -> Bool {
+		guard let state else {
+			return false
+		}
+		return self.webView === webView && currentState == state
+	}
+
+	func accepts(webView: WKWebView, generation: UInt64) -> Bool {
+		self.webView === webView && currentState?.generation == generation
+	}
+}
+
+@MainActor enum ArticleHighlightMutation {
+	static func insertBeforeDecoration(
+		insert: () async throws -> Void,
+		decorate: () async -> Void
+	) async throws {
+		try await insert()
+		await decorate()
+	}
+
+	static func deleteBeforeRemoval(
+		delete: () async throws -> Void,
+		remove: () async -> Void
+	) async throws {
+		try await delete()
+		await remove()
+	}
+}
+
+struct ArticleHighlightTapMessage {
+	let id: UUID
+	let generation: UInt64
+	let rect: CGRect
+
+	init?(body: Any) {
+		guard let body = body as? [String: Any],
+			let idString = body["id"] as? String,
+			let id = UUID(uuidString: idString),
+			let generation = Self.uint64(body["generation"]) else {
+			return nil
+		}
+		let rect = body["rect"] as? [String: Any]
+		self.id = id
+		self.generation = generation
+		self.rect = CGRect(
+			x: Self.double(rect?["x"]), y: Self.double(rect?["y"]),
+			width: Self.double(rect?["width"]), height: Self.double(rect?["height"])
+		)
+	}
+
+	private static func uint64(_ value: Any?) -> UInt64? {
+		if let value = value as? UInt64 { return value }
+		if let value = value as? Int, value >= 0 { return UInt64(value) }
+		if let value = value as? NSNumber, value.int64Value >= 0 { return value.uint64Value }
+		return nil
+	}
+
+	private static func double(_ value: Any?) -> Double {
+		(value as? NSNumber)?.doubleValue ?? 0
+	}
+}
+
 @MainActor protocol WebViewControllerDelegate: AnyObject {
 	func webViewController(_: WebViewController, articleExtractorButtonStateDidUpdate: ArticleExtractorButtonState)
 }
@@ -26,6 +121,10 @@ final class WebViewController: UIViewController {
 		static let imageWasClicked = "imageWasClicked"
 		static let imageWasShown = "imageWasShown"
 		static let showFeedInspector = "showFeedInspector"
+		static let highlightSelectionChanged = "highlightSelectionChanged"
+		static let highlightWasTapped = "highlightWasTapped"
+
+		static let all = [imageWasClicked, imageWasShown, showFeedInspector, highlightSelectionChanged, highlightWasTapped]
 	}
 
 	private var topShowBarsView: UIView!
@@ -44,6 +143,11 @@ final class WebViewController: UIViewController {
 	private lazy var articleIconSchemeHandler = ArticleIconSchemeHandler(coordinator: coordinator)
 	private lazy var transition = ImageTransition(controller: self)
 	private var clickedImageCompletion: (() -> Void)?
+	private let highlightLifecycle = ArticleHighlightLifecycle()
+	private var highlightRecords = [UUID: NetNewsWireHighlightRecord]()
+	private weak var highlightNavigation: WKNavigation?
+	private var highlightRenderTask: Task<Void, Never>?
+	private var highlightMutationTask: Task<Void, Never>?
 
 	private var articleExtractor: ArticleExtractor?
 	var extractedArticle: ExtractedArticle? {
@@ -201,6 +305,17 @@ final class WebViewController: UIViewController {
 		guard let value = try? await webView?.evaluateJavaScript("window.getSelection().toString()"),
 			let text = value as? String else { return nil }
 		return Self.normalizedSelectedPlainText(text)
+	}
+
+	func highlightRecordsForPosting() async -> ([NetNewsWireHighlightRecord], [UUID: Int]) {
+		let records = sortedHighlightRecords()
+		guard let webView, let state = highlightLifecycle.currentState,
+			highlightLifecycle.accepts(webView: webView, state: state),
+			let value = try? await webView.evaluateJavaScript("window.nnwHighlights.positions()"),
+			highlightLifecycle.accepts(webView: webView, state: state) else {
+			return (records, [:])
+		}
+		return (records, highlightPositions(from: value))
 	}
 
 	static func normalizedSelectedPlainText(_ text: String) -> String? {
@@ -417,8 +532,22 @@ extension WebViewController: UIContextMenuInteractionDelegate {
 extension WebViewController: WKNavigationDelegate {
 
 	func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+		if let webView = webView as? PreloadedWebView,
+			self.webView === webView, navigation === highlightNavigation,
+			let state = highlightLifecycle.currentState,
+			highlightLifecycle.accepts(webView: webView, state: state) {
+			highlightRenderTask?.cancel()
+			highlightRenderTask = Task { [weak self, weak webView] in
+				guard let self, let webView else { return }
+				await self.prepareAndRestoreHighlights(in: webView, state: state)
+			}
+		}
 		for (index, view) in view.subviews.enumerated() {
 			if index != 0, let oldWebView = view as? PreloadedWebView {
+				detachHighlightHandlers(from: oldWebView)
+				oldWebView.navigationDelegate = nil
+				oldWebView.uiDelegate = nil
+				oldWebView.scrollView.delegate = nil
 				oldWebView.removeFromSuperview()
 			}
 		}
@@ -517,11 +646,33 @@ extension WebViewController: WKScriptMessageHandler {
 			if let feed = article?.feed {
 				coordinator.showFeedInspector(for: feed)
 			}
+		case MessageName.highlightSelectionChanged:
+			if let webView = message.webView {
+				highlightSelectionChanged(in: webView, body: message.body)
+			}
+		case MessageName.highlightWasTapped:
+			if let webView = message.webView {
+				highlightWasTapped(in: webView, body: message.body)
+			}
 		default:
 			return
 		}
 	}
 
+}
+
+// MARK: PreloadedWebViewHighlightDelegate
+
+extension WebViewController: PreloadedWebViewHighlightDelegate {
+	func preloadedWebViewCanHighlightCurrentSelection(_ webView: PreloadedWebView) -> Bool {
+		highlightActions.isEnabled && highlightLifecycle.selectionIsEligible
+			&& highlightLifecycle.accepts(webView: webView, state: highlightLifecycle.currentState)
+	}
+
+	func preloadedWebViewDidRequestHighlight(_ webView: PreloadedWebView) {
+		guard preloadedWebViewCanHighlightCurrentSelection(webView) else { return }
+		addHighlight(from: webView)
+	}
 }
 
 // MARK: UIViewControllerTransitioningDelegate
@@ -569,6 +720,43 @@ private struct ImageClickMessage: Codable {
 	let imageURL: String
 }
 
+private struct ArticleHighlightAnchor {
+	let selectedText: String
+	let prefixContext: String
+	let suffixContext: String
+	let startOffset: Int
+	let endOffset: Int
+	let domRangeData: Data?
+	let renditionKindRaw: String
+	let renderedTextFingerprint: String
+
+	init?(value: Any) {
+		guard let value = value as? [String: Any],
+			let selectedText = value["selectedText"] as? String,
+			!selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+			let prefixContext = value["prefixContext"] as? String,
+			let suffixContext = value["suffixContext"] as? String,
+			let startOffset = (value["startOffset"] as? NSNumber)?.intValue,
+			let endOffset = (value["endOffset"] as? NSNumber)?.intValue,
+			startOffset >= 0, endOffset > startOffset,
+			let renditionKindRaw = value["renditionKindRaw"] as? String,
+			let renderedTextFingerprint = value["renderedTextFingerprint"] as? String,
+			!renderedTextFingerprint.isEmpty else { return nil }
+		self.selectedText = selectedText
+		self.prefixContext = prefixContext
+		self.suffixContext = suffixContext
+		self.startOffset = startOffset
+		self.endOffset = endOffset
+		self.renditionKindRaw = renditionKindRaw
+		self.renderedTextFingerprint = renderedTextFingerprint
+		if let domRange = value["domRangeData"], JSONSerialization.isValidJSONObject(domRange) {
+			self.domRangeData = try? JSONSerialization.data(withJSONObject: domRange)
+		} else {
+			self.domRangeData = nil
+		}
+	}
+}
+
 // MARK: Private
 
 private extension WebViewController {
@@ -612,14 +800,15 @@ private extension WebViewController {
 				self.configureContextMenuInteraction()
 
 				// Remove possible existing message handlers
-				webView.configuration.userContentController.removeScriptMessageHandler(forName: MessageName.imageWasClicked)
-				webView.configuration.userContentController.removeScriptMessageHandler(forName: MessageName.imageWasShown)
-				webView.configuration.userContentController.removeScriptMessageHandler(forName: MessageName.showFeedInspector)
+				for name in MessageName.all {
+					webView.configuration.userContentController.removeScriptMessageHandler(forName: name)
+				}
 
 				// Add handlers
-				webView.configuration.userContentController.add(WrapperScriptMessageHandler(self), name: MessageName.imageWasClicked)
-				webView.configuration.userContentController.add(WrapperScriptMessageHandler(self), name: MessageName.imageWasShown)
-				webView.configuration.userContentController.add(WrapperScriptMessageHandler(self), name: MessageName.showFeedInspector)
+				for name in MessageName.all {
+					webView.configuration.userContentController.add(WrapperScriptMessageHandler(self), name: name)
+				}
+				webView.setHighlightDelegate(self)
 
 				self.renderPage(webView)
 			}
@@ -667,7 +856,229 @@ private extension WebViewController {
 //		print("article.html written to \(fileURL.path)")
 
 		WebViewConfiguration.addContentBlockingRules(to: webView)
-		webView.loadHTMLString(html, baseURL: URL(string: rendering.baseURL))
+		let articleKey = ArticleHighlightIdentity.articleKey(feedURL: article?.feed?.url, uniqueID: article?.uniqueID)
+		let rendition: ArticleHighlightRenderState.Rendition = isShowingExtractedArticle ? .readerView : .feedBody
+		invalidateHighlightRender(in: webView, articleKey: articleKey, rendition: rendition)
+		highlightNavigation = webView.loadHTMLString(html, baseURL: URL(string: rendering.baseURL))
+	}
+
+	func invalidateHighlightRender(
+		in webView: PreloadedWebView,
+		articleKey: String?,
+		rendition: ArticleHighlightRenderState.Rendition
+	) {
+		highlightRenderTask?.cancel()
+		highlightRenderTask = nil
+		highlightMutationTask?.cancel()
+		highlightMutationTask = nil
+		highlightRecords = [:]
+		webView.updateHighlightSelectionEligibility(false)
+		_ = highlightLifecycle.beginRender(webView: webView, articleKey: articleKey, rendition: rendition)
+	}
+
+	func detachHighlightHandlers(from webView: PreloadedWebView) {
+		webView.setHighlightDelegate(nil)
+		for name in MessageName.all {
+			webView.configuration.userContentController.removeScriptMessageHandler(forName: name)
+		}
+	}
+
+	func prepareAndRestoreHighlights(in webView: PreloadedWebView, state: ArticleHighlightRenderState) async {
+		guard highlightLifecycle.accepts(webView: webView, state: state) else { return }
+		let prepareScript = "window.nnwHighlights.prepare(\(state.generation), \(javaScriptJSON(state.rendition.rawValue) ?? "null"))"
+		guard let prepared = try? await webView.evaluateJavaScript(prepareScript) as? Bool, prepared,
+			highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+
+		guard let records = try? await highlightActions.load(state.articleKey),
+			highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+		highlightRecords = Dictionary(records.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+		await restoreHighlights(in: webView, state: state)
+		guard highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+		startHighlightObservation(in: webView, state: state)
+	}
+
+	func startHighlightObservation(in webView: PreloadedWebView, state: ArticleHighlightRenderState) {
+		highlightLifecycle.observation?.cancel()
+		highlightLifecycle.observation = highlightActions.observe(state.articleKey) { [weak self, weak webView] records in
+			guard let self, let webView, self.highlightLifecycle.accepts(webView: webView, state: state) else { return }
+			self.highlightRecords = Dictionary(records.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+			self.enqueueHighlightRestore(in: webView, state: state)
+		} _: {
+			// The app bridge owns sanitized feedback; existing marks remain readable.
+		}
+	}
+
+	func restoreHighlights(in webView: PreloadedWebView, state: ArticleHighlightRenderState) async {
+		guard highlightLifecycle.accepts(webView: webView, state: state),
+			let recordsJSON = javaScriptJSON(sortedHighlightRecords().map(highlightRecordJSON)) else { return }
+		_ = try? await webView.evaluateJavaScript("window.nnwHighlights.restore(\(recordsJSON))")
+		guard highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+		webView.updateHighlightSelectionEligibility(false)
+		highlightLifecycle.selectionIsEligible = false
+	}
+
+	@discardableResult
+	func enqueueHighlightRestore(in webView: PreloadedWebView, state: ArticleHighlightRenderState) -> Task<Void, Never> {
+		let previousTask = highlightRenderTask
+		let task = Task { [weak self, weak webView] in
+			await previousTask?.value
+			guard let self, let webView,
+				self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+			await self.restoreHighlights(in: webView, state: state)
+		}
+		highlightRenderTask = task
+		return task
+	}
+
+	func highlightSelectionChanged(in messageWebView: WKWebView, body: Any) {
+		guard let webView = messageWebView as? PreloadedWebView,
+			let body = body as? [String: Any],
+			let generation = messageGeneration(body["generation"]),
+			highlightLifecycle.accepts(webView: webView, generation: generation) else { return }
+		let selectedText = body["selectedText"] as? String ?? ""
+		let overlap = body["overlapsSavedHighlight"] as? Bool ?? true
+		let eligible = ArticleHighlightSelectionEligibility.isEligible(
+			enabled: highlightActions.isEnabled,
+			articleKey: highlightLifecycle.currentState?.articleKey,
+			selectedText: selectedText,
+			overlapsSavedHighlight: overlap
+		)
+		highlightLifecycle.selectionIsEligible = eligible
+		webView.updateHighlightSelectionEligibility(eligible)
+	}
+
+	func highlightWasTapped(in messageWebView: WKWebView, body: Any) {
+		guard let webView = messageWebView as? PreloadedWebView,
+			let message = ArticleHighlightTapMessage(body: body),
+			highlightLifecycle.accepts(webView: webView, generation: message.generation),
+			highlightRecords[message.id] != nil else { return }
+
+		let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+		alert.addAction(UIAlertAction(
+			title: NNWLocalizedString("Remove Highlight", comment: "Remove saved article highlight"),
+			style: .destructive
+		) { [weak self, weak webView] _ in
+			guard let self, let webView, let state = self.highlightLifecycle.currentState,
+				self.highlightLifecycle.accepts(webView: webView, state: state) else { return }
+			self.removeHighlight(message.id, from: webView, state: state)
+		})
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
+		if let popover = alert.popoverPresentationController {
+			popover.sourceView = webView
+			let sourceRect = message.rect.intersection(webView.bounds)
+			popover.sourceRect = sourceRect.isNull || sourceRect.isEmpty
+				? CGRect(x: webView.bounds.midX, y: webView.bounds.midY, width: 1, height: 1)
+				: sourceRect
+		}
+		present(alert, animated: true)
+	}
+
+	func addHighlight(from webView: PreloadedWebView) {
+		guard let state = highlightLifecycle.currentState,
+			highlightLifecycle.accepts(webView: webView, state: state),
+			let article else { return }
+		let articleTitle = article.title ?? ""
+		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
+		let creator = byline.isEmpty ? article.feed?.nameForDisplay : byline
+		let preferredURL = article.preferredURL
+
+		highlightMutationTask?.cancel()
+		highlightMutationTask = Task { [weak self, weak webView] in
+			guard let self, let webView,
+				self.highlightLifecycle.accepts(webView: webView, state: state),
+				let value = try? await webView.evaluateJavaScript("window.nnwHighlights.makeSelectionAnchor()"),
+				self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled,
+				let anchor = ArticleHighlightAnchor(value: value),
+				anchor.renditionKindRaw == state.rendition.rawValue else { return }
+
+			let now = Date()
+			let record = NetNewsWireHighlightRecord(
+				id: UUID(), articleKey: state.articleKey, selectedText: anchor.selectedText,
+				prefixContext: anchor.prefixContext, suffixContext: anchor.suffixContext,
+				startOffset: anchor.startOffset, endOffset: anchor.endOffset,
+				domRangeData: anchor.domRangeData, renditionKindRaw: anchor.renditionKindRaw,
+				renderedTextFingerprint: anchor.renderedTextFingerprint,
+				articleTitle: articleTitle, creator: creator, preferredURL: preferredURL,
+				createdAt: now, updatedAt: now
+			)
+			do {
+				try await ArticleHighlightMutation.insertBeforeDecoration {
+					try await self.highlightActions.insert(record)
+				} decorate: {
+					guard self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+					self.highlightRecords[record.id] = record
+					await self.enqueueHighlightRestore(in: webView, state: state).value
+				}
+			} catch {
+				// The app bridge reports sanitized feedback. Do not expose persistence errors here.
+			}
+		}
+	}
+
+	func removeHighlight(_ id: UUID, from webView: PreloadedWebView, state: ArticleHighlightRenderState) {
+		highlightMutationTask?.cancel()
+		highlightMutationTask = Task { [weak self, weak webView] in
+			guard let self, let webView else { return }
+			do {
+				try await ArticleHighlightMutation.deleteBeforeRemoval {
+					try await self.highlightActions.delete(id)
+				} remove: {
+					guard self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+					self.highlightRecords[id] = nil
+					let idJSON = self.javaScriptJSON(id.uuidString.lowercased()) ?? "null"
+					_ = try? await webView.evaluateJavaScript("window.nnwHighlights.remove(\(idJSON))")
+				}
+			} catch {
+				// Keep the mark in place when deletion fails; feedback is owned by the app bridge.
+			}
+		}
+	}
+
+	func sortedHighlightRecords() -> [NetNewsWireHighlightRecord] {
+		highlightRecords.values.sorted {
+			$0.createdAt != $1.createdAt ? $0.createdAt < $1.createdAt : $0.id.uuidString < $1.id.uuidString
+		}
+	}
+
+	func highlightRecordJSON(_ record: NetNewsWireHighlightRecord) -> [String: Any] {
+		var value: [String: Any] = [
+			"id": record.id.uuidString.lowercased(), "selectedText": record.selectedText,
+			"prefixContext": record.prefixContext, "suffixContext": record.suffixContext,
+			"startOffset": record.startOffset, "endOffset": record.endOffset,
+			"renditionKindRaw": record.renditionKindRaw,
+			"renderedTextFingerprint": record.renderedTextFingerprint,
+			"createdAt": record.createdAt.timeIntervalSince1970
+		]
+		if let data = record.domRangeData,
+			let domRange = try? JSONSerialization.jsonObject(with: data) {
+			value["domRangeData"] = domRange
+		}
+		return value
+	}
+
+	func javaScriptJSON(_ value: Any) -> String? {
+		guard JSONSerialization.isValidJSONObject([value]),
+			let data = try? JSONSerialization.data(withJSONObject: value),
+			var json = String(data: data, encoding: .utf8) else { return nil }
+		json.removeFirst()
+		json.removeLast()
+		return json
+	}
+
+	func messageGeneration(_ value: Any?) -> UInt64? {
+		if let value = value as? UInt64 { return value }
+		if let value = value as? Int, value >= 0 { return UInt64(value) }
+		if let value = value as? NSNumber, value.int64Value >= 0 { return value.uint64Value }
+		return nil
+	}
+
+	func highlightPositions(from value: Any) -> [UUID: Int] {
+		guard let values = value as? [[String: Any]] else { return [:] }
+		return Dictionary(uniqueKeysWithValues: values.compactMap { position in
+			guard let idString = position["id"] as? String, let id = UUID(uuidString: idString),
+				let offset = (position["startOffset"] as? NSNumber)?.intValue else { return nil }
+			return (id, offset)
+		})
 	}
 
 	func finalScrollPosition(scrollingUp: Bool) -> CGFloat {
