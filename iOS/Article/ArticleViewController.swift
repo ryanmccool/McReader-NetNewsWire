@@ -54,7 +54,27 @@ final class ArticleViewController: UIViewController {
 
 	weak var coordinator: SceneCoordinator!
 	var publishingActions = NetNewsWirePublishingActions.disabled
-	var highlightActions = NetNewsWireHighlightActions.disabled
+	let highlightActions: NetNewsWireHighlightActions
+
+	required init?(coder: NSCoder) {
+		self.highlightActions = .disabled
+		super.init(coder: coder)
+	}
+
+	init?(coder: NSCoder, highlightActions: NetNewsWireHighlightActions) {
+		self.highlightActions = highlightActions
+		super.init(coder: coder)
+	}
+
+	static func instantiate(
+		from storyboard: UIStoryboard,
+		highlightActions: NetNewsWireHighlightActions
+	) -> ArticleViewController {
+		let controller = storyboard.instantiateViewController(identifier: "ArticleViewController") { coder in
+			ArticleViewController(coder: coder, highlightActions: highlightActions)
+		}
+		return controller
+	}
 
 	private let poppableDelegate = PoppableGestureRecognizerDelegate()
 	private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "ArticleViewController")
@@ -399,6 +419,14 @@ final class ArticleViewController: UIViewController {
 	func setScrollPosition(isShowingExtractedArticle: Bool, articleWindowScrollY: Int) {
 		currentWebViewController?.setScrollPosition(isShowingExtractedArticle: isShowingExtractedArticle, articleWindowScrollY: articleWindowScrollY)
 	}
+
+	func createWebViewController(_ article: Article?, updateView: Bool = true) -> WebViewController {
+		let controller = WebViewController(highlightActions: highlightActions)
+		controller.coordinator = coordinator
+		controller.delegate = self
+		controller.setArticle(article, updateView: updateView)
+		return controller
+	}
 }
 
 // MARK: Find in Article
@@ -625,15 +653,6 @@ private extension ArticleViewController {
 			creator: creator,
 			preferredURL: preferredURL
 		)
-	}
-
-	func createWebViewController(_ article: Article?, updateView: Bool = true) -> WebViewController {
-		let controller = WebViewController()
-		controller.coordinator = coordinator
-		controller.delegate = self
-		controller.highlightActions = highlightActions
-		controller.setArticle(article, updateView: updateView)
-		return controller
 	}
 
 }

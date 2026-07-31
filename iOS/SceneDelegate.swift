@@ -24,6 +24,11 @@ import Account
 		rootSplitViewController.presentsWithGesture = true
 		rootSplitViewController.showsSecondaryOnlyButton = true
 		rootSplitViewController.preferredDisplayMode = UISplitViewController.DisplayMode(rawValue: AppDefaults.shared.splitViewPreferredDisplayMode) ?? .oneBesideSecondary
+		let articleViewController = ArticleViewController.instantiate(
+			from: .main,
+			highlightActions: highlightActions
+		)
+		rootSplitViewController.setViewController(articleViewController, for: .secondary)
 
 		if AppDefaults.shared.isFirstRun && UIDevice.current.userInterfaceIdiom == .pad {
 			rootSplitViewController.preferredDisplayMode = .twoBesideSecondary

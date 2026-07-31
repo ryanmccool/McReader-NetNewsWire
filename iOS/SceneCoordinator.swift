@@ -337,7 +337,6 @@ struct SidebarItemNode: Hashable, Sendable {
 		self.articleViewController = rootSplitViewController.viewController(for: .secondary) as? ArticleViewController
 		self.articleViewController?.coordinator = self
 		self.articleViewController?.publishingActions = publishingActions
-		self.articleViewController?.highlightActions = highlightActions
 		self.articleViewController?.navigationController?.delegate = self
 
 		for sectionNode in treeController.rootNode.childNodes {

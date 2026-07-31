@@ -67,7 +67,17 @@ final class WebViewController: UIViewController {
 
 	weak var coordinator: SceneCoordinator!
 	weak var delegate: WebViewControllerDelegate?
-	var highlightActions = NetNewsWireHighlightActions.disabled
+	let highlightActions: NetNewsWireHighlightActions
+
+	init(highlightActions: NetNewsWireHighlightActions) {
+		self.highlightActions = highlightActions
+		super.init(nibName: nil, bundle: nil)
+	}
+
+	@available(*, unavailable)
+	required init?(coder: NSCoder) {
+		fatalError("WebViewController does not support storyboard construction.")
+	}
 
 	private(set) var article: Article?
 

@@ -77,6 +77,31 @@ final class NetNewsWireHighlightActionsTests: XCTestCase {
 		XCTAssertEqual(failureCount, 1)
 	}
 
+	func testArticleConstructionKeepsInjectedActionsForEveryWebController() async throws {
+		var injectedLoadCount = 0
+		var otherLoadCount = 0
+		let injectedActions = makeActions {
+			injectedLoadCount += 1
+		}
+		let otherActions = makeActions {
+			otherLoadCount += 1
+		}
+		let articleController = ArticleViewController.instantiate(
+			from: .main,
+			highlightActions: injectedActions
+		)
+
+		let currentController = articleController.createWebViewController(nil)
+		let prefetchedController = articleController.createWebViewController(nil, updateView: false)
+		let separatelyConstructedController = WebViewController(highlightActions: otherActions)
+		_ = try await currentController.highlightActions.load("current")
+		_ = try await prefetchedController.highlightActions.load("prefetched")
+		_ = try await separatelyConstructedController.highlightActions.load("other")
+
+		XCTAssertEqual(injectedLoadCount, 2)
+		XCTAssertEqual(otherLoadCount, 1)
+	}
+
 	private func assertUnavailable<T>(operation: () async throws -> T) async {
 		do {
 			_ = try await operation()
@@ -93,6 +118,18 @@ final class NetNewsWireHighlightActionsTests: XCTestCase {
 			domRangeData: nil, renditionKindRaw: "feedHTML",
 			renderedTextFingerprint: "fingerprint", articleTitle: "Article",
 			creator: nil, preferredURL: nil, createdAt: .now, updatedAt: .now
+		)
+	}
+
+	private func makeActions(didLoad: @escaping () -> Void) -> NetNewsWireHighlightActions {
+		NetNewsWireHighlightActions(
+			load: { _ in
+				didLoad()
+				return []
+			},
+			insert: { _ in },
+			delete: { _ in },
+			observe: { _, _, _ in NetNewsWireHighlightObservation(cancel: {}) }
 		)
 	}
 
