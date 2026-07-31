@@ -622,17 +622,28 @@ private extension ArticleViewController {
 				let captureSelection = UIAction(title: titles.captureSelection) { [weak self] _ in
 					self?.publishingActions.send(capture, .capture)
 				}
-				let postSelection = UIAction(title: titles.postSelection) { [weak self] _ in
-					self?.publishingActions.send(capture, .post)
+				completion([captureSelection])
+			}
+		}
+		let highlightActions = UIDeferredMenuElement.uncached { [weak self] completion in
+			Task { @MainActor in
+				guard let self, await self.highlightPublishingCapture() != nil else {
+					completion([])
+					return
 				}
-				completion([captureSelection, postSelection])
+				let postHighlights = UIAction(title: titles.postHighlights) { [weak self] _ in
+					Task { @MainActor in
+						await self?.postHighlights()
+					}
+				}
+				completion([postHighlights])
 			}
 		}
 		let share = UIAction(title: NNWLocalizedString("Share", comment: "Share button"), image: Assets.Images.share) { [weak self] _ in
 			self?.currentWebViewController?.showActivityDialog(popOverBarButtonItem: self?.actionBarButtonItem)
 		}
 
-		actionBarButtonItem.menu = UIMenu(children: [captureLink, postLink, selectionActions, share])
+		actionBarButtonItem.menu = UIMenu(children: [captureLink, postLink, selectionActions, highlightActions, share])
 		actionBarButtonItem.target = nil
 		actionBarButtonItem.action = nil
 	}
@@ -653,6 +664,45 @@ private extension ArticleViewController {
 			creator: creator,
 			preferredURL: preferredURL
 		)
+	}
+
+	func postHighlights() async {
+		guard let capture = await highlightPublishingCapture() else {
+			return
+		}
+		publishingActions.send(capture, .post)
+	}
+
+	func highlightPublishingCapture() async -> NetNewsWirePublishingCapture? {
+		guard let webViewController = currentWebViewController,
+			let article = webViewController.article,
+			let articleKey = ArticleHighlightIdentity.articleKey(
+				feedURL: article.feed?.url,
+				uniqueID: article.uniqueID
+			) else {
+			return nil
+		}
+		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
+		let creator = byline.isEmpty ? article.feed?.nameForDisplay : byline
+		let capture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: articleKey,
+			currentTitle: article.title ?? "",
+			currentCreator: creator,
+			currentPreferredURL: article.preferredURL,
+			load: highlightActions.load,
+			resolvedPositions: {
+				let (_, positions) = await webViewController.highlightRecordsForPosting()
+				return positions
+			}
+		)
+		guard currentWebViewController === webViewController,
+			ArticleHighlightIdentity.articleKey(
+				feedURL: webViewController.article?.feed?.url,
+				uniqueID: webViewController.article?.uniqueID
+			) == articleKey else {
+			return nil
+		}
+		return capture
 	}
 
 }

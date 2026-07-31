@@ -87,8 +87,122 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(titles.captureLink, "Capture Link|Command")
 		XCTAssertEqual(titles.postLink, "Post Link...|Command")
 		XCTAssertEqual(titles.captureSelection, "Capture Selection|Command")
-		XCTAssertEqual(titles.postSelection, "Post Selection...|Command")
+		XCTAssertEqual(titles.postHighlights, "Post Highlights...|Command")
+		XCTAssertFalse(Mirror(reflecting: titles).children.contains { child in
+			(child.value as? String)?.contains("Post Selection") == true
+		})
+	}
+
+	func testHighlightCaptureFreshLoadsAndUsesResolvedPostingOrder() async throws {
+		let resolvedID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+		let unresolvedID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+		let persistedURL = try XCTUnwrap(URL(string: "https://example.com/persisted"))
+		var loads = 0
+		var currentRecords = [
+			makeRecord(id: unresolvedID, selectedText: "Unresolved", preferredURL: persistedURL),
+			makeRecord(id: resolvedID, selectedText: "Resolved", preferredURL: persistedURL)
+		]
+		let load = { (_: String) async throws -> [NetNewsWireHighlightRecord] in
+			loads += 1
+			return currentRecords
+		}
+
+		let availableCapture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: "article-key",
+			currentTitle: "Current title",
+			currentCreator: "Current creator",
+			currentPreferredURL: nil,
+			load: load,
+			resolvedPositions: { [resolvedID: 4] }
+		)
+		XCTAssertNotNil(availableCapture)
+
+		currentRecords[0] = makeRecord(
+			id: unresolvedID,
+			selectedText: "Fresh unresolved",
+			preferredURL: persistedURL
+		)
+		let tappedCapture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: "article-key",
+			currentTitle: "Current title",
+			currentCreator: "Current creator",
+			currentPreferredURL: nil,
+			load: load,
+			resolvedPositions: { [resolvedID: 4] }
+		)
+
+		XCTAssertEqual(loads, 2)
+		XCTAssertEqual(tappedCapture?.selectedText, "Resolved\n\nFresh unresolved")
+		XCTAssertEqual(tappedCapture?.preferredURL, persistedURL)
+
+		var received: [(NetNewsWirePublishingCapture, NetNewsWirePublishingIntent)] = []
+		let actions = NetNewsWirePublishingActions { received.append(($0, $1)) }
+		if let tappedCapture {
+			actions.send(tappedCapture, .post)
+		}
+		XCTAssertEqual(received.count, 1)
+		XCTAssertEqual(received.first?.0, tappedCapture)
+		XCTAssertEqual(received.first?.1, .post)
+	}
+
+	func testHighlightCaptureRequiresNonblankTextAndCurrentOrPersistedURL() async {
+		let blank = makeRecord(selectedText: " \n\t ", preferredURL: nil)
+		let textWithoutURL = makeRecord(selectedText: "Excerpt", preferredURL: nil)
+		let textWithInvalidURL = makeRecord(selectedText: "Excerpt", preferredURL: URL(string: "relative"))
+
+		let blankCapture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: "article-key",
+			currentTitle: "Title",
+			currentCreator: nil,
+			currentPreferredURL: URL(string: "https://example.com/current"),
+			load: { _ in [blank] },
+			resolvedPositions: { [:] }
+		)
+		let missingURLCapture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: "article-key",
+			currentTitle: "Title",
+			currentCreator: nil,
+			currentPreferredURL: nil,
+			load: { _ in [textWithoutURL] },
+			resolvedPositions: { [:] }
+		)
+		let invalidURLCapture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: "article-key",
+			currentTitle: "Title",
+			currentCreator: nil,
+			currentPreferredURL: nil,
+			load: { _ in [textWithInvalidURL] },
+			resolvedPositions: { [:] }
+		)
+
+		XCTAssertNil(blankCapture)
+		XCTAssertNil(missingURLCapture)
+		XCTAssertNil(invalidURLCapture)
 	}
 
 	private func assertSendable<T: Sendable>(_ value: T) {}
+
+	private func makeRecord(
+		id: UUID = UUID(),
+		selectedText: String,
+		preferredURL: URL?
+	) -> NetNewsWireHighlightRecord {
+		NetNewsWireHighlightRecord(
+			id: id,
+			articleKey: "article-key",
+			selectedText: selectedText,
+			prefixContext: "",
+			suffixContext: "",
+			startOffset: 0,
+			endOffset: selectedText.count,
+			domRangeData: nil,
+			renditionKindRaw: "v1:feed-body",
+			renderedTextFingerprint: "fingerprint",
+			articleTitle: "Persisted title",
+			creator: "Persisted creator",
+			preferredURL: preferredURL,
+			createdAt: Date(timeIntervalSince1970: 0),
+			updatedAt: Date(timeIntervalSince1970: 0)
+		)
+	}
 }
