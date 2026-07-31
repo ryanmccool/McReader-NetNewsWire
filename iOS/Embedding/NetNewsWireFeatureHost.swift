@@ -74,12 +74,14 @@ final class NetNewsWireFeatureSceneLifecycle {
 public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 	public let viewController: UIViewController
 	let publishingActions: NetNewsWirePublishingActions
+	let highlightActions: NetNewsWireHighlightActions
 	private let lifecycle: NetNewsWireFeatureSceneLifecycle
 
 	internal init(
 		capabilities: NetNewsWireFeatureCapabilities,
 		globalMutationSeams: NetNewsWireHostGlobalMutationSeams,
-		publishingActions: NetNewsWirePublishingActions
+		publishingActions: NetNewsWirePublishingActions = .disabled,
+		highlightActions: NetNewsWireHighlightActions = .disabled
 	) throws {
 		_ = AppDelegate.bootstrapEmbeddedIfNeeded(capabilities: capabilities, globalMutationSeams: globalMutationSeams)
 		let storyboard = UIStoryboard.main
@@ -88,6 +90,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 		}
 		self.viewController = rootSplitViewController
 		self.publishingActions = publishingActions
+		self.highlightActions = highlightActions
 		self.lifecycle = NetNewsWireFeatureSceneLifecycle(
 			resetFocus: { rootSplitViewController.coordinator.resetFocus() },
 			didEnterBackground: { rootSplitViewController.coordinator.didEnterBackground() },
@@ -97,7 +100,8 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 			rootSplitViewController: rootSplitViewController,
 			stateRestorationActivity: nil,
 			capabilities: capabilities,
-			publishingActions: publishingActions
+			publishingActions: publishingActions,
+			highlightActions: highlightActions
 		)
 	}
 

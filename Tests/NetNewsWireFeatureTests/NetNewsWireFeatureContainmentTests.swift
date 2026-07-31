@@ -82,6 +82,31 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 		XCTAssertEqual(secondHostSendCount, 1)
 	}
 
+	func testHostsKeepDistinctHighlightActions() async throws {
+		var firstHostLoadCount = 0
+		var secondHostLoadCount = 0
+		let runtime = try NetNewsWireFeatureRuntime(
+			configuration: makeConfiguration(),
+			cloudKitContainerConfigurator: { _ in }
+		)
+		let firstHost = try runtime.makeHost(highlightActions: makeHighlightActions {
+			firstHostLoadCount += 1
+		})
+		let secondHost = try runtime.makeHost(highlightActions: makeHighlightActions {
+			secondHostLoadCount += 1
+		})
+
+		_ = try await firstHost.highlightActions.load("first")
+		_ = try await secondHost.highlightActions.load("second")
+
+		XCTAssertEqual(firstHostLoadCount, 1)
+		XCTAssertEqual(secondHostLoadCount, 1)
+	}
+
+	func testStandaloneSceneSetupUsesDisabledHighlights() {
+		XCTAssertFalse(NetNewsWireSceneSetup.standaloneHighlightActions.isEnabled)
+	}
+
 	private func makeConfiguration() throws -> NetNewsWireFeatureConfiguration {
 		try NetNewsWireFeatureConfiguration(
 			dataDirectoryURL: NetNewsWireFeatureTestEnvironment.values.dataDirectoryURL,
@@ -90,6 +115,18 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 			cloudKitContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
 			resourceBundle: .netNewsWireFeatureResources,
 			capabilities: .containedReader
+		)
+	}
+
+	private func makeHighlightActions(didLoad: @escaping () -> Void) -> NetNewsWireHighlightActions {
+		NetNewsWireHighlightActions(
+			load: { _ in
+				didLoad()
+				return []
+			},
+			insert: { _ in },
+			delete: { _ in },
+			observe: { _, _, _ in NetNewsWireHighlightObservation(cancel: {}) }
 		)
 	}
 }

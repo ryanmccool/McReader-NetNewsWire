@@ -55,6 +55,7 @@ struct SidebarItemNode: Hashable, Sendable {
 	lazy var webViewProvider = WebViewProvider(coordinator: self)
 
 	private let activityManager: ActivityManager
+	private let highlightActions: NetNewsWireHighlightActions
 
 	private var rootSplitViewController: RootSplitViewController!
 
@@ -307,10 +308,12 @@ struct SidebarItemNode: Hashable, Sendable {
 	init(
 		rootSplitViewController: RootSplitViewController,
 		capabilities: NetNewsWireFeatureCapabilities,
-		publishingActions: NetNewsWirePublishingActions
+		publishingActions: NetNewsWirePublishingActions,
+		highlightActions: NetNewsWireHighlightActions
 	) {
 		self.rootSplitViewController = rootSplitViewController
 		self.activityManager = ActivityManager(mayDonateActivities: capabilities.mayDonateActivities)
+		self.highlightActions = highlightActions
 		self.rootSplitViewController.minimumPrimaryColumnWidth = 300
 		self.rootSplitViewController.maximumPrimaryColumnWidth = 500
 		self.rootSplitViewController.minimumSupplementaryColumnWidth = 300
@@ -334,6 +337,7 @@ struct SidebarItemNode: Hashable, Sendable {
 		self.articleViewController = rootSplitViewController.viewController(for: .secondary) as? ArticleViewController
 		self.articleViewController?.coordinator = self
 		self.articleViewController?.publishingActions = publishingActions
+		self.articleViewController?.highlightActions = highlightActions
 		self.articleViewController?.navigationController?.delegate = self
 
 		for sectionNode in treeController.rootNode.childNodes {

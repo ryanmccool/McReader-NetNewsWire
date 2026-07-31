@@ -67,6 +67,7 @@ final class WebViewController: UIViewController {
 
 	weak var coordinator: SceneCoordinator!
 	weak var delegate: WebViewControllerDelegate?
+	var highlightActions = NetNewsWireHighlightActions.disabled
 
 	private(set) var article: Article?
 

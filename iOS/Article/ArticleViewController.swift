@@ -54,6 +54,7 @@ final class ArticleViewController: UIViewController {
 
 	weak var coordinator: SceneCoordinator!
 	var publishingActions = NetNewsWirePublishingActions.disabled
+	var highlightActions = NetNewsWireHighlightActions.disabled
 
 	private let poppableDelegate = PoppableGestureRecognizerDelegate()
 	private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "ArticleViewController")
@@ -630,6 +631,7 @@ private extension ArticleViewController {
 		let controller = WebViewController()
 		controller.coordinator = coordinator
 		controller.delegate = self
+		controller.highlightActions = highlightActions
 		controller.setArticle(article, updateView: updateView)
 		return controller
 	}

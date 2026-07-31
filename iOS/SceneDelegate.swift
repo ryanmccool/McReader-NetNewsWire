@@ -11,12 +11,15 @@ import UserNotifications
 import Account
 
 @MainActor enum NetNewsWireSceneSetup {
+	static let standaloneHighlightActions = NetNewsWireHighlightActions.disabled
+
 	@discardableResult
 	static func configure(
 		rootSplitViewController: RootSplitViewController,
 		stateRestorationActivity: NSUserActivity?,
 		capabilities: NetNewsWireFeatureCapabilities,
-		publishingActions: NetNewsWirePublishingActions
+		publishingActions: NetNewsWirePublishingActions = .disabled,
+		highlightActions: NetNewsWireHighlightActions = .disabled
 	) -> SceneCoordinator {
 		rootSplitViewController.presentsWithGesture = true
 		rootSplitViewController.showsSecondaryOnlyButton = true
@@ -29,7 +32,8 @@ import Account
 		let coordinator = SceneCoordinator(
 			rootSplitViewController: rootSplitViewController,
 			capabilities: capabilities,
-			publishingActions: publishingActions
+			publishingActions: publishingActions,
+			highlightActions: highlightActions
 		)
 		rootSplitViewController.coordinator = coordinator
 		rootSplitViewController.delegate = coordinator
@@ -58,7 +62,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 			rootSplitViewController: rootViewController,
 			stateRestorationActivity: session.stateRestorationActivity,
 			capabilities: .standalone,
-			publishingActions: .disabled
+			publishingActions: .disabled,
+			highlightActions: NetNewsWireSceneSetup.standaloneHighlightActions
 		)
 
 		updateUserInterfaceStyle()
