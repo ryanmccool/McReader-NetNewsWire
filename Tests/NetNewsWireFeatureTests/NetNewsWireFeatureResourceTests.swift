@@ -50,7 +50,7 @@ final class NetNewsWireFeatureResourceTests: XCTestCase {
 		}
 		for resource in [
 			("Assets", "car"),
-			("page", "html"), ("blank", "html"), ("main_ios", "js"),
+			("page", "html"), ("blank", "html"), ("main_ios", "js"), ("article_highlights", "js"),
 			("template", "html"), ("core", "css"), ("stylesheet", "css"),
 			("main", "js"), ("newsfoot", "js"), ("ContentRules", "json"),
 			("DefaultFeeds", "opml"), ("GlobalKeyboardShortcuts", "plist"),

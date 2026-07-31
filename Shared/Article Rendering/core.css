@@ -6,6 +6,18 @@ html {
 	scrollbar-gutter: stable;
 }
 
+:root { --nnw-saved-highlight-background: rgba(244, 205, 55, 0.42); }
+@media (prefers-color-scheme: dark) {
+	:root { --nnw-saved-highlight-background: rgba(255, 214, 64, 0.34); }
+}
+mark.nnw-saved-highlight {
+	color: inherit;
+	background: var(--nnw-saved-highlight-background);
+	border-radius: 0.12em;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
 /* This is the activity indicator (currently iOS only) that is used while image zooming */
 
 .activityIndicatorWrap {
