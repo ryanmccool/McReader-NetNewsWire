@@ -80,6 +80,58 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(markedText, "repeated")
 	}
 
+	func testRestoreIgnoresHiddenDuplicateAndReportsVisibleOccurrence() async throws {
+		try await loadArticle("""
+		<style>.display-none { display: none; } .visibility-hidden { visibility: hidden; }</style>
+		<p id="hidden" hidden>before target after</p>
+		<p class="display-none">before target after</p>
+		<p class="visibility-hidden">before target after</p>
+		<details><p>before target after</p></details>
+		<p id="visible">before target after</p>
+		""")
+		let highlight = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "target",
+			prefix: "before ",
+			suffix: " after",
+			start: 7
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
+		let markedParent = try await stringResult("document.querySelector('mark.nnw-saved-highlight')?.closest('p')?.id || ''")
+		let visibleMarkCount = try await intResult("document.querySelectorAll('#visible mark.nnw-saved-highlight').length")
+		let hiddenMarkCount = try await intResult("document.querySelectorAll('#hidden mark, .display-none mark, .visibility-hidden mark, details:not([open]) mark').length")
+		let positions = try await arrayResult("window.nnwHighlights.positions()")
+
+		XCTAssertEqual(restored.count, 1)
+		XCTAssertEqual(markedParent, "visible")
+		XCTAssertEqual(visibleMarkCount, 1)
+		XCTAssertEqual(hiddenMarkCount, 0)
+		XCTAssertEqual(positions.first?["id"] as? String, highlight["id"] as? String)
+		XCTAssertEqual(positions.first?["startOffset"] as? Int, 7)
+		XCTAssertEqual(positions.first?["endOffset"] as? Int, 13)
+	}
+
+	func testRestorePreservesRenderedOffscreenContent() async throws {
+		try await loadArticle(#"<p id="offscreen" style="position: absolute; left: -10000px">before target after</p>"#)
+		let highlight = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "target",
+			prefix: "before ",
+			suffix: " after",
+			start: 7
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
+		let markCount = try await intResult("document.querySelectorAll('#offscreen mark.nnw-saved-highlight').length")
+		let positions = try await arrayResult("window.nnwHighlights.positions()")
+
+		XCTAssertEqual(restored.count, 1)
+		XCTAssertEqual(markCount, 1)
+		XCTAssertEqual(positions.first?["startOffset"] as? Int, 7)
+		XCTAssertEqual(positions.first?["endOffset"] as? Int, 13)
+	}
+
 	func testRestoreAcceptsAdjacentRangesAndRejectsOverlapDeterministically() async throws {
 		try await loadArticle(#"<p>alpha beta gamma</p>"#)
 		let first = record(id: "00000000-0000-0000-0000-000000000003", selectedText: "alpha", start: 0, createdAt: "2026-01-01T00:00:00Z")

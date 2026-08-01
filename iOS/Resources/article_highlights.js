@@ -25,25 +25,62 @@
 		return document.getElementById("bodyContainer") || document.querySelector(".articleBody");
 	}
 
-	function isIncludedTextNode(node, root) {
+	function inclusionContext() {
+		return { styles: new WeakMap(), elements: new WeakMap(), textNodes: new WeakMap() };
+	}
+
+	function cachedStyle(element, context) {
+		if (!context.styles.has(element)) {
+			context.styles.set(element, window.getComputedStyle(element));
+		}
+		return context.styles.get(element);
+	}
+
+	function elementProducesRenderedDescendants(element, root, context) {
+		if (context.elements.has(element)) {
+			return context.elements.get(element);
+		}
+		let included = Boolean(element && (element === root || root.contains(element)));
+		if (included && (element.hidden || element.matches("script, style, " + markSelector))) {
+			included = false;
+		}
+		if (included) {
+			const style = cachedStyle(element, context);
+			included = style.display === "contents" || element.checkVisibility({ visibilityProperty: true });
+		}
+		if (included && element !== root) {
+			included = Boolean(element.parentElement && elementProducesRenderedDescendants(element.parentElement, root, context));
+		}
+		context.elements.set(element, included);
+		return included;
+	}
+
+	function isIncludedTextNode(node, root, context = inclusionContext()) {
 		if (!root || !root.contains(node)) {
 			return false;
 		}
-		for (let element = node.parentElement; element && element !== root; element = element.parentElement) {
-			if (element.matches("script, style, " + markSelector)) {
-				return false;
-			}
+		if (context.textNodes.has(node)) {
+			return context.textNodes.get(node);
 		}
-		return Boolean(node.parentElement && (node.parentElement === root || root.contains(node.parentElement)));
+		const parent = node.parentElement;
+		let included = Boolean(parent && elementProducesRenderedDescendants(parent, root, context));
+		if (included) {
+			const range = document.createRange();
+			range.selectNodeContents(node);
+			included = range.getClientRects().length > 0;
+		}
+		context.textNodes.set(node, included);
+		return included;
 	}
 
 	function snapshot(root) {
 		if (!root || !root.isConnected) {
 			return { root, nodes: [], starts: [], rawText: "", text: "", normalizedBoundaries: [], rawToNormalized: [] };
 		}
+		const context = inclusionContext();
 		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
 			acceptNode(node) {
-				return isIncludedTextNode(node, root) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+				return isIncludedTextNode(node, root, context) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
 			}
 		});
 		const nodes = [];
@@ -218,8 +255,9 @@
 	}
 
 	function rangeIsEligible(range, root) {
+		const context = inclusionContext();
 		if (!root || !root.contains(range.startContainer) || !root.contains(range.endContainer)
-			|| !isIncludedTextNode(range.startContainer, root) || !isIncludedTextNode(range.endContainer, root)) {
+			|| !isIncludedTextNode(range.startContainer, root, context) || !isIncludedTextNode(range.endContainer, root, context)) {
 			return false;
 		}
 		for (const excluded of root.querySelectorAll("script, style, " + markSelector)) {
@@ -229,7 +267,7 @@
 		}
 		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 		for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-			if (range.intersectsNode(node) && !isIncludedTextNode(node, root)) {
+			if (range.intersectsNode(node) && !isIncludedTextNode(node, root, context)) {
 				return false;
 			}
 		}
