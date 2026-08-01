@@ -4,6 +4,17 @@ import WebKit
 
 @MainActor
 final class ArticleHighlightControllerTests: XCTestCase {
+	func testJavaScriptJSONEncodesTopLevelFragmentsWithoutThrowing() {
+		XCTAssertEqual(ArticleHighlightJavaScriptJSON.encode("v1:reader-view"), #""v1:reader-view""#)
+		XCTAssertEqual(ArticleHighlightJavaScriptJSON.encode("quote: \"hello\"\npath: \\"), #""quote: \"hello\"\npath: \\""#)
+		XCTAssertEqual(ArticleHighlightJavaScriptJSON.encode(42), "42")
+		XCTAssertEqual(ArticleHighlightJavaScriptJSON.encode(true), "true")
+		XCTAssertEqual(ArticleHighlightJavaScriptJSON.encode(["article"]), #"["article"]"#)
+		XCTAssertEqual(ArticleHighlightJavaScriptJSON.encode([["id": "highlight"]]), #"[{"id":"highlight"}]"#)
+		XCTAssertNil(ArticleHighlightJavaScriptJSON.encode(Date()))
+		XCTAssertNil(ArticleHighlightJavaScriptJSON.encode(Double.nan))
+	}
+
 	func testSelectionEligibilityRequiresEnabledStableIdentityNonblankTextAndNoOverlap() {
 		XCTAssertTrue(ArticleHighlightSelectionEligibility.isEligible(
 			enabled: true, articleKey: "article", selectedText: "Selection", overlapsSavedHighlight: false

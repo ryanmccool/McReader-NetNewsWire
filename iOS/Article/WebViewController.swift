@@ -917,7 +917,7 @@ private extension WebViewController {
 
 	func prepareAndRestoreHighlights(in webView: PreloadedWebView, state: ArticleHighlightRenderState) async {
 		guard highlightLifecycle.accepts(webView: webView, state: state) else { return }
-		let prepareScript = "window.nnwHighlights.prepare(\(state.generation), \(javaScriptJSON(state.rendition.rawValue) ?? "null"), \(javaScriptJSON(state.articleKey) ?? "null"))"
+		let prepareScript = "window.nnwHighlights.prepare(\(state.generation), \(ArticleHighlightJavaScriptJSON.encode(state.rendition.rawValue) ?? "null"), \(ArticleHighlightJavaScriptJSON.encode(state.articleKey) ?? "null"))"
 		guard let prepared = try? await webView.evaluateJavaScript(prepareScript) as? Bool, prepared,
 			highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
 
@@ -942,7 +942,7 @@ private extension WebViewController {
 
 	func restoreHighlights(in webView: PreloadedWebView, state: ArticleHighlightRenderState) async {
 		guard highlightLifecycle.accepts(webView: webView, state: state),
-			let recordsJSON = javaScriptJSON(sortedHighlightRecords().map(highlightRecordJSON)) else { return }
+			let recordsJSON = ArticleHighlightJavaScriptJSON.encode(sortedHighlightRecords().map(highlightRecordJSON)) else { return }
 		_ = try? await webView.evaluateJavaScript("window.nnwHighlights.restore(\(recordsJSON))")
 		guard highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
 		webView.updateHighlightSelectionEligibility(false)
@@ -1063,7 +1063,7 @@ private extension WebViewController {
 					try await self.highlightActions.delete(id)
 				} remove: {
 					self.highlightRecords[id] = nil
-					let idJSON = self.javaScriptJSON(id.uuidString.lowercased()) ?? "null"
+					let idJSON = ArticleHighlightJavaScriptJSON.encode(id.uuidString.lowercased()) ?? "null"
 					_ = try? await webView.evaluateJavaScript("window.nnwHighlights.remove(\(idJSON))")
 				}
 			} catch {
@@ -1092,15 +1092,6 @@ private extension WebViewController {
 			value["domRangeData"] = domRange
 		}
 		return value
-	}
-
-	func javaScriptJSON(_ value: Any) -> String? {
-		guard JSONSerialization.isValidJSONObject([value]),
-			let data = try? JSONSerialization.data(withJSONObject: value),
-			var json = String(data: data, encoding: .utf8) else { return nil }
-		json.removeFirst()
-		json.removeLast()
-		return json
 	}
 
 	func highlightPositions(from value: Any) -> [UUID: Int] {
