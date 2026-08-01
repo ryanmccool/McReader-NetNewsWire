@@ -61,6 +61,23 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(restored.count, 1)
 	}
 
+	func testJavaScriptBridgeAwaitsSelectionAnchorAndRestore() async throws {
+		try await loadArticle(#"<p id="target">before highlighted text after</p>"#)
+		try await selectText(in: "target", from: 7, to: 23)
+
+		let anchorValue = try await ArticleHighlightJavaScriptBridge.makeSelectionAnchor(in: webView)
+		var record = try XCTUnwrap(anchorValue as? [String: Any])
+		record["id"] = "123e4567-e89b-12d3-a456-426614174000"
+		record["createdAt"] = Date().timeIntervalSince1970
+
+		let restoredValue = try await ArticleHighlightJavaScriptBridge.restore([record], in: webView)
+		let restored = try XCTUnwrap(restoredValue as? [[String: Any]])
+		let markedText = try await stringResult("document.querySelector('mark.nnw-saved-highlight')?.textContent || ''")
+
+		XCTAssertEqual(restored.count, 1)
+		XCTAssertEqual(markedText, "highlighted text")
+	}
+
 	func testQuoteContextFallbackResolvesUniqueWinnerAndRejectsTie() async throws {
 		try await loadArticle(#"<p>alpha repeated omega middle beta repeated gamma</p>"#)
 		let unique = record(

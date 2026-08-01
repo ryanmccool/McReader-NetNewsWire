@@ -941,9 +941,9 @@ private extension WebViewController {
 	}
 
 	func restoreHighlights(in webView: PreloadedWebView, state: ArticleHighlightRenderState) async {
-		guard highlightLifecycle.accepts(webView: webView, state: state),
-			let recordsJSON = ArticleHighlightJavaScriptJSON.encode(sortedHighlightRecords().map(highlightRecordJSON)) else { return }
-		_ = try? await webView.evaluateJavaScript("window.nnwHighlights.restore(\(recordsJSON))")
+		guard highlightLifecycle.accepts(webView: webView, state: state) else { return }
+		let records = sortedHighlightRecords().map(highlightRecordJSON)
+		_ = try? await ArticleHighlightJavaScriptBridge.restore(records, in: webView)
 		guard highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
 		webView.updateHighlightSelectionEligibility(false)
 		highlightLifecycle.selectionIsEligible = false
@@ -1022,7 +1022,7 @@ private extension WebViewController {
 		highlightMutationTask = Task { [weak self, weak webView] in
 			guard let self, let webView,
 				self.highlightLifecycle.accepts(webView: webView, state: state),
-				let value = try? await webView.evaluateJavaScript("window.nnwHighlights.makeSelectionAnchor()"),
+				let value = try? await ArticleHighlightJavaScriptBridge.makeSelectionAnchor(in: webView),
 				self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled,
 				let anchor = ArticleHighlightAnchor(value: value),
 				anchor.renditionKindRaw == state.rendition.rawValue else { return }

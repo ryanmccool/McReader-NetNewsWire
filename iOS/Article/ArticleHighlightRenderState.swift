@@ -1,4 +1,5 @@
 import Foundation
+import WebKit
 
 struct ArticleHighlightRenderState: Equatable, Sendable {
 	enum Rendition: String, Sendable {
@@ -23,5 +24,26 @@ enum ArticleHighlightJavaScriptJSON {
 		json.removeFirst()
 		json.removeLast()
 		return json
+	}
+}
+
+@MainActor
+enum ArticleHighlightJavaScriptBridge {
+	static func makeSelectionAnchor(in webView: WKWebView) async throws -> Any? {
+		try await webView.callAsyncJavaScript(
+			"return await window.nnwHighlights.makeSelectionAnchor()",
+			arguments: [:],
+			in: nil,
+			contentWorld: .page
+		)
+	}
+
+	static func restore(_ records: [[String: Any]], in webView: WKWebView) async throws -> Any? {
+		try await webView.callAsyncJavaScript(
+			"return await window.nnwHighlights.restore(records)",
+			arguments: ["records": records],
+			in: nil,
+			contentWorld: .page
+		)
 	}
 }
