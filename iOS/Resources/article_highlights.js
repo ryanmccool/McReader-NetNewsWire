@@ -46,7 +46,8 @@
 		}
 		if (included) {
 			const style = cachedStyle(element, context);
-			included = style.display === "contents" || element.checkVisibility({ visibilityProperty: true });
+			included = style.visibility !== "hidden" && style.visibility !== "collapse"
+				&& (style.display === "contents" || element.checkVisibility({ visibilityProperty: true }));
 		}
 		if (included && element !== root) {
 			included = Boolean(element.parentElement && elementProducesRenderedDescendants(element.parentElement, root, context));

@@ -132,6 +132,33 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(positions.first?["endOffset"] as? Int, 13)
 	}
 
+	func testRestoreRejectsHiddenDisplayContentsWrapperAndUsesRenderedWrapper() async throws {
+		try await loadArticle("""
+		<div id="hidden-contents" style="display: contents; visibility: hidden">
+			<p style="visibility: visible">before target after</p>
+		</div>
+		<div id="visible-contents" style="display: contents">
+			<p>before target after</p>
+		</div>
+		""")
+		let highlight = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "target",
+			prefix: "before ",
+			suffix: " after",
+			start: 7
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
+		let markedWrapper = try await stringResult("document.querySelector('mark')?.closest('#hidden-contents, #visible-contents')?.id || ''")
+		let positions = try await arrayResult("window.nnwHighlights.positions()")
+
+		XCTAssertEqual(restored.count, 1)
+		XCTAssertEqual(markedWrapper, "visible-contents")
+		XCTAssertEqual(positions.first?["startOffset"] as? Int, 7)
+		XCTAssertEqual(positions.first?["endOffset"] as? Int, 13)
+	}
+
 	func testRestoreAcceptsAdjacentRangesAndRejectsOverlapDeterministically() async throws {
 		try await loadArticle(#"<p>alpha beta gamma</p>"#)
 		let first = record(id: "00000000-0000-0000-0000-000000000003", selectedText: "alpha", start: 0, createdAt: "2026-01-01T00:00:00Z")
