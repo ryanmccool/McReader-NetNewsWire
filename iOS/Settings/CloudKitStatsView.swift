@@ -28,8 +28,7 @@ struct CloudKitStatsView: View {
 				statusSection
 				if let fetchError = model.fetchStatus.fetchError {
 					Section {
-						Text(fetchError.localizedDescription)
-							.foregroundStyle(.red)
+						Text(fetchError.localizedDescription).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.destructive))
 					}
 				} else {
 					statusRecordsSection
@@ -115,16 +114,13 @@ struct CloudKitStatsView: View {
 				HStack(spacing: 6) {
 					ProgressView()
 						.controlSize(.small)
-					Text(NNWLocalizedString("Scanning iCloud storage", comment: "Scan status text while fetching"))
-						.foregroundStyle(.secondary)
+					Text(NNWLocalizedString("Scanning iCloud storage", comment: "Scan status text while fetching")).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				}
 				.id("fetching")
 			case .completed:
 				HStack(spacing: 4) {
-					Image(systemName: "checkmark.circle.fill")
-						.foregroundStyle(.green)
-					Text(NNWLocalizedString("Scan completed.", comment: "Scan status text when completed"))
-						.foregroundStyle(.secondary)
+					Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.success))
+					Text(NNWLocalizedString("Scan completed.", comment: "Scan status text when completed")).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 					Spacer()
 					Button(NNWLocalizedString("Refresh", comment: "Refresh")) {
 						model.fetch()
@@ -170,24 +166,20 @@ struct CloudKitStatsView: View {
 	@ViewBuilder private var cleanUpStatusSection: some View {
 		Section {
 			if model.cleanUpStatus.cleanUpError != nil {
-				Text(NNWLocalizedString("Cleanup failed to complete, but you may be able to clean up more if you wait a few minutes and try again.", comment: "Cleanup error message"))
-					.foregroundStyle(.red)
+				Text(NNWLocalizedString("Cleanup failed to complete, but you may be able to clean up more if you wait a few minutes and try again.", comment: "Cleanup error message")).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.destructive))
 				Button(NNWLocalizedString("Refresh", comment: "Refresh")) {
 					model.fetch()
 				}
 			} else if let progress = model.cleanUpStatus.progress {
 				if model.cleanUpStatus.isCanceled {
 					ProgressView(value: fractionComplete(progress))
-					Text(NNWLocalizedString("Cleanup canceled.", comment: "Cleanup status text when canceled"))
-						.foregroundStyle(.secondary)
+					Text(NNWLocalizedString("Cleanup canceled.", comment: "Cleanup status text when canceled")).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				} else if model.cleanUpStatus.isCompleted {
 					ProgressView(value: 1.0)
-					Text(NNWLocalizedString("iCloud storage cleanup completed.", comment: "Cleanup phase text when completed"))
-						.foregroundStyle(.secondary)
+					Text(NNWLocalizedString("iCloud storage cleanup completed.", comment: "Cleanup phase text when completed")).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				} else {
 					ProgressView(value: fractionComplete(progress))
-					Text(cleanUpPhaseText(progress.phase))
-						.foregroundStyle(.secondary)
+					Text(cleanUpPhaseText(progress.phase)).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				}
 			}
 		}
@@ -258,8 +250,7 @@ struct CloudKitStatsView: View {
 
 	private func statusRow(_ text: String) -> some View {
 		HStack(spacing: 4) {
-			Text(text)
-				.foregroundStyle(.secondary)
+			Text(text).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 			Spacer()
 			Button(NNWLocalizedString("Refresh", comment: "Refresh")) {
 				model.fetch()
@@ -269,12 +260,12 @@ struct CloudKitStatsView: View {
 
 	private func countColor(isWarning: Bool, count: Int) -> AnyShapeStyle {
 		if model.fetchStatus.isFetching || model.cleanUpStatus.isCleaning {
-			return AnyShapeStyle(.secondary)
+			return AnyShapeStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 		}
 		if isWarning && count > 0 {
 			return AnyShapeStyle(.orange)
 		}
-		return AnyShapeStyle(.primary)
+		return AnyShapeStyle(Color(uiColor: NetNewsWireFeatureTheme.primaryText))
 	}
 
 	// MARK: - Private Helpers

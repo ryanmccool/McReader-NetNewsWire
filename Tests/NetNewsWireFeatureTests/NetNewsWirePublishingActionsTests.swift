@@ -57,6 +57,49 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(receivedIntent, .postAs(.blogmark))
 	}
 
+	func testPublishingActionsShareMarkdownWhenEnabled() {
+		let expectedCapture = NetNewsWirePublishingCapture(
+			selectedText: "Saved highlight",
+			title: "Article",
+			creator: "Author",
+			preferredURL: URL(string: "https://example.com/article")!
+		)
+		var receivedCapture: NetNewsWirePublishingCapture?
+		let actions = NetNewsWirePublishingActions(
+			send: { _, _ in },
+			shareMarkdown: { receivedCapture = $0 }
+		)
+
+		actions.shareMarkdown(expectedCapture)
+
+		XCTAssertEqual(receivedCapture, expectedCapture)
+	}
+
+	func testMarkdownSharingUsesRenderedHighlightsWithoutReloadingTheStore() throws {
+		let laterID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+		let earlierID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+		let base = NetNewsWirePublishingCapture(
+			selectedText: nil,
+			title: "Article",
+			creator: "Author",
+			preferredURL: URL(string: "https://example.com/article")!
+		)
+
+		let capture = NetNewsWireMarkdownSharing.capture(
+			base: base,
+			renderedHighlights: [
+				makeRecord(id: laterID, selectedText: "Later", preferredURL: base.preferredURL),
+				makeRecord(id: earlierID, selectedText: "Earlier", preferredURL: base.preferredURL)
+			],
+			resolvedPositions: [earlierID: 4, laterID: 40]
+		)
+
+		XCTAssertEqual(capture.title, base.title)
+		XCTAssertEqual(capture.creator, base.creator)
+		XCTAssertEqual(capture.preferredURL, base.preferredURL)
+		XCTAssertEqual(capture.selectedText, "Earlier\n\nLater")
+	}
+
 	func testDisabledPublishingActionsAreNoOp() {
 		let capture = NetNewsWirePublishingCapture(
 			selectedText: nil,
@@ -99,16 +142,23 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(titles.postNote, "Post Note...|Command")
 		XCTAssertEqual(titles.captureSelection, "Capture Selection|Command")
 		XCTAssertEqual(titles.postHighlights, "Post Highlights...|Command")
+		XCTAssertEqual(titles.shareMarkdown, "Share as Markdown...|Command")
 	}
 
-	func testArticleMenuKeepsShareInItsOwnLeadingSectionAndPostLabelsWhole() throws {
+	func testArticleMenuKeepsSharingInItsOwnLeadingSectionAndPostLabelsWhole() throws {
 		let controller = ArticleViewController.instantiate(from: .main, highlightActions: .disabled)
-		controller.publishingActions = NetNewsWirePublishingActions { _, _ in }
+		controller.publishingActions = NetNewsWirePublishingActions(
+			send: { _, _ in },
+			shareMarkdown: { _ in }
+		)
 
 		let menu = controller.makePublishingMenu()
 		let sections = menu.children.compactMap { $0 as? UIMenu }
 		XCTAssertEqual(sections.count, 2)
-		XCTAssertEqual((sections[0].children.first as? UIAction)?.title, "Share")
+		XCTAssertEqual(
+			sections[0].children.compactMap { ($0 as? UIAction)?.title },
+			["Share", "Share as Markdown..."]
+		)
 		let publishingTitles = sections[1].children.compactMap { ($0 as? UIAction)?.title }
 		XCTAssertTrue(publishingTitles.contains("Post Quote..."))
 		XCTAssertTrue(publishingTitles.contains("Post Link..."))

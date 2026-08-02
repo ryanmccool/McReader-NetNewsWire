@@ -39,7 +39,7 @@ final class TickMarkSlider: UISlider {
 
 			let tick = UIView()
 			tick.translatesAutoresizingMaskIntoConstraints = false
-			tick.backgroundColor = .tertiaryLabel
+			tick.backgroundColor = NetNewsWireFeatureTheme.tertiaryText
 			insertSubview(tick, at: 0)
 
 			tick.widthAnchor.constraint(equalToConstant: 3).isActive = true

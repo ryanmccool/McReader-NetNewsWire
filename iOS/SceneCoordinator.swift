@@ -1601,6 +1601,8 @@ extension SceneCoordinator: UINavigationControllerDelegate {
 			return
 		}
 
+		rootSplitViewController.applyFeatureAppearance(to: viewController)
+
 		guard rootSplitViewController.isCollapsed else {
 			return
 		}

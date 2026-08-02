@@ -42,8 +42,7 @@ struct AccountNotificationInspectorView: View {
 					} label: {
 						Text("Open Settings", comment: "Open Settings button")
 					}
-					.buttonStyle(.borderedProminent)
-					.tint(.accentColor)
+					.buttonStyle(.borderedProminent).tint(Color(uiColor: NetNewsWireFeatureTheme.tint))
 				}
 				.navigationTitle(Text("New Article Notifications", comment: "New Article Notifications"))
 				.navigationSubtitleIfAvailable(account.nameForDisplay)
@@ -73,8 +72,7 @@ struct AccountNotificationInspectorView: View {
 							Text(verbatim: feed.nameForDisplay)
 							Spacer()
 						}
-					}
-					.tint(.accentColor)
+					}.tint(Color(uiColor: NetNewsWireFeatureTheme.tint))
 				}
 				.navigationTitle(Text("New Article Notifications", comment: "New Article Notifications"))
 				.navigationBarTitleDisplayMode(.inline)

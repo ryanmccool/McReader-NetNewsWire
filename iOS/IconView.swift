@@ -113,7 +113,7 @@ private extension IconView {
 
 	private func updateBackgroundColor() {
 		if !isBackgroundSuppressed && ((iconImage != nil && isVerticalBackgroundExposed) || !isDiscernable) {
-			backgroundColor = Assets.Colors.iconBackground
+			backgroundColor = NetNewsWireFeatureTheme.iconBackground
 		} else {
 			backgroundColor = nil
 		}

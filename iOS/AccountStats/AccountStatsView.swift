@@ -28,7 +28,7 @@ struct AccountStatsView: View {
 					ForEach(statItems(databaseSizeBytes: row.databaseSizeBytes, feedCount: row.feedCount, folderCount: row.folderCount, articleCount: row.articleCount, statusesCount: row.statusesCount, unreadCount: row.unreadCount, starredCount: row.starredCount)) { item in
 						statsRow(item, isBold: false)
 					}
-					.foregroundStyle(row.isActive ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+					.foregroundStyle(row.isActive ? AnyShapeStyle(Color(uiColor: NetNewsWireFeatureTheme.primaryText)) : AnyShapeStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText)))
 				} header: {
 					Text(headerTitle(for: row))
 				}

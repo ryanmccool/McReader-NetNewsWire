@@ -56,7 +56,11 @@ nonisolated public enum AccountType: Int, Codable, Sendable {
 	public var displayName: String {
 		switch self {
 		case .onMyMac:
-			return NSLocalizedString("account.name.on-my-device", tableName: "DefaultAccountNames", comment: "Device specific default account name, e.g: On My iPhone")
+			return Bundle.netNewsWire.localizedString(
+				forKey: "account.name.on-my-device",
+				value: nil,
+				table: "DefaultAccountNames"
+			)
 		// These proper names don’t have a translation.
 		case .cloudKit:
 			return "iCloud"

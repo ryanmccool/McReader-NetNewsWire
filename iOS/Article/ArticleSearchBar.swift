@@ -22,6 +22,7 @@ import RSCore
 	var prevButton: UIButton!
 	var background: UIView!
 	var shouldBeginEditing: Bool = true
+	private var doneButton: UIButton!
 
 	weak private var resultsLabel: UILabel!
 
@@ -54,9 +55,15 @@ import RSCore
 
 	override func didMoveToSuperview() {
 		super.didMoveToSuperview()
-		layer.backgroundColor = UIColor(named: "barBackgroundColor", in: .netNewsWire, compatibleWith: nil)?.cgColor ?? UIColor.white.cgColor
+		applyFeatureAppearance()
 		isOpaque = true
 		NotificationCenter.default.addObserver(self, selector: #selector(textDidChange(_:)), name: UITextField.textDidChangeNotification, object: searchField)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(featureAppearanceDidChange),
+			name: .netNewsWireFeatureAppearanceDidChange,
+			object: nil
+		)
 	}
 
 	private func updateUI() {
@@ -97,18 +104,19 @@ private extension ArticleSearchBar {
 		layoutMargins.right = 8
 
 		background = UIView(frame: bounds)
-		background.backgroundColor = .systemGray5
+		background.backgroundColor = NetNewsWireFeatureTheme.controlBackground
 		background.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 		addSubview(background)
 
 		let doneButton = UIButton()
 		doneButton.setTitle(NNWLocalizedString("Done", comment: "Done"), for: .normal)
-		doneButton.setTitleColor(UIColor.label, for: .normal)
+		doneButton.setTitleColor(NetNewsWireFeatureTheme.primaryText, for: .normal)
 		doneButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
 		doneButton.isAccessibilityElement = true
 		doneButton.addTarget(self, action: #selector(donePressed), for: .touchUpInside)
 		doneButton.isEnabled = true
 		addArrangedSubview(doneButton)
+		self.doneButton = doneButton
 
 		let resultsLabel = UILabel()
 		searchField = UISearchTextField()
@@ -118,7 +126,7 @@ private extension ArticleSearchBar {
 		searchField.delegate = self
 
 		resultsLabel.font = .systemFont(ofSize: UIFont.smallSystemFontSize)
-		resultsLabel.textColor = .secondaryLabel
+		resultsLabel.textColor = NetNewsWireFeatureTheme.secondaryText
 		resultsLabel.text = ""
 		resultsLabel.textAlignment = .right
 		resultsLabel.adjustsFontSizeToFitWidth = true
@@ -142,10 +150,41 @@ private extension ArticleSearchBar {
 		nextButton.addTarget(self, action: #selector(nextPressed), for: .touchUpInside)
 		addArrangedSubview(nextButton)
 	}
+
+	func applyFeatureAppearance() {
+		guard NetNewsWireFeatureTheme.appearance != nil else {
+			layer.backgroundColor = (
+				UIColor(
+					named: "barBackgroundColor",
+					in: Bundle.netNewsWire,
+					compatibleWith: traitCollection
+				) ?? .systemBackground
+			).cgColor
+			background.backgroundColor = .systemGray5
+			searchField.backgroundColor = nil
+			searchField.textColor = .label
+			resultsLabel.textColor = .secondaryLabel
+			doneButton.setTitleColor(.label, for: .normal)
+			tintColor = nil
+			return
+		}
+
+		layer.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground.cgColor
+		background.backgroundColor = NetNewsWireFeatureTheme.controlBackground
+		searchField.backgroundColor = NetNewsWireFeatureTheme.elevatedBackground
+		searchField.textColor = NetNewsWireFeatureTheme.primaryText
+		resultsLabel.textColor = NetNewsWireFeatureTheme.secondaryText
+		doneButton.setTitleColor(NetNewsWireFeatureTheme.primaryText, for: .normal)
+		tintColor = NetNewsWireFeatureTheme.tint
+	}
 }
 
 private extension ArticleSearchBar {
 
+
+	@objc func featureAppearanceDidChange() {
+		applyFeatureAppearance()
+	}
 	@objc func textDidChange(_ notification: Notification) {
 		delegate?.searchBar?(self, textDidChange: searchField.text ?? "")
 

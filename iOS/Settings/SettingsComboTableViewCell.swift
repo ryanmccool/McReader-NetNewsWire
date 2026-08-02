@@ -16,7 +16,7 @@ final class SettingsComboTableViewCell: VibrantTableViewCell {
 		super.updateVibrancy(animated: animated)
 		updateLabelVibrancy(comboNameLabel, color: labelColor, animated: animated)
 
-		let tintColor = isHighlighted || isSelected ? Assets.Colors.vibrantText : UIColor.label
+		let tintColor = isHighlighted || isSelected ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.primaryText
 		if animated {
 			UIView.animate(withDuration: Self.duration) {
 				self.comboImage?.tintColor = tintColor

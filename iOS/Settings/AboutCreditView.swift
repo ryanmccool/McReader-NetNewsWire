@@ -16,8 +16,7 @@ struct AboutCreditView: View {
     var body: some View {
 		HStack(alignment: .top) {
 			Spacer()
-			Text(verbatim: contributorType)
-				.foregroundStyle(.secondary)
+			Text(verbatim: contributorType).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				.frame(maxWidth: .infinity, alignment: .trailing)
 				.lineLimit(3)
 				.multilineTextAlignment(.trailing)
@@ -28,8 +27,7 @@ struct AboutCreditView: View {
 						.frame(maxWidth: .infinity, alignment: .leading)
 						.lineLimit(2)
 						.multilineTextAlignment(.leading)
-						.minimumScaleFactor(0.8)
-						.foregroundStyle(.link)
+						.minimumScaleFactor(0.8).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.tint))
 						.onTapGesture {
 							UIApplication.shared.open(item.contributor.url)
 						}

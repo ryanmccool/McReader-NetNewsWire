@@ -69,8 +69,7 @@ struct ErrorLogView: View {
 
 	private var privacyWarning: some View {
 		Text("Errors may contain feed URLs and other information you may not want to share publicly.")
-			.font(.footnote)
-			.foregroundStyle(.secondary)
+			.font(.footnote).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 			.padding()
 	}
 
@@ -119,7 +118,7 @@ private extension ErrorLogView {
 
 		if !entry.functionName.isEmpty {
 			var location = AttributedString(" (\(entry.fileName):\(entry.functionName):\(entry.lineNumber))")
-			location.foregroundColor = Color(uiColor: .tertiaryLabel)
+			location.foregroundColor = Color(uiColor: NetNewsWireFeatureTheme.tertiaryText)
 			result.append(location)
 		}
 

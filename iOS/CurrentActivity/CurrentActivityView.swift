@@ -22,8 +22,7 @@ struct CurrentActivityView: View {
 		List {
 			Section {
 				if activities.isEmpty {
-					Text(NNWLocalizedString("No current activity.", comment: "Current Activity empty state"))
-						.foregroundStyle(.secondary)
+					Text(NNWLocalizedString("No current activity.", comment: "Current Activity empty state")).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				} else {
 					ForEach(activities, id: \.id) { activity in
 						activityRow(activity)
@@ -89,15 +88,13 @@ private extension CurrentActivityView {
 				.accessibilityLabel(CurrentActivityViewModel.accessibilityLabel(for: activity.state))
 			VStack(alignment: .leading, spacing: 2) {
 				Text(activity.owner.displayName)
-					.font(.footnote)
-					.foregroundStyle(.secondary)
+					.font(.footnote).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 				Text(text.title)
 					.lineLimit(1)
 					.truncationMode(.tail)
 				if let detail = text.detail {
 					Text(detail)
-						.font(.footnote)
-						.foregroundStyle(.secondary)
+						.font(.footnote).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 						.lineLimit(1)
 						.truncationMode(.middle)
 				}

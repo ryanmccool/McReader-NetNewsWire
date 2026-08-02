@@ -61,7 +61,13 @@ final class TimelineCustomizerCell: UICollectionViewCell {
 		} else {
 			backgroundConfig = UIBackgroundConfiguration.listGroupedCell().updated(for: state)
 		}
-		backgroundConfig.backgroundColor = traitCollection.userInterfaceStyle == .dark ? .secondarySystemBackground : .white
+		if NetNewsWireFeatureTheme.appearance != nil {
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		} else {
+			backgroundConfig.backgroundColor = traitCollection.userInterfaceStyle == .dark
+				? .secondarySystemBackground
+				: .white
+		}
 		backgroundConfig.cornerRadius = 20
 		self.backgroundConfiguration = backgroundConfig
 	}

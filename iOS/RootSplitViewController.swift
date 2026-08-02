@@ -16,6 +16,13 @@ final class RootSplitViewController: UISplitViewController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		view.accessibilityIdentifier = "netnewswire.root"
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(featureAppearanceDidChange),
+			name: .netNewsWireFeatureAppearanceDidChange,
+			object: nil
+		)
+		applyFeatureAppearance()
 	}
 
 	override var prefersStatusBarHidden: Bool {
@@ -28,7 +35,82 @@ final class RootSplitViewController: UISplitViewController {
 
 	override func viewDidAppear(_ animated: Bool) {
 		coordinator.resetFocus()
+		applyFeatureAppearance()
 	}
+
+	@objc private func featureAppearanceDidChange() {
+		applyFeatureAppearance(refreshContent: true)
+	}
+
+	func applyFeatureAppearance(refreshContent: Bool = false) {
+		guard NetNewsWireFeatureTheme.appearance != nil else { return }
+		overrideUserInterfaceStyle = NetNewsWireFeatureTheme.interfaceStyle
+		view.tintColor = NetNewsWireFeatureTheme.tint
+		applyFeatureAppearance(to: self, refreshContent: refreshContent)
+		setNeedsStatusBarAppearanceUpdate()
+	}
+
+	func applyFeatureAppearance(
+		to viewController: UIViewController,
+		refreshContent: Bool = false
+	) {
+		guard NetNewsWireFeatureTheme.appearance != nil, viewController.isViewLoaded else { return }
+
+		viewController.view.backgroundColor = NetNewsWireFeatureTheme.background
+		viewController.view.tintColor = NetNewsWireFeatureTheme.tint
+
+		if let tableViewController = viewController as? UITableViewController {
+			tableViewController.tableView.backgroundColor = NetNewsWireFeatureTheme.groupedBackground
+			tableViewController.tableView.separatorColor = NetNewsWireFeatureTheme.separator
+			if refreshContent {
+				tableViewController.tableView.reloadData()
+			}
+		}
+		if let collectionViewController = viewController as? UICollectionViewController {
+			collectionViewController.collectionView.backgroundColor = NetNewsWireFeatureTheme.background
+			if refreshContent {
+				collectionViewController.collectionView.reloadData()
+			}
+		}
+		if let navigationController = viewController as? UINavigationController {
+			let navigationBar = navigationController.navigationBar
+			navigationBar.tintColor = NetNewsWireFeatureTheme.tint
+			navigationBar.barTintColor = NetNewsWireFeatureTheme.secondaryBackground
+			navigationBar.titleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
+			navigationBar.largeTitleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
+
+			if let toolbar = navigationController.toolbar {
+				let standardAppearance = themedToolbarAppearance(toolbar.standardAppearance)
+				toolbar.standardAppearance = standardAppearance
+				toolbar.compactAppearance = themedToolbarAppearance(
+					toolbar.compactAppearance ?? standardAppearance
+				)
+				toolbar.scrollEdgeAppearance = themedToolbarAppearance(
+					toolbar.scrollEdgeAppearance ?? standardAppearance
+				)
+				toolbar.tintColor = NetNewsWireFeatureTheme.tint
+			}
+		}
+
+		for child in viewController.children where child !== viewController {
+			applyFeatureAppearance(to: child, refreshContent: refreshContent)
+		}
+		if let presentedViewController = viewController.presentedViewController {
+			applyFeatureAppearance(to: presentedViewController, refreshContent: refreshContent)
+		}
+	}
+
+
+	private func themedToolbarAppearance(
+		_ source: UIToolbarAppearance
+	) -> UIToolbarAppearance {
+		let appearance = source.copy()
+		appearance.backgroundEffect = nil
+		appearance.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		appearance.shadowColor = NetNewsWireFeatureTheme.separator
+		return appearance
+	}
+
 
 	override func show(_ column: UISplitViewController.Column) {
 		guard !coordinator.isNavigationDisabled else { return }

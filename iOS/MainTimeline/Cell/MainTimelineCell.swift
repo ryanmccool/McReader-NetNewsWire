@@ -100,14 +100,14 @@ final class MainTimelineCell: UICollectionViewCell {
 		}
 
 		if state.isSwiped {
-			backgroundConfig.backgroundColor = .secondarySystemFill
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.subtleFill
 		} else if state.isSelected {
 			// When the split view is expanded, force the accent color so the selection stays
 			// blue even when the timeline isn't first responder (updated(for: state) would
 			// otherwise dim it to gray). When collapsed, keep the standard system selection
 			// color from updated(for: state).
 			if isInExpandedSplitView {
-				backgroundConfig.backgroundColor = Assets.Colors.primaryAccent
+				backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.tint
 			}
 		} else {
 			backgroundConfig.backgroundColor = .clear
@@ -116,7 +116,7 @@ final class MainTimelineCell: UICollectionViewCell {
 		let isActive = state.isSwiped || state.isSelected
 
 		if isPreview {
-			backgroundConfig.backgroundColor = traitCollection.userInterfaceStyle == .dark ? .secondarySystemBackground : .white
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.elevatedBackground
 		}
 		backgroundConfiguration = backgroundConfig
 
@@ -172,7 +172,7 @@ private extension MainTimelineCell {
 
 	func commonInit() {
 		isAccessibilityElement = true
-		topSeparator.backgroundColor = .separator.withAlphaComponent(0.1)
+		topSeparator.backgroundColor = NetNewsWireFeatureTheme.separator.withAlphaComponent(0.1)
 		for view in [titleView, summaryView, dateView, feedNameView, iconView, indicatorView, topSeparator] {
 			contentView.addSubview(view)
 			view.isAccessibilityElement = false
@@ -238,10 +238,10 @@ private extension MainTimelineCell {
 	}
 
 	func updateColors(active: Bool) {
-		titleView.textColor = active ? .white : .label
-		summaryView.textColor = active ? .white : (cellData.title.isEmpty ? .label : .secondaryLabel)
-		dateView.textColor = active ? .white : .secondaryLabel
-		feedNameView.textColor = active ? .white : .secondaryLabel
+		titleView.textColor = active ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.primaryText
+		summaryView.textColor = active ? NetNewsWireFeatureTheme.selectedText : (cellData.title.isEmpty ? NetNewsWireFeatureTheme.primaryText : NetNewsWireFeatureTheme.secondaryText)
+		dateView.textColor = active ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.secondaryText
+		feedNameView.textColor = active ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.secondaryText
 	}
 
 	func updateIndicatorView(active: Bool) {
@@ -251,11 +251,11 @@ private extension MainTimelineCell {
 		}
 		if cellData.starred {
 			indicatorView.iconImage = Assets.Images.starredFeed
-			indicatorView.tintColor = active ? .white : Assets.Colors.star
+			indicatorView.tintColor = active ? NetNewsWireFeatureTheme.selectedText : Assets.Colors.star
 			indicatorView.isHidden = false
 		} else if !cellData.read {
 			indicatorView.iconImage = Assets.Images.unreadCellIndicator
-			indicatorView.tintColor = active ? .white : Assets.Colors.secondaryAccent
+			indicatorView.tintColor = active ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.secondaryTint
 			indicatorView.isHidden = false
 		} else {
 			indicatorView.isHidden = true

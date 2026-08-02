@@ -42,7 +42,7 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 	var iconImage: IconImage? {
 		didSet {
 			faviconView.iconImage = iconImage
-			faviconView.tintColor = iconImage?.preferredColor ?? Assets.Colors.secondaryAccent
+			faviconView.tintColor = iconImage?.preferredColor ?? NetNewsWireFeatureTheme.secondaryTint
 		}
 	}
 
@@ -146,24 +146,27 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 		} else {
 			backgroundConfig = UIBackgroundConfiguration.listGroupedCell().updated(for: state)
 		}
+		if NetNewsWireFeatureTheme.appearance != nil {
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		}
 
 		switch (state.isHighlighted || state.isSelected || state.isFocused, traitCollection.userInterfaceIdiom) {
 		case (true, .pad):
-			backgroundConfig.backgroundColor = .tertiarySystemFill
-			folderTitle.textColor = Assets.Colors.primaryAccent
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.subtleFill
+			folderTitle.textColor = NetNewsWireFeatureTheme.tint
 			folderTitle.font = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .semibold)
-			unreadCountLabel.textColor = Assets.Colors.primaryAccent
+			unreadCountLabel.textColor = NetNewsWireFeatureTheme.tint
 			unreadCountLabel.font = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .semibold)
 		default:
-			folderTitle.textColor = .label
-			faviconView.tintColor = Assets.Colors.primaryAccent
+			folderTitle.textColor = NetNewsWireFeatureTheme.primaryText
+			faviconView.tintColor = NetNewsWireFeatureTheme.tint
 			folderTitle.font = UIFont.preferredFont(forTextStyle: .body)
-			unreadCountLabel.textColor = .secondaryLabel
+			unreadCountLabel.textColor = NetNewsWireFeatureTheme.secondaryText
 			unreadCountLabel.font = UIFont.preferredFont(forTextStyle: .body)
 		}
 
 		if state.cellDropState == .targeted {
-			backgroundConfig.backgroundColor = .tertiarySystemFill
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.subtleFill
 		}
 
 		self.backgroundConfiguration = backgroundConfig

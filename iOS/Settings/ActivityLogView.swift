@@ -60,8 +60,7 @@ struct ActivityLogView: View {
 
 	private var privacyWarning: some View {
 		Text("Activity may contain feed URLs and other information you may not want to share publicly.", comment: "Activity log privacy warning")
-			.font(.footnote)
-			.foregroundStyle(.secondary)
+			.font(.footnote).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.secondaryText))
 			.padding()
 	}
 
@@ -107,16 +106,16 @@ private extension ActivityLogView {
 	func uiColor(for color: ActivityLogTextColor) -> UIColor {
 		switch color {
 		case .primary:
-			return .label
+			return NetNewsWireFeatureTheme.primaryText
 		case .secondary:
-			return .secondaryLabel
+			return NetNewsWireFeatureTheme.secondaryText
 		case .success:
-			return .systemGreen
+			return NetNewsWireFeatureTheme.success
 		case .failure:
-			return .systemRed
+			return NetNewsWireFeatureTheme.destructive
 		case .account(let accountID):
 			guard let accountID, let account = AccountManager.shared.existingAccount(accountID: accountID) else {
-				return .secondaryLabel
+				return NetNewsWireFeatureTheme.secondaryText
 			}
 			return UIColor(account.type.logColor)
 		}

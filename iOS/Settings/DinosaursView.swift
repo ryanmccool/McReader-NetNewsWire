@@ -34,8 +34,7 @@ struct DinosaursView: View {
 								showDeleteConfirmation = true
 							} label: {
 								Image(systemName: "trash")
-							}
-							.tint(.red)
+							}.tint(Color(uiColor: NetNewsWireFeatureTheme.destructive))
 							.help("Delete Feed")
 
 							Menu {
@@ -72,8 +71,7 @@ struct DinosaursView: View {
 			} header: {
 				VStack(alignment: .leading) {
 					Text("Show feeds that haven’t updated in…", comment: "Show stale feeds text")
-						.font(.subheadline)
-						.foregroundStyle(Color.primary)
+						.font(.subheadline).foregroundStyle(Color(uiColor: NetNewsWireFeatureTheme.primaryText))
 					Picker("", selection: $model.monthThreshold) {
 						ForEach([3, 6, 12, 24], id: \.self) { month in
 							Text("\(month) months", comment: "Dinosaur staleness threshold in months").tag(month)

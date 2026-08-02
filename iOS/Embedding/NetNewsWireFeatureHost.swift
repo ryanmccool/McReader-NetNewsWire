@@ -3,6 +3,7 @@ import UIKit
 @MainActor
 public protocol NetNewsWireFeatureHosting: AnyObject {
 	var viewController: UIViewController { get }
+	func updateAppearance(_ appearance: NetNewsWireFeatureAppearance?)
 	func sceneWillEnterForeground()
 	func sceneDidEnterBackground()
 	func suspend()
@@ -76,6 +77,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 	let publishingActions: NetNewsWirePublishingActions
 	let highlightActions: NetNewsWireHighlightActions
 	private let lifecycle: NetNewsWireFeatureSceneLifecycle
+	private let rootSplitViewController: RootSplitViewController
 
 	internal init(
 		capabilities: NetNewsWireFeatureCapabilities,
@@ -88,6 +90,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 		guard let rootSplitViewController = storyboard.instantiateViewController(withIdentifier: "RootSplitViewController") as? RootSplitViewController else {
 			throw NetNewsWireFeatureConfigurationError.missingRootController
 		}
+		self.rootSplitViewController = rootSplitViewController
 		self.viewController = rootSplitViewController
 		self.publishingActions = publishingActions
 		self.highlightActions = highlightActions
@@ -103,6 +106,11 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 			publishingActions: publishingActions,
 			highlightActions: highlightActions
 		)
+		rootSplitViewController.applyFeatureAppearance()
+	}
+
+	public func updateAppearance(_ appearance: NetNewsWireFeatureAppearance?) {
+		NetNewsWireFeatureTheme.update(appearance)
 	}
 
 	public func sceneWillEnterForeground() {

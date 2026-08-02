@@ -21,7 +21,7 @@ final class VibrantLabel: UILabel {
 	}
 
 	private func commonInit() {
-		highlightedTextColor = Assets.Colors.vibrantText
+		highlightedTextColor = NetNewsWireFeatureTheme.selectedText
 	}
 
 }

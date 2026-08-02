@@ -1,3 +1,4 @@
+import Account
 import UIKit
 import XCTest
 @testable import NetNewsWireFeature
@@ -89,6 +90,18 @@ final class NetNewsWireFeatureResourceTests: XCTestCase {
 
 		XCTAssertGreaterThan(image.size.width, 0)
 		XCTAssertGreaterThan(image.size.height, 0)
+	}
+
+	func testDefaultAccountNameLoadsFromConfiguredFeatureBundle() {
+		let key = "account.name.on-my-device"
+		let expected = Bundle.netNewsWire.localizedString(
+			forKey: key,
+			value: nil,
+			table: "DefaultAccountNames"
+		)
+
+		XCTAssertEqual(AccountType.onMyMac.displayName, expected)
+		XCTAssertNotEqual(expected, key)
 	}
 
 	func testUnrelatedLocalizationAndSplitTablesDoNotSatisfyResourcePolicy() throws {

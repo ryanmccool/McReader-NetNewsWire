@@ -191,10 +191,27 @@ private extension ArticleRenderer {
 	}()
 
 	func styleString() -> String {
-		return articleTheme.css ?? ArticleRenderer.defaultStyleSheet
+		#if os(iOS)
+		if NetNewsWireFeatureTheme.appearance != nil {
+			let baseStyle = ArticleTheme.defaultTheme.css ?? ArticleRenderer.defaultStyleSheet
+			return baseStyle + NetNewsWireFeatureTheme.articleCSSOverride
+		}
+		#endif
+
+		let baseStyle = articleTheme.css ?? ArticleRenderer.defaultStyleSheet
+		#if os(iOS)
+		return baseStyle + NetNewsWireFeatureTheme.articleCSSOverride
+		#else
+		return baseStyle
+		#endif
 	}
 
 	func template() -> String {
+		#if os(iOS)
+		if NetNewsWireFeatureTheme.appearance != nil {
+			return ArticleTheme.defaultTheme.template ?? ArticleRenderer.defaultTemplate
+		}
+		#endif
 		return articleTheme.template ?? ArticleRenderer.defaultTemplate
 	}
 

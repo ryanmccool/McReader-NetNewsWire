@@ -45,9 +45,9 @@ final class ArticleViewController: UIViewController {
 		button.frame = CGRect(x: 0, y: 0, width: 44.0, height: 44.0)
 		button.setImage(Assets.Images.articleExtractorOff, for: .normal)
 		if #unavailable(iOS 26) {
-			button.tintColor = Assets.Colors.primaryAccent
+			button.tintColor = NetNewsWireFeatureTheme.tint
 		} else {
-			button.tintColor = .label
+			button.tintColor = NetNewsWireFeatureTheme.primaryText
 		}
 		return button
 	}()
@@ -138,12 +138,14 @@ final class ArticleViewController: UIViewController {
 		NotificationCenter.default.addObserver(self, selector: #selector(statusesDidChange(_:)), name: .StatusesDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(contentSizeCategoryDidChange(_:)), name: UIContentSizeCategory.didChangeNotification, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(willEnterForeground(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(featureAppearanceDidChange),
+			name: .netNewsWireFeatureAppearanceDidChange,
+			object: nil
+		)
 
-		let appearance = UINavigationBarAppearance()
-		appearance.configureWithDefaultBackground()
-		navigationItem.standardAppearance = appearance
-		navigationItem.scrollEdgeAppearance = appearance
-		navigationItem.compactAppearance = appearance
+		applyFeatureNavigationAppearance()
 
 		let fullScreenTapZone = UIView()
 		NSLayoutConstraint.activate([
@@ -226,6 +228,29 @@ final class ArticleViewController: UIViewController {
 		view.bringSubviewToFront(searchBar)
 
 		updateUI()
+	}
+
+	@objc private func featureAppearanceDidChange() {
+		applyFeatureNavigationAppearance()
+	}
+
+	private func applyFeatureNavigationAppearance() {
+		let appearance = Self.featureNavigationAppearance()
+		navigationItem.standardAppearance = appearance
+		navigationItem.scrollEdgeAppearance = appearance
+		navigationItem.compactAppearance = appearance
+	}
+
+	static func featureNavigationAppearance() -> UINavigationBarAppearance {
+		let appearance = UINavigationBarAppearance()
+		appearance.configureWithDefaultBackground()
+		if NetNewsWireFeatureTheme.appearance != nil {
+			appearance.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+			appearance.shadowColor = NetNewsWireFeatureTheme.separator
+			appearance.titleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
+			appearance.largeTitleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
+		}
+		return appearance
 	}
 
 	override func viewWillAppear(_ animated: Bool) {
@@ -655,7 +680,14 @@ extension ArticleViewController {
 		) { [weak self] _ in
 			self?.currentWebViewController?.showActivityDialog(popOverBarButtonItem: self?.actionBarButtonItem)
 		}
-		let shareSection = UIMenu(title: "", options: .displayInline, children: [share])
+		var shareActions: [UIMenuElement] = [share]
+		if publishingActions.isMarkdownSharingEnabled {
+			let shareMarkdown = UIAction(title: titles.shareMarkdown, image: UIImage(systemName: "doc.text")) { [weak self] _ in
+				self?.shareArticleAsMarkdown()
+			}
+			shareActions.append(shareMarkdown)
+		}
+		let shareSection = UIMenu(title: "", options: .displayInline, children: shareActions)
 		let publishingSection = UIMenu(
 			title: "",
 			options: .displayInline,
@@ -705,6 +737,30 @@ private extension ArticleViewController {
 			var capture = baseCapture
 			capture.selectedText = selectedText
 			publishingActions.send(capture, .postAs(.quotation))
+		}
+	}
+
+	func shareArticleAsMarkdown() {
+		guard let webViewController = currentWebViewController,
+			let article = webViewController.article,
+			let baseCapture = publishingCapture(article: article, selectedText: nil) else {
+			return
+		}
+		let articleID = article.articleID
+
+		Task { @MainActor [weak self] in
+			guard let self else { return }
+			let (records, positions) = await webViewController.highlightRecordsForPosting()
+			let capture = NetNewsWireMarkdownSharing.capture(
+				base: baseCapture,
+				renderedHighlights: records,
+				resolvedPositions: positions
+			)
+			guard currentWebViewController === webViewController,
+				webViewController.article?.articleID == articleID else {
+				return
+			}
+			publishingActions.shareMarkdown(capture)
 		}
 	}
 

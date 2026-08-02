@@ -64,6 +64,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	/// `viewDidAppear(_:)` after a delay to allow the deselection animation to complete.
 	private var isAnimating: Bool = false
 	private var isToolbarConfigured: Bool = false
+	private var usesSidebarAppearance: Bool = false
 
 	var dataSource: UICollectionViewDiffableDataSource<String, SidebarItemNode>!
 
@@ -104,7 +105,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 	func updateCurrentActivityButtonState() {
 		let hasCurrentActivity = !ActivityLog.shared.runningActivities.isEmpty || !ActivityLog.shared.pendingActivities.isEmpty
-		currentActivityButton?.tintColor = hasCurrentActivity ? Assets.Colors.primaryAccent : .label
+		currentActivityButton?.tintColor = hasCurrentActivity ? NetNewsWireFeatureTheme.tint : NetNewsWireFeatureTheme.primaryText
 	}
 
 	override func viewWillAppear(_ animated: Bool) {
@@ -113,6 +114,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		configureToolbarWithProgressView()
 		updateUI()
 		super.viewWillAppear(animated)
+		applyFeatureBackground()
 
 		if traitCollection.userInterfaceIdiom == .phone {
 			self.navigationController?.navigationBar.prefersLargeTitles = true
@@ -180,6 +182,12 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		NotificationCenter.default.addObserver(self, selector: #selector(faviconDidBecomeAvailable(_:)), name: .htmlMetadataAvailable, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(feedIconDidBecomeAvailable(_:)), name: .feedIconDidBecomeAvailable, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(feedSettingDidChange(_:)), name: .feedSettingDidChange, object: nil)
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(featureAppearanceDidChange),
+			name: .netNewsWireFeatureAppearanceDidChange,
+			object: nil
+		)
 
 		registerForTraitChanges([UITraitPreferredContentSizeCategory.self], target: self, action: #selector(preferredContentSizeCategoryDidChange))
 	}
@@ -189,7 +197,13 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		let standardCellLeadingOffSet = 48.0
 		let indentedCellLeadingOffSet = 64.0
 		let useSidebarAppearance = traitCollection.userInterfaceIdiom == .pad
-		var config = UICollectionLayoutListConfiguration(appearance: useSidebarAppearance ? .sidebar : .insetGrouped)
+		usesSidebarAppearance = useSidebarAppearance
+		var config = UICollectionLayoutListConfiguration(
+			appearance: useSidebarAppearance ? .sidebar : .insetGrouped
+		)
+		config.backgroundColor = useSidebarAppearance
+			? (NetNewsWireFeatureTheme.appearance == nil ? .clear : NetNewsWireFeatureTheme.background)
+			: NetNewsWireFeatureTheme.groupedBackground
 		config.headerMode = .supplementary
 
 		config.trailingSwipeActionsConfigurationProvider = { [weak self] indexPath in
@@ -207,7 +221,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			}
 			deleteAction.image = UIImage(systemName: "trash")
 			deleteAction.accessibilityLabel = deleteTitle
-			deleteAction.backgroundColor = UIColor.systemRed
+			deleteAction.backgroundColor = NetNewsWireFeatureTheme.destructive
 			actions.append(deleteAction)
 
 			// Set up the rename action
@@ -216,7 +230,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 				self?.rename(indexPath: indexPath)
 				completion(true)
 			}
-			renameAction.backgroundColor = UIColor.systemOrange
+			renameAction.backgroundColor = NetNewsWireFeatureTheme.warning
 			renameAction.image = UIImage(systemName: "pencil")
 			renameAction.accessibilityLabel = renameTitle
 			actions.append(renameAction)
@@ -264,7 +278,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 				}
 
-				moreAction.backgroundColor = UIColor.systemGray
+				moreAction.backgroundColor = NetNewsWireFeatureTheme.tertiaryTint
 				moreAction.image = UIImage(systemName: "ellipsis")
 				moreAction.accessibilityLabel = moreTitle
 				actions.append(moreAction)
@@ -305,14 +319,30 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 		let layout = UICollectionViewCompositionalLayout.list(using: config)
 		collectionView.setCollectionViewLayout(layout, animated: false)
-		collectionView.refreshControl = UIRefreshControl()
-		collectionView.refreshControl!.addTarget(self, action: #selector(refreshAccounts(_:)), for: .valueChanged)
+		if collectionView.refreshControl == nil {
+			let refreshControl = UIRefreshControl()
+			refreshControl.addTarget(self, action: #selector(refreshAccounts(_:)), for: .valueChanged)
+			collectionView.refreshControl = refreshControl
+		}
 
-		if config.appearance == .sidebar {
-			// This defrosts the glass.
-			collectionView.backgroundColor = .clear
+		applyFeatureBackground()
+	}
+
+	@objc private func featureAppearanceDidChange() {
+		let contentOffset = collectionView.contentOffset
+		configureCollectionView()
+		collectionView.layoutIfNeeded()
+		collectionView.setContentOffset(contentOffset, animated: false)
+	}
+
+	private func applyFeatureBackground() {
+		if usesSidebarAppearance {
+			// Preserve standalone glass; contained scenes render against McReader's app background.
+			collectionView.backgroundColor = NetNewsWireFeatureTheme.appearance == nil
+				? .clear
+				: NetNewsWireFeatureTheme.background
 		} else {
-			collectionView.backgroundColor = .systemGroupedBackground
+			collectionView.backgroundColor = NetNewsWireFeatureTheme.groupedBackground
 		}
 	}
 
@@ -723,12 +753,12 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	}
 
 	func setFilterButtonToActive() {
-		filterButton.tintColor = Assets.Colors.primaryAccent
+		filterButton.tintColor = NetNewsWireFeatureTheme.tint
 		filterButton?.accLabelText = NNWLocalizedString("Selected - Filter Read Feeds", comment: "Selected - Filter Read Feeds")
 	}
 
 	func setFilterButtonToInactive() {
-		filterButton.tintColor = .label
+		filterButton.tintColor = NetNewsWireFeatureTheme.primaryText
 		filterButton?.accLabelText = NNWLocalizedString("Filter Read Feeds", comment: "Filter Read Feeds")
 	}
 

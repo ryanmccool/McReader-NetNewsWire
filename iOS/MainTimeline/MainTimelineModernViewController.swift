@@ -105,6 +105,7 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 	private lazy var navigationBarTitleLabel: UILabel = {
 		let label = UILabel()
 		label.font = UIFont.preferredFont(forTextStyle: .subheadline).bold()
+		label.textColor = NetNewsWireFeatureTheme.primaryText
 		label.isUserInteractionEnabled = true
 		label.numberOfLines = 1
 		label.textAlignment = .center
@@ -121,7 +122,7 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 	private lazy var navigationBarSubtitleTitleLabel: UILabel = {
 		let label = UILabel()
 		label.font = .systemFont(ofSize: 12)
-		label.textColor = .systemGray
+		label.textColor = NetNewsWireFeatureTheme.secondaryText
 		label.textAlignment = .center
 		label.isUserInteractionEnabled = true
 		label.adjustsFontForContentSizeCategory = false
@@ -575,7 +576,7 @@ extension MainTimelineModernViewController: UICollectionViewDelegate {
 		let previewView = cell.contentView
 		var bounds = previewView.bounds
 		let parameters = UIPreviewParameters()
-		parameters.backgroundColor = cell.isSelected ? cell.backgroundConfiguration?.backgroundColor : .tertiarySystemBackground
+		parameters.backgroundColor = cell.isSelected ? cell.backgroundConfiguration?.backgroundColor : NetNewsWireFeatureTheme.elevatedBackground
 		if let insets = cell.backgroundConfiguration?.backgroundInsets {
 			bounds = bounds.inset(by: UIEdgeInsets(top: insets.top,
 												   left: -insets.leading - 4,
@@ -597,7 +598,7 @@ extension MainTimelineModernViewController: UICollectionViewDelegate {
 		let previewView = cell.contentView
 		var bounds = previewView.bounds
 		let parameters = UIPreviewParameters()
-		parameters.backgroundColor = cell.isSelected ? cell.backgroundConfiguration?.backgroundColor : .tertiarySystemBackground
+		parameters.backgroundColor = cell.isSelected ? cell.backgroundConfiguration?.backgroundColor : NetNewsWireFeatureTheme.elevatedBackground
 		if let insets = cell.backgroundConfiguration?.backgroundInsets {
 			bounds = bounds.inset(by: UIEdgeInsets(top: insets.top,
 												   left: -insets.leading - 4,
@@ -778,7 +779,7 @@ private extension MainTimelineModernViewController {
 			}
 
 			moreAction.image = Assets.Images.more
-			moreAction.backgroundColor = UIColor.systemGray
+			moreAction.backgroundColor = NetNewsWireFeatureTheme.tertiaryTint
 
 			actions.append(starAction)
 			actions.append(moreAction)
@@ -821,7 +822,7 @@ private extension MainTimelineModernViewController {
 			}
 
 			readAction.image = article.status.read ? Assets.Images.circleClosed : Assets.Images.circleOpen
-			readAction.backgroundColor = Assets.Colors.primaryAccent
+			readAction.backgroundColor = NetNewsWireFeatureTheme.tint
 			actions.append(readAction)
 
 			let config = UISwipeActionsConfiguration(actions: actions)
@@ -917,10 +918,10 @@ private extension MainTimelineModernViewController {
 		navigationItem.rightBarButtonItem = shouldShowFilterButton ? filterButton : nil
 
 		if isReadArticlesFiltered {
-			filterButton.tintColor = Assets.Colors.primaryAccent
+			filterButton.tintColor = NetNewsWireFeatureTheme.tint
 			filterButton.accLabelText = NNWLocalizedString("Selected - Filter Read Articles", comment: "Selected - Filter Read Articles")
 		} else {
-			filterButton.tintColor = .label
+			filterButton.tintColor = NetNewsWireFeatureTheme.primaryText
 			filterButton.accLabelText = NNWLocalizedString("Filter Read Articles", comment: "Filter Read Articles")
 		}
 

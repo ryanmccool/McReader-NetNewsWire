@@ -79,6 +79,12 @@ final class MainFeedCollectionHeaderReusableView: UICollectionReusableView {
 			unreadLabelWidthConstraint?.isActive = true
 			configureUI()
 			addTapGesture()
+			NotificationCenter.default.addObserver(
+				self,
+				selector: #selector(featureAppearanceDidChange),
+				name: .netNewsWireFeatureAppearanceDidChange,
+				object: nil
+			)
 		}
 	}
 
@@ -94,7 +100,18 @@ final class MainFeedCollectionHeaderReusableView: UICollectionReusableView {
 	}
 
 	func configureUI() {
-		headerTitle.textColor = traitCollection.userInterfaceIdiom == .pad ? .tertiaryLabel : .label
+		if traitCollection.userInterfaceIdiom == .pad {
+			backgroundColor = NetNewsWireFeatureTheme.appearance == nil
+				? .clear
+				: NetNewsWireFeatureTheme.background
+		} else {
+			backgroundColor = NetNewsWireFeatureTheme.groupedBackground
+		}
+		headerTitle.textColor = traitCollection.userInterfaceIdiom == .pad ? NetNewsWireFeatureTheme.tertiaryText : NetNewsWireFeatureTheme.primaryText
+	}
+
+	@objc private func featureAppearanceDidChange() {
+		configureUI()
 	}
 
 	private func addTapGesture() {

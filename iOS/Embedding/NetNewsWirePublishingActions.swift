@@ -28,22 +28,45 @@ public enum NetNewsWirePublishingIntent: Equatable, Sendable {
 @MainActor
 public struct NetNewsWirePublishingActions {
 	public var send: (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void
+	public var shareMarkdown: (NetNewsWirePublishingCapture) -> Void
 	let isEnabled: Bool
+	let isMarkdownSharingEnabled: Bool
 
 	public init(send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void) {
 		self.send = send
+		self.shareMarkdown = { _ in }
 		self.isEnabled = true
+		self.isMarkdownSharingEnabled = false
+	}
+
+	public init(
+		send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void,
+		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void
+	) {
+		self.send = send
+		self.shareMarkdown = shareMarkdown
+		self.isEnabled = true
+		self.isMarkdownSharingEnabled = true
 	}
 
 	private init(
 		send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void,
-		isEnabled: Bool
+		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void,
+		isEnabled: Bool,
+		isMarkdownSharingEnabled: Bool
 	) {
 		self.send = send
+		self.shareMarkdown = shareMarkdown
 		self.isEnabled = isEnabled
+		self.isMarkdownSharingEnabled = isMarkdownSharingEnabled
 	}
 
-	public static let disabled = NetNewsWirePublishingActions(send: { _, _ in }, isEnabled: false)
+	public static let disabled = NetNewsWirePublishingActions(
+		send: { _, _ in },
+		shareMarkdown: { _ in },
+		isEnabled: false,
+		isMarkdownSharingEnabled: false
+	)
 }
 
 struct NetNewsWirePublishingMenuText {
@@ -54,6 +77,7 @@ struct NetNewsWirePublishingMenuText {
 		let postNote: String
 		let captureSelection: String
 		let postHighlights: String
+		let shareMarkdown: String
 	}
 
 	static func accessibilityLabel(
@@ -72,8 +96,24 @@ struct NetNewsWirePublishingMenuText {
 			postLink: localize("Post Link...", "Command"),
 			postNote: localize("Post Note...", "Command"),
 			captureSelection: localize("Capture Selection", "Command"),
-			postHighlights: localize("Post Highlights...", "Command")
+			postHighlights: localize("Post Highlights...", "Command"),
+			shareMarkdown: localize("Share as Markdown...", "Command")
 		)
+	}
+}
+
+enum NetNewsWireMarkdownSharing {
+	static func capture(
+		base: NetNewsWirePublishingCapture,
+		renderedHighlights: [NetNewsWireHighlightRecord],
+		resolvedPositions: [UUID: Int]
+	) -> NetNewsWirePublishingCapture {
+		var capture = base
+		capture.selectedText = ArticleHighlightPosting.quotation(
+			records: renderedHighlights,
+			resolvedOffsets: resolvedPositions
+		)
+		return capture
 	}
 }
 

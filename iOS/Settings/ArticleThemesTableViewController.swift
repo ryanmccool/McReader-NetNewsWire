@@ -106,7 +106,7 @@ final class ArticleThemesTableViewController: UITableViewController {
 		}
 
 		deleteAction.image = Assets.Images.trash
-		deleteAction.backgroundColor = UIColor.systemRed
+		deleteAction.backgroundColor = NetNewsWireFeatureTheme.destructive
 
 		return UISwipeActionsConfiguration(actions: [deleteAction])
 	}

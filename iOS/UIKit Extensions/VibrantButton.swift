@@ -10,7 +10,7 @@ import UIKit
 
 final class VibrantButton: UIButton {
 
-	@IBInspectable var backgroundHighlightColor: UIColor = Assets.Colors.secondaryAccent
+	@IBInspectable var backgroundHighlightColor: UIColor = NetNewsWireFeatureTheme.selectedBackground
 
 	override init(frame: CGRect) {
 		super.init(frame: frame)
@@ -22,15 +22,37 @@ final class VibrantButton: UIButton {
 	}
 
 	private func commonInit() {
-		setTitleColor(Assets.Colors.vibrantText, for: .highlighted)
-		let disabledColor = Assets.Colors.secondaryAccent.withAlphaComponent(0.5)
+		applyFeatureAppearance()
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(featureAppearanceDidChange),
+			name: .netNewsWireFeatureAppearanceDidChange,
+			object: nil
+		)
+	}
+
+	@objc private func featureAppearanceDidChange() {
+		applyFeatureAppearance()
+	}
+
+	private func applyFeatureAppearance() {
+		backgroundHighlightColor = NetNewsWireFeatureTheme.selectedBackground
+		setTitleColor(NetNewsWireFeatureTheme.selectedText, for: .highlighted)
+		let disabledColor = NetNewsWireFeatureTheme.secondaryTint.withAlphaComponent(0.5)
 		setTitleColor(disabledColor, for: .disabled)
+		if isHighlighted {
+			backgroundColor = backgroundHighlightColor
+		}
 	}
 
 	override var isHighlighted: Bool {
 		didSet {
 			backgroundColor = isHighlighted ? backgroundHighlightColor : nil
 		}
+	}
+
+	deinit {
+		NotificationCenter.default.removeObserver(self)
 	}
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

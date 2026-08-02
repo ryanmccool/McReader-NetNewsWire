@@ -60,7 +60,7 @@ private extension RefreshProgressView {
 
 		label.translatesAutoresizingMaskIntoConstraints = false
 		label.font = UIFont.preferredFont(forTextStyle: .footnote)
-		label.textColor = .secondaryLabel
+		label.textColor = NetNewsWireFeatureTheme.secondaryText
 		label.textAlignment = .center
 		label.adjustsFontForContentSizeCategory = true
 		addSubview(label)

@@ -16,7 +16,7 @@ final class TimelineHeaderView: UICollectionReusableView {
 
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = .preferredFont(forTextStyle: .headline)
-        label.textColor = .label
+        label.textColor = NetNewsWireFeatureTheme.primaryText
 
         addSubview(label)
 

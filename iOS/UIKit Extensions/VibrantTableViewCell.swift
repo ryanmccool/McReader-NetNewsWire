@@ -14,16 +14,16 @@ class VibrantTableViewCell: UITableViewCell {
 
 	var labelColor: UIColor {
 		if selectionStyle == .none {
-			return UIColor.label
+			return NetNewsWireFeatureTheme.primaryText
 		}
-		return isHighlighted || isSelected ? Assets.Colors.vibrantText : UIColor.label
+		return isHighlighted || isSelected ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.primaryText
 	}
 
 	var secondaryLabelColor: UIColor {
 		if selectionStyle == .none {
-			return UIColor.secondaryLabel
+			return NetNewsWireFeatureTheme.secondaryText
 		}
-		return isHighlighted || isSelected ? Assets.Colors.vibrantText : UIColor.secondaryLabel
+		return isHighlighted || isSelected ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.secondaryText
 	}
 
 	override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -38,6 +38,12 @@ class VibrantTableViewCell: UITableViewCell {
 
 	private func commonInit() {
 		applyThemeProperties()
+		NotificationCenter.default.addObserver(
+			self,
+			selector: #selector(featureAppearanceDidChange),
+			name: .netNewsWireFeatureAppearanceDidChange,
+			object: nil
+		)
 	}
 
 	override func setHighlighted(_ highlighted: Bool, animated: Bool) {
@@ -53,8 +59,13 @@ class VibrantTableViewCell: UITableViewCell {
 	/// Subclass overrides should call super
 	func applyThemeProperties() {
 		let selectedBackgroundView = UIView(frame: .zero)
-		selectedBackgroundView.backgroundColor = Assets.Colors.secondaryAccent
+		selectedBackgroundView.backgroundColor = NetNewsWireFeatureTheme.selectedBackground
 		self.selectedBackgroundView = selectedBackgroundView
+	}
+
+	@objc private func featureAppearanceDidChange() {
+		applyThemeProperties()
+		updateVibrancy(animated: false)
 	}
 
 	/// Subclass overrides should call super
@@ -74,6 +85,10 @@ class VibrantTableViewCell: UITableViewCell {
 		}
 	}
 
+	deinit {
+		NotificationCenter.default.removeObserver(self)
+	}
+
 }
 
 class VibrantBasicTableViewCell: VibrantTableViewCell {
@@ -86,7 +101,7 @@ class VibrantBasicTableViewCell: VibrantTableViewCell {
 	@IBInspectable var imageSelected: UIImage?
 
 	var iconTint: UIColor {
-		return isHighlighted || isSelected ? labelColor : Assets.Colors.primaryAccent
+		return isHighlighted || isSelected ? labelColor : NetNewsWireFeatureTheme.tint
 	}
 
 	var iconImage: UIImage? {

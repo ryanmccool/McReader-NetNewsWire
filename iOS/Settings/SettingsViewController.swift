@@ -86,6 +86,10 @@ final class SettingsViewController: UITableViewController {
 		appDelegate.capabilities.mayPresentUserNotifications
 	}
 
+	private var usesHostAppearance: Bool {
+		NetNewsWireFeatureTheme.appearance != nil
+	}
+
 	override func viewDidLoad() {
 		// This hack mostly works around a bug in static tables with dynamic type.  See: https://spin.atomicobject.com/2018/10/15/dynamic-type-static-uitableview/
 		NotificationCenter.default.removeObserver(tableView!, name: UIContentSizeCategory.didChangeNotification, object: nil)
@@ -152,7 +156,7 @@ final class SettingsViewController: UITableViewController {
 
 		let buildLabel = NonIntrinsicLabel(frame: CGRect(x: 32.0, y: 0.0, width: 0.0, height: 0.0))
 		buildLabel.font = UIFont.systemFont(ofSize: 11.0)
-		buildLabel.textColor = UIColor.gray
+		buildLabel.textColor = NetNewsWireFeatureTheme.secondaryText
 		buildLabel.text = "\(Bundle.main.appName) \(Bundle.main.versionNumber) (Build \(Bundle.main.buildNumber))"
 		buildLabel.sizeToFit()
 		buildLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -191,8 +195,15 @@ final class SettingsViewController: UITableViewController {
 			}
 			return defaultNumberOfRows
 		case .articles:
-			// The Full Screen Articles row is iPhone-only.
-			return traitCollection.userInterfaceIdiom == .phone ? ArticlesRow.allCases.count : ArticlesRow.allCases.count - 1
+			// McReader owns the only article appearance in contained mode.
+			let rowCount = traitCollection.userInterfaceIdiom == .phone
+				? ArticlesRow.allCases.count
+				: ArticlesRow.allCases.count - 1
+			return usesHostAppearance ? rowCount - 1 : rowCount
+		case .appearance:
+			return usesHostAppearance
+				? 0
+				: super.tableView(tableView, numberOfRowsInSection: section)
 		case .troubleshooting:
 			let defaultNumberOfRows = super.tableView(tableView, numberOfRowsInSection: section)
 			if !shouldShowCloudKitResetRow {
@@ -205,6 +216,27 @@ final class SettingsViewController: UITableViewController {
 		default:
 			return super.tableView(tableView, numberOfRowsInSection: section)
 		}
+	}
+
+	override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+		guard !(usesHostAppearance && Section(rawValue: section) == .appearance) else {
+			return nil
+		}
+		return super.tableView(tableView, titleForHeaderInSection: section)
+	}
+
+	override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+		guard !(usesHostAppearance && Section(rawValue: section) == .appearance) else {
+			return .leastNormalMagnitude
+		}
+		return super.tableView(tableView, heightForHeaderInSection: section)
+	}
+
+	override func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+		guard !(usesHostAppearance && Section(rawValue: section) == .appearance) else {
+			return .leastNormalMagnitude
+		}
+		return super.tableView(tableView, heightForFooterInSection: section)
 	}
 
 	override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -225,6 +257,11 @@ final class SettingsViewController: UITableViewController {
 				acctCell.comboNameLabel?.text = account.nameForDisplay
 				cell = acctCell
 			}
+		case .articles where usesHostAppearance:
+			cell = super.tableView(
+				tableView,
+				cellForRowAt: IndexPath(row: indexPath.row + 1, section: indexPath.section)
+			)
 		case .troubleshooting where shouldRemapCloudKitResetRow(indexPath):
 			cell = super.tableView(tableView, cellForRowAt: IndexPath(
 				row: TroubleshootingRow.resetCloudKitFeeds.rawValue,
@@ -290,7 +327,7 @@ final class SettingsViewController: UITableViewController {
 				break
 			}
 		case .articles:
-			switch ArticlesRow(rawValue: indexPath.row) {
+			switch ArticlesRow(rawValue: indexPath.row + (usesHostAppearance ? 1 : 0)) {
 			case .theme:
 				let articleThemes = UIStoryboard.settings.instantiateController(ofType: ArticleThemesTableViewController.self)
 				self.navigationController?.pushViewController(articleThemes, animated: true)
@@ -592,7 +629,7 @@ private extension SettingsViewController {
 		let enabled = AccountManager.shared.cloudKitResetCanRun && !cloudKitResetInProgress
 		cell.isUserInteractionEnabled = enabled
 		cell.textLabel?.text = NNWLocalizedString("Reset iCloud Feed Data", comment: "Destructive iCloud feed reset settings row")
-		cell.textLabel?.textColor = enabled ? .systemRed : .secondaryLabel
+		cell.textLabel?.textColor = enabled ? NetNewsWireFeatureTheme.destructive : NetNewsWireFeatureTheme.secondaryText
 		if cloudKitResetInProgress {
 			let activityIndicator = UIActivityIndicatorView(style: .medium)
 			activityIndicator.startAnimating()
