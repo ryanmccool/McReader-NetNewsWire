@@ -1,8 +1,14 @@
 import XCTest
+import UIKit
 @testable import NetNewsWireFeature
 
 @MainActor
 final class NetNewsWirePublishingActionsTests: XCTestCase {
+	override class func setUp() {
+		super.setUp()
+		try! NetNewsWireFeatureTestEnvironment.configure()
+	}
+
 	func testCaptureExportsOnlyPlainPublishingValues() {
 		let url = URL(string: "https://example.com/article")!
 		let capture = NetNewsWirePublishingCapture(
@@ -24,8 +30,11 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 
 	func testPublishingIntentsArePlainSendableValues() {
 		XCTAssertEqual(NetNewsWirePublishingIntent.capture, .capture)
-		XCTAssertEqual(NetNewsWirePublishingIntent.post, .post)
+		XCTAssertEqual(NetNewsWirePublishingIntent.postAs(.quotation), .postAs(.quotation))
+		XCTAssertEqual(NetNewsWirePublishingIntent.postAs(.blogmark), .postAs(.blogmark))
+		XCTAssertEqual(NetNewsWirePublishingIntent.postAs(.note), .postAs(.note))
 		assertSendable(NetNewsWirePublishingIntent.capture)
+		assertSendable(NetNewsWirePublishingIntent.postAs(.quotation))
 	}
 
 	func testPublishingActionsSendCaptureAndIntent() {
@@ -42,10 +51,10 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 			receivedIntent = intent
 		}
 
-		actions.send(expectedCapture, .post)
+		actions.send(expectedCapture, .postAs(.blogmark))
 
 		XCTAssertEqual(receivedCapture, expectedCapture)
-		XCTAssertEqual(receivedIntent, .post)
+		XCTAssertEqual(receivedIntent, .postAs(.blogmark))
 	}
 
 	func testDisabledPublishingActionsAreNoOp() {
@@ -85,12 +94,25 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		}
 
 		XCTAssertEqual(titles.captureLink, "Capture Link|Command")
+		XCTAssertEqual(titles.postQuote, "Post Quote...|Command")
 		XCTAssertEqual(titles.postLink, "Post Link...|Command")
+		XCTAssertEqual(titles.postNote, "Post Note...|Command")
 		XCTAssertEqual(titles.captureSelection, "Capture Selection|Command")
 		XCTAssertEqual(titles.postHighlights, "Post Highlights...|Command")
-		XCTAssertFalse(Mirror(reflecting: titles).children.contains { child in
-			(child.value as? String)?.contains("Post Selection") == true
-		})
+	}
+
+	func testArticleMenuKeepsShareInItsOwnLeadingSectionAndPostLabelsWhole() throws {
+		let controller = ArticleViewController.instantiate(from: .main, highlightActions: .disabled)
+		controller.publishingActions = NetNewsWirePublishingActions { _, _ in }
+
+		let menu = controller.makePublishingMenu()
+		let sections = menu.children.compactMap { $0 as? UIMenu }
+		XCTAssertEqual(sections.count, 2)
+		XCTAssertEqual((sections[0].children.first as? UIAction)?.title, "Share")
+		let publishingTitles = sections[1].children.compactMap { ($0 as? UIAction)?.title }
+		XCTAssertTrue(publishingTitles.contains("Post Quote..."))
+		XCTAssertTrue(publishingTitles.contains("Post Link..."))
+		XCTAssertTrue(publishingTitles.contains("Post Note..."))
 	}
 
 	func testHighlightCaptureFreshLoadsAndUsesResolvedPostingOrder() async throws {
@@ -138,11 +160,11 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		var received: [(NetNewsWirePublishingCapture, NetNewsWirePublishingIntent)] = []
 		let actions = NetNewsWirePublishingActions { received.append(($0, $1)) }
 		if let tappedCapture {
-			actions.send(tappedCapture, .post)
+			actions.send(tappedCapture, .postAs(.quotation))
 		}
 		XCTAssertEqual(received.count, 1)
 		XCTAssertEqual(received.first?.0, tappedCapture)
-		XCTAssertEqual(received.first?.1, .post)
+		XCTAssertEqual(received.first?.1, .postAs(.quotation))
 	}
 
 	func testHighlightCaptureRequiresNonblankTextAndCurrentOrPersistedURL() async {

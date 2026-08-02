@@ -76,7 +76,7 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 		)
 
 		firstHost.publishingActions.send(capture, .capture)
-		secondHost.publishingActions.send(capture, .post)
+		secondHost.publishingActions.send(capture, .postAs(.note))
 
 		XCTAssertEqual(firstHostSendCount, 1)
 		XCTAssertEqual(secondHostSendCount, 1)

@@ -585,24 +585,21 @@ extension ArticleViewController: UIGestureRecognizerDelegate {
 
 }
 
-// MARK: Private
-
-private extension ArticleViewController {
-	func configurePublishingMenu() {
+extension ArticleViewController {
+	func makePublishingMenu() -> UIMenu {
 		let localize = { NNWLocalizedString($0, comment: $1) }
-		actionBarButtonItem.accessibilityLabel = NetNewsWirePublishingMenuText.accessibilityLabel(
-			actionsEnabled: publishingActions.isEnabled,
-			existingLabel: actionBarButtonItem.accessibilityLabel,
-			localize: localize
-		)
-		guard publishingActions.isEnabled else { return }
 		let titles = NetNewsWirePublishingMenuText.actionTitles(localize: localize)
-
 		let captureLink = UIAction(title: titles.captureLink) { [weak self] _ in
 			self?.sendLink(intent: .capture)
 		}
+		let postQuote = UIAction(title: titles.postQuote) { [weak self] _ in
+			self?.sendQuote()
+		}
 		let postLink = UIAction(title: titles.postLink) { [weak self] _ in
-			self?.sendLink(intent: .post)
+			self?.sendLink(intent: .postAs(.blogmark))
+		}
+		let postNote = UIAction(title: titles.postNote) { [weak self] _ in
+			self?.sendLink(intent: .postAs(.note))
 		}
 		let selectionActions = UIDeferredMenuElement.uncached { [weak self] completion in
 			guard let self,
@@ -612,9 +609,12 @@ private extension ArticleViewController {
 				completion([])
 				return
 			}
+			let articleID = article.articleID
 
 			Task { @MainActor in
-				guard let selectedText = await webViewController.selectedPlainText() else {
+				guard let selectedText = await webViewController.selectedPlainText(),
+					currentWebViewController === webViewController,
+					webViewController.article?.articleID == articleID else {
 					completion([])
 					return
 				}
@@ -649,11 +649,34 @@ private extension ArticleViewController {
 				completion([postHighlights])
 			}
 		}
-		let share = UIAction(title: NNWLocalizedString("Share", comment: "Share button"), image: Assets.Images.share) { [weak self] _ in
+		let share = UIAction(
+			title: NNWLocalizedString("Share", comment: "Share button"),
+			image: Assets.Images.share
+		) { [weak self] _ in
 			self?.currentWebViewController?.showActivityDialog(popOverBarButtonItem: self?.actionBarButtonItem)
 		}
+		let shareSection = UIMenu(title: "", options: .displayInline, children: [share])
+		let publishingSection = UIMenu(
+			title: "",
+			options: .displayInline,
+			children: [captureLink, postQuote, postLink, postNote, selectionActions, highlightActions]
+		)
+		return UIMenu(children: [shareSection, publishingSection])
+	}
+}
 
-		actionBarButtonItem.menu = UIMenu(children: [captureLink, postLink, selectionActions, highlightActions, share])
+// MARK: Private
+
+private extension ArticleViewController {
+	func configurePublishingMenu() {
+		let localize = { NNWLocalizedString($0, comment: $1) }
+		actionBarButtonItem.accessibilityLabel = NetNewsWirePublishingMenuText.accessibilityLabel(
+			actionsEnabled: publishingActions.isEnabled,
+			existingLabel: actionBarButtonItem.accessibilityLabel,
+			localize: localize
+		)
+		guard publishingActions.isEnabled else { return }
+		actionBarButtonItem.menu = makePublishingMenu()
 		actionBarButtonItem.target = nil
 		actionBarButtonItem.action = nil
 	}
@@ -662,6 +685,27 @@ private extension ArticleViewController {
 		guard let article = currentWebViewController?.article,
 			let capture = publishingCapture(article: article, selectedText: nil) else { return }
 		publishingActions.send(capture, intent)
+	}
+
+	func sendQuote() {
+		guard let webViewController = currentWebViewController,
+			let article = webViewController.article,
+			let baseCapture = publishingCapture(article: article, selectedText: nil) else {
+			return
+		}
+		let articleID = article.articleID
+
+		Task { @MainActor [weak self] in
+			let selectedText = await webViewController.selectedPlainText()
+			guard let self,
+				currentWebViewController === webViewController,
+				webViewController.article?.articleID == articleID else {
+				return
+			}
+			var capture = baseCapture
+			capture.selectedText = selectedText
+			publishingActions.send(capture, .postAs(.quotation))
+		}
 	}
 
 	func publishingCapture(article: Article?, selectedText: String?) -> NetNewsWirePublishingCapture? {
@@ -692,7 +736,7 @@ private extension ArticleViewController {
 				) else {
 				return
 			}
-			self.publishingActions.send(capture, .post)
+			self.publishingActions.send(capture, .postAs(.quotation))
 		}
 	}
 

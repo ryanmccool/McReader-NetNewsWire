@@ -14,9 +14,15 @@ public struct NetNewsWirePublishingCapture: Equatable, Sendable {
 	}
 }
 
+public enum NetNewsWirePublishingPostKind: Equatable, Sendable {
+	case quotation
+	case blogmark
+	case note
+}
+
 public enum NetNewsWirePublishingIntent: Equatable, Sendable {
 	case capture
-	case post
+	case postAs(NetNewsWirePublishingPostKind)
 }
 
 @MainActor
@@ -43,7 +49,9 @@ public struct NetNewsWirePublishingActions {
 struct NetNewsWirePublishingMenuText {
 	struct ActionTitles {
 		let captureLink: String
+		let postQuote: String
 		let postLink: String
+		let postNote: String
 		let captureSelection: String
 		let postHighlights: String
 	}
@@ -60,7 +68,9 @@ struct NetNewsWirePublishingMenuText {
 	static func actionTitles(localize: (String, String) -> String) -> ActionTitles {
 		ActionTitles(
 			captureLink: localize("Capture Link", "Command"),
+			postQuote: localize("Post Quote...", "Command"),
 			postLink: localize("Post Link...", "Command"),
+			postNote: localize("Post Note...", "Command"),
 			captureSelection: localize("Capture Selection", "Command"),
 			postHighlights: localize("Post Highlights...", "Command")
 		)
