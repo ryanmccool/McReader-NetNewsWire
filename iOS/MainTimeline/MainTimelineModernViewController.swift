@@ -16,6 +16,18 @@ import Account
 import Articles
 import Images
 
+@MainActor enum MainTimelineFeatureAppearance {
+	static func apply(to collectionView: UICollectionView?) {
+		guard let collectionView else { return }
+		collectionView.backgroundColor = NetNewsWireFeatureTheme.appearance == nil
+			? .systemBackground
+			: NetNewsWireFeatureTheme.secondaryBackground
+		for cell in collectionView.visibleCells {
+			cell.setNeedsUpdateConfiguration()
+		}
+	}
+}
+
 final class MainTimelineModernViewController: UIViewController, UndoableCommandRunner {
 
 	// MARK: Private Variables
@@ -171,6 +183,8 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 
 		assert(dataSource != nil)
 		configureCollectionView(dataSource!)
+		applyFeatureAppearance()
+		applyFeatureNavigationAppearance()
 
 		configureSearchController()
 		definesPresentationContext = true
@@ -223,6 +237,7 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 			navigationController?.navigationBar.alpha = 0
 		}
 
+		applyFeatureNavigationAppearance()
 		updateNavigationBarTitle(coordinator?.timelineFeed?.nameForDisplay ?? "")
 		coordinator?.updateNavigationBarSubtitles(nil)
 		updateToolbarProgressView()
@@ -641,6 +656,17 @@ extension MainTimelineModernViewController {
 			cell.setNeedsUpdateConfiguration()
 		}
 	}
+
+	@objc func featureAppearanceDidChange() {
+		if let collectionView, let dataSource {
+			let contentOffset = collectionView.contentOffset
+			configureCollectionView(dataSource)
+			collectionView.layoutIfNeeded()
+			collectionView.setContentOffset(contentOffset, animated: false)
+		}
+		applyFeatureAppearance()
+		applyFeatureNavigationAppearance()
+	}
 }
 
 // MARK: Private API
@@ -666,6 +692,7 @@ private extension MainTimelineModernViewController {
 		NotificationCenter.default.addObserver(self, selector: #selector(willEnterForeground(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(handleLowMemory(_:)), name: .lowMemory, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(handleAppDidGoToBackground(_:)), name: .appDidGoToBackground, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(featureAppearanceDidChange), name: .netNewsWireFeatureAppearanceDidChange, object: nil)
 	}
 
 	private func configureSearchController() {
@@ -696,6 +723,9 @@ private extension MainTimelineModernViewController {
 		var config = UICollectionLayoutListConfiguration(appearance: .plain)
 		config.showsSeparators = false
 		config.headerMode = .none
+		if NetNewsWireFeatureTheme.appearance != nil {
+			config.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		}
 		config.trailingSwipeActionsConfigurationProvider = { [weak self] indexPath in
 			guard let self else {
 				return nil
@@ -1069,8 +1099,29 @@ private extension MainTimelineModernViewController {
 		queueUpdateUI()
 	}
 
+	func applyFeatureAppearance() {
+		guard isViewLoaded else { return }
+		MainTimelineFeatureAppearance.apply(to: collectionView)
+		NetNewsWireFeatureTheme.updateTopScrollEdgeEffect(for: collectionView)
+	}
+
 	@objc func handleLowMemory(_ note: Notification) {
 		emptyTextSizerCaches()
+	}
+
+
+	func applyFeatureNavigationAppearance() {
+		let appearance = NetNewsWireFeatureTheme.navigationBarAppearance(
+			background: NetNewsWireFeatureTheme.appearance == nil
+				? nil
+				: NetNewsWireFeatureTheme.secondaryBackground
+		)
+		navigationItem.standardAppearance = appearance
+		navigationItem.scrollEdgeAppearance = appearance
+		navigationItem.compactAppearance = appearance
+		navigationController?.navigationBar.standardAppearance = appearance
+		navigationController?.navigationBar.scrollEdgeAppearance = appearance
+		navigationController?.navigationBar.compactAppearance = appearance
 	}
 
 	@objc func handleAppDidGoToBackground(_ note: Notification) {

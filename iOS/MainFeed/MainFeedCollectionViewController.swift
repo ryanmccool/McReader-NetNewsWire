@@ -73,6 +73,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		registerForNotifications()
 		configureCurrentActivityButton()
 		configureCollectionView()
+		applyFeatureNavigationAppearance()
 		configureDiffableDataSource()
 		collectionView.dragDelegate = self
 		collectionView.dropDelegate = self
@@ -115,6 +116,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		updateUI()
 		super.viewWillAppear(animated)
 		applyFeatureBackground()
+		applyFeatureNavigationAppearance()
 
 		if traitCollection.userInterfaceIdiom == .phone {
 			self.navigationController?.navigationBar.prefersLargeTitles = true
@@ -201,9 +203,11 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		var config = UICollectionLayoutListConfiguration(
 			appearance: useSidebarAppearance ? .sidebar : .insetGrouped
 		)
-		config.backgroundColor = useSidebarAppearance
-			? (NetNewsWireFeatureTheme.appearance == nil ? .clear : NetNewsWireFeatureTheme.background)
-			: NetNewsWireFeatureTheme.groupedBackground
+		if NetNewsWireFeatureTheme.appearance != nil {
+			config.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		} else {
+			config.backgroundColor = useSidebarAppearance ? .clear : NetNewsWireFeatureTheme.groupedBackground
+		}
 		config.headerMode = .supplementary
 
 		config.trailingSwipeActionsConfigurationProvider = { [weak self] indexPath in
@@ -333,17 +337,32 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		configureCollectionView()
 		collectionView.layoutIfNeeded()
 		collectionView.setContentOffset(contentOffset, animated: false)
+		applyFeatureNavigationAppearance()
 	}
 
 	private func applyFeatureBackground() {
-		if usesSidebarAppearance {
-			// Preserve standalone glass; contained scenes render against McReader's app background.
-			collectionView.backgroundColor = NetNewsWireFeatureTheme.appearance == nil
-				? .clear
-				: NetNewsWireFeatureTheme.background
+		if NetNewsWireFeatureTheme.appearance != nil {
+			collectionView.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		} else if usesSidebarAppearance {
+			collectionView.backgroundColor = .clear
 		} else {
 			collectionView.backgroundColor = NetNewsWireFeatureTheme.groupedBackground
 		}
+		NetNewsWireFeatureTheme.updateTopScrollEdgeEffect(for: collectionView)
+	}
+
+	private func applyFeatureNavigationAppearance() {
+		let appearance = NetNewsWireFeatureTheme.navigationBarAppearance(
+			background: NetNewsWireFeatureTheme.appearance == nil
+				? nil
+				: NetNewsWireFeatureTheme.secondaryBackground
+		)
+		navigationItem.standardAppearance = appearance
+		navigationItem.scrollEdgeAppearance = appearance
+		navigationItem.compactAppearance = appearance
+		navigationController?.navigationBar.standardAppearance = appearance
+		navigationController?.navigationBar.scrollEdgeAppearance = appearance
+		navigationController?.navigationBar.compactAppearance = appearance
 	}
 
 	func configureDiffableDataSource() {

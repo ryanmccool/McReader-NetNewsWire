@@ -100,10 +100,10 @@ final class MainFeedCollectionHeaderReusableView: UICollectionReusableView {
 	}
 
 	func configureUI() {
-		if traitCollection.userInterfaceIdiom == .pad {
-			backgroundColor = NetNewsWireFeatureTheme.appearance == nil
-				? .clear
-				: NetNewsWireFeatureTheme.background
+		if NetNewsWireFeatureTheme.appearance != nil {
+			backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
+		} else if traitCollection.userInterfaceIdiom == .pad {
+			backgroundColor = .clear
 		} else {
 			backgroundColor = NetNewsWireFeatureTheme.groupedBackground
 		}

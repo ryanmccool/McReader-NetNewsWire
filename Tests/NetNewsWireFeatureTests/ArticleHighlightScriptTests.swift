@@ -285,6 +285,69 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(message["rendition"] as? String, "v1:feed-body")
 	}
 
+	func testSettledSelectionPostsAutomaticHighlightAnchor() async throws {
+		try await loadArticle(#"<p id="target">alpha beta</p>"#)
+
+		try await selectText(in: "target", from: 0, to: 5)
+		_ = try await valueResult("document.dispatchEvent(new Event('pointerup'))")
+		let message = try await messageRecorder.nextMessage(named: "highlightSelectionCompleted")
+		let anchor = try XCTUnwrap(message["anchor"] as? [String: Any])
+
+		XCTAssertEqual(message["generation"] as? Int, 42)
+		XCTAssertEqual(message["articleKey"] as? String, "article-key")
+		XCTAssertEqual(anchor["selectedText"] as? String, "alpha")
+		XCTAssertEqual(anchor["startOffset"] as? Int, 0)
+		XCTAssertEqual(anchor["endOffset"] as? Int, 5)
+		XCTAssertEqual(anchor["renditionKindRaw"] as? String, "v1:feed-body")
+	}
+
+	func testSelectionChangesProduceOnlyOneAutomaticHighlightAnchor() async throws {
+		try await loadArticle(#"<p id="target">alpha beta</p>"#)
+
+		try await selectText(in: "target", from: 0, to: 5)
+		try await selectText(in: "target", from: 6, to: 10)
+		_ = try await valueResult("document.dispatchEvent(new Event('pointerup'))")
+		let message = try await messageRecorder.nextMessage(named: "highlightSelectionCompleted")
+		try await Task.sleep(for: .milliseconds(300))
+
+		XCTAssertEqual((message["anchor"] as? [String: Any])?["selectedText"] as? String, "beta")
+		XCTAssertEqual(messageRecorder.messageCount(named: "highlightSelectionCompleted"), 0)
+	}
+
+
+	func testPointerGestureDoesNotPersistAnIntermediateSelection() async throws {
+		try await loadArticle(#"<p id="target">alpha beta</p>"#)
+
+		_ = try await valueResult("document.dispatchEvent(new Event('pointerdown'))")
+		try await selectText(in: "target", from: 0, to: 5)
+		try await Task.sleep(for: .milliseconds(150))
+		try await selectText(in: "target", from: 6, to: 10)
+		try await Task.sleep(for: .milliseconds(150))
+
+		XCTAssertEqual(messageRecorder.messageCount(named: "highlightSelectionCompleted"), 0)
+
+		_ = try await valueResult("document.dispatchEvent(new Event('pointerup'))")
+		let message = try await messageRecorder.nextMessage(named: "highlightSelectionCompleted")
+
+		XCTAssertEqual((message["anchor"] as? [String: Any])?["selectedText"] as? String, "beta")
+	}
+
+	func testCancelledPointerGestureDoesNotBlockTheNextKeyboardSelection() async throws {
+		try await loadArticle(#"<p id="target">alpha beta</p>"#)
+
+		_ = try await valueResult("document.dispatchEvent(new Event('pointerdown'))")
+		try await selectText(in: "target", from: 0, to: 5)
+		_ = try await valueResult("document.dispatchEvent(new Event('pointercancel'))")
+		_ = try await valueResult("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true }))")
+		try await selectText(in: "target", from: 6, to: 10)
+		_ = try await valueResult("document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift' }))")
+		_ = try await valueResult("document.dispatchEvent(new Event('selectionchange'))")
+
+		let message = try await messageRecorder.nextMessage(named: "highlightSelectionCompleted")
+
+		XCTAssertEqual((message["anchor"] as? [String: Any])?["selectedText"] as? String, "beta")
+	}
+
 	func testRestoreAbortsWhenPrepareChangesGenerationDuringFingerprint() async throws {
 		try await loadArticle(#"<p>alpha beta</p>"#)
 		let records = json([record(
@@ -388,7 +451,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 			forMainFrameOnly: true
 		))
 		messageRecorder = MessageRecorder()
-		for name in ["highlightSelectionChanged", "highlightWasTapped"] {
+		for name in ["highlightSelectionChanged", "highlightSelectionCompleted", "highlightWasTapped"] {
 			configuration.userContentController.add(messageRecorder, name: name)
 		}
 		webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480), configuration: configuration)

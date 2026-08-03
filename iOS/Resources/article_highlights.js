@@ -4,13 +4,18 @@
 	const markSelector = "mark.nnw-saved-highlight[data-nnw-highlight-id]";
 	const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 	const contextLimit = 48;
+	const selectionCompletionDelayMilliseconds = 100;
 	const state = {
 		generation: null,
 		articleKey: null,
 		rendition: null,
 		root: null,
 		listenersInstalled: false,
-		resolved: []
+		resolved: [],
+		selectionCompletionTimer: null,
+		selectionGestureActive: false,
+		keyboardSelectionActive: false,
+		keyboardSelectionChanged: false
 	};
 
 	function normalize(text) {
@@ -378,13 +383,86 @@
 		}
 	}
 
+	function cancelSelectionCompletion() {
+		clearTimeout(state.selectionCompletionTimer);
+		state.selectionCompletionTimer = null;
+	}
+
+	function scheduleSelectionCompletion() {
+		cancelSelectionCompletion();
+		if (!selectionRange()) {
+			return;
+		}
+		state.selectionCompletionTimer = setTimeout(async function() {
+			state.selectionCompletionTimer = null;
+			const anchor = await makeSelectionAnchor();
+			if (anchor) {
+				post("highlightSelectionCompleted", { anchor });
+			}
+		}, selectionCompletionDelayMilliseconds);
+	}
+
+	function beginPointerSelection() {
+		state.selectionGestureActive = true;
+		cancelSelectionCompletion();
+	}
+
+	function completePointerSelection() {
+		state.selectionGestureActive = false;
+		scheduleSelectionCompletion();
+	}
+
+	function cancelPointerSelection() {
+		state.selectionGestureActive = false;
+		cancelSelectionCompletion();
+	}
+
+	function resetSelectionTracking() {
+		state.selectionGestureActive = false;
+		state.keyboardSelectionActive = false;
+		state.keyboardSelectionChanged = false;
+		cancelSelectionCompletion();
+	}
+
+	function beginKeyboardSelection() {
+		state.keyboardSelectionActive = true;
+		state.keyboardSelectionChanged = false;
+		cancelSelectionCompletion();
+	}
+
+	function completeKeyboardSelection(event) {
+		if (!state.keyboardSelectionActive || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) {
+			return;
+		}
+		state.keyboardSelectionActive = false;
+		if (state.keyboardSelectionChanged) {
+			state.keyboardSelectionChanged = false;
+			scheduleSelectionCompletion();
+		}
+	}
+
 	function installListeners() {
 		if (state.listenersInstalled) {
 			return;
 		}
 		document.addEventListener("selectionchange", function() {
 			post("highlightSelectionChanged", selectionState());
+			if (state.selectionGestureActive) {
+				cancelSelectionCompletion();
+			}
+			if (state.keyboardSelectionActive) {
+				state.keyboardSelectionChanged = true;
+			}
 		});
+		document.addEventListener("pointerdown", beginPointerSelection);
+		document.addEventListener("touchstart", beginPointerSelection);
+		document.addEventListener("pointerup", completePointerSelection);
+		document.addEventListener("touchend", completePointerSelection);
+		document.addEventListener("pointercancel", cancelPointerSelection);
+		document.addEventListener("touchcancel", cancelPointerSelection);
+		document.addEventListener("keydown", beginKeyboardSelection);
+		document.addEventListener("keyup", completeKeyboardSelection);
+		window.addEventListener("blur", resetSelectionTracking);
 		document.addEventListener("click", function(event) {
 			const mark = event.target.closest ? event.target.closest(markSelector) : null;
 			if (!mark || !state.root || !state.root.contains(mark)) {
@@ -425,6 +503,7 @@
 		const nextRoot = bodyRoot();
 		if (state.generation !== generation || state.articleKey !== nextArticleKey
 			|| state.rendition !== nextRendition || state.root !== nextRoot) {
+			resetSelectionTracking();
 			discardResolvedState(state.root);
 		}
 		state.generation = generation;
@@ -687,6 +766,7 @@
 		prepare,
 		selectionState,
 		makeSelectionAnchor,
+		cancelSelectionCompletion,
 		restore,
 		remove,
 		clear,

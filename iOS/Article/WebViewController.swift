@@ -81,6 +81,27 @@ enum ArticleHighlightSelectionEligibility {
 	}
 }
 
+struct ArticleHighlightInsertionKey: Hashable {
+	let articleKey: String
+	let renditionKindRaw: String
+	let selectedText: String
+	let startOffset: Int
+	let endOffset: Int
+	let renderedTextFingerprint: String
+}
+
+@MainActor final class ArticleHighlightInsertionGate {
+	private var reserved = Set<ArticleHighlightInsertionKey>()
+
+	func reserve(_ key: ArticleHighlightInsertionKey) -> Bool {
+		reserved.insert(key).inserted
+	}
+
+	func release(_ key: ArticleHighlightInsertionKey) {
+		reserved.remove(key)
+	}
+}
+
 struct ArticleHighlightMessageRenderState {
 	let state: ArticleHighlightRenderState
 
@@ -154,9 +175,13 @@ final class WebViewController: UIViewController {
 		static let imageWasShown = "imageWasShown"
 		static let showFeedInspector = "showFeedInspector"
 		static let highlightSelectionChanged = "highlightSelectionChanged"
+		static let highlightSelectionCompleted = "highlightSelectionCompleted"
 		static let highlightWasTapped = "highlightWasTapped"
 
-		static let all = [imageWasClicked, imageWasShown, showFeedInspector, highlightSelectionChanged, highlightWasTapped]
+		static let all = [
+			imageWasClicked, imageWasShown, showFeedInspector, highlightSelectionChanged,
+			highlightSelectionCompleted, highlightWasTapped
+		]
 	}
 
 	private var topShowBarsView: UIView!
@@ -176,6 +201,7 @@ final class WebViewController: UIViewController {
 	private lazy var transition = ImageTransition(controller: self)
 	private var clickedImageCompletion: (() -> Void)?
 	private let highlightLifecycle = ArticleHighlightLifecycle()
+	private let highlightInsertionGate = ArticleHighlightInsertionGate()
 	private var highlightRecords = [UUID: NetNewsWireHighlightRecord]()
 	private weak var highlightNavigation: WKNavigation?
 	private var highlightRenderTask: Task<Void, Never>?
@@ -414,6 +440,7 @@ final class WebViewController: UIViewController {
 		navigationController?.setToolbarHidden(false, animated: animated)
 		additionalSafeAreaInsets.bottom = 0
 		setBottomScrollEdgeEffectHidden(false)
+		updateTopScrollEdgeEffectForFeatureAppearance()
 		configureContextMenuInteraction()
 	}
 
@@ -682,6 +709,10 @@ extension WebViewController: WKScriptMessageHandler {
 		case MessageName.highlightSelectionChanged:
 			if let webView = message.webView {
 				highlightSelectionChanged(in: webView, body: message.body)
+			}
+		case MessageName.highlightSelectionCompleted:
+			if let webView = message.webView {
+				highlightSelectionCompleted(in: webView, body: message.body)
 			}
 		case MessageName.highlightWasTapped:
 			if let webView = message.webView {
@@ -980,6 +1011,17 @@ private extension WebViewController {
 		webView.updateHighlightSelectionEligibility(eligible)
 	}
 
+	func highlightSelectionCompleted(in messageWebView: WKWebView, body: Any) {
+		guard let webView = messageWebView as? PreloadedWebView,
+			let body = body as? [String: Any],
+			let messageState = ArticleHighlightMessageRenderState(body: body),
+			highlightLifecycle.accepts(webView: webView, state: messageState.state),
+			let anchorValue = body["anchor"],
+			let anchor = ArticleHighlightAnchor(value: anchorValue),
+			anchor.renditionKindRaw == messageState.state.rendition.rawValue else { return }
+		addHighlight(anchor: anchor, from: webView, state: messageState.state)
+	}
+
 	func highlightWasTapped(in messageWebView: WKWebView, body: Any) {
 		guard let webView = messageWebView as? PreloadedWebView,
 			let message = ArticleHighlightTapMessage(body: body),
@@ -1022,33 +1064,96 @@ private extension WebViewController {
 		highlightMutationTask?.cancel()
 		highlightMutationTask = Task { [weak self, weak webView] in
 			guard let self, let webView,
-				self.highlightLifecycle.accepts(webView: webView, state: state),
+				self.highlightLifecycle.accepts(webView: webView, state: state) else { return }
+			_ = try? await webView.evaluateJavaScript(
+				"window.nnwHighlights.cancelSelectionCompletion()"
+			)
+			guard self.highlightLifecycle.accepts(webView: webView, state: state),
 				let value = try? await ArticleHighlightJavaScriptBridge.makeSelectionAnchor(in: webView),
 				self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled,
 				let anchor = ArticleHighlightAnchor(value: value),
 				anchor.renditionKindRaw == state.rendition.rawValue else { return }
-
-			let now = Date()
-			let record = NetNewsWireHighlightRecord(
-				id: UUID(), articleKey: state.articleKey, selectedText: anchor.selectedText,
-				prefixContext: anchor.prefixContext, suffixContext: anchor.suffixContext,
-				startOffset: anchor.startOffset, endOffset: anchor.endOffset,
-				domRangeData: anchor.domRangeData, renditionKindRaw: anchor.renditionKindRaw,
-				renderedTextFingerprint: anchor.renderedTextFingerprint,
-				articleTitle: articleTitle, creator: creator, preferredURL: preferredURL,
-				createdAt: now, updatedAt: now
+			await self.persistHighlight(
+				anchor, from: webView, state: state, articleTitle: articleTitle,
+				creator: creator, preferredURL: preferredURL
 			)
-			do {
-				try await ArticleHighlightMutation.insertBeforeDecoration {
-					try await self.highlightActions.insert(record)
-				} decorate: {
-					guard self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
-					self.highlightRecords[record.id] = record
-					await self.enqueueHighlightRestore(in: webView, state: state).value
-				}
-			} catch {
-				// The app bridge reports sanitized feedback. Do not expose persistence errors here.
+		}
+	}
+
+	func addHighlight(
+		anchor: ArticleHighlightAnchor,
+		from webView: PreloadedWebView,
+		state: ArticleHighlightRenderState
+	) {
+		guard highlightActions.isEnabled,
+			highlightLifecycle.accepts(webView: webView, state: state),
+			let article else { return }
+		let articleTitle = article.title ?? ""
+		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
+		let creator = byline.isEmpty ? article.feed?.nameForDisplay : byline
+		let preferredURL = article.preferredURL
+
+		highlightMutationTask?.cancel()
+		highlightMutationTask = Task { [weak self, weak webView] in
+			guard let self, let webView else { return }
+			await self.persistHighlight(
+				anchor, from: webView, state: state, articleTitle: articleTitle,
+				creator: creator, preferredURL: preferredURL
+			)
+		}
+	}
+
+	func persistHighlight(
+		_ anchor: ArticleHighlightAnchor,
+		from webView: PreloadedWebView,
+		state: ArticleHighlightRenderState,
+		articleTitle: String,
+		creator: String?,
+		preferredURL: URL?
+	) async {
+		guard highlightActions.isEnabled,
+			highlightLifecycle.accepts(webView: webView, state: state),
+			!Task.isCancelled,
+			anchor.renditionKindRaw == state.rendition.rawValue,
+			!hasHighlight(matching: anchor) else { return }
+		let insertionKey = ArticleHighlightInsertionKey(
+			articleKey: state.articleKey, renditionKindRaw: anchor.renditionKindRaw,
+			selectedText: anchor.selectedText, startOffset: anchor.startOffset,
+			endOffset: anchor.endOffset, renderedTextFingerprint: anchor.renderedTextFingerprint
+		)
+		guard highlightInsertionGate.reserve(insertionKey) else { return }
+		defer { highlightInsertionGate.release(insertionKey) }
+
+		let now = Date()
+		let record = NetNewsWireHighlightRecord(
+			id: UUID(), articleKey: state.articleKey, selectedText: anchor.selectedText,
+			prefixContext: anchor.prefixContext, suffixContext: anchor.suffixContext,
+			startOffset: anchor.startOffset, endOffset: anchor.endOffset,
+			domRangeData: anchor.domRangeData, renditionKindRaw: anchor.renditionKindRaw,
+			renderedTextFingerprint: anchor.renderedTextFingerprint,
+			articleTitle: articleTitle, creator: creator, preferredURL: preferredURL,
+			createdAt: now, updatedAt: now
+		)
+		do {
+			try await ArticleHighlightMutation.insertBeforeDecoration {
+				try await self.highlightActions.insert(record)
+			} decorate: {
+				guard self.highlightLifecycle.accepts(webView: webView, state: state), !Task.isCancelled else { return }
+				self.highlightRecords[record.id] = record
+				await self.enqueueHighlightRestore(in: webView, state: state).value
 			}
+		} catch {
+			// The app bridge reports sanitized feedback. Do not expose persistence errors here.
+		}
+	}
+
+	func hasHighlight(matching anchor: ArticleHighlightAnchor) -> Bool {
+		highlightRecords.values.contains {
+			$0.selectedText == anchor.selectedText
+				&& $0.startOffset == anchor.startOffset
+				&& $0.endOffset == anchor.endOffset
+				&& $0.renditionKindRaw == anchor.renditionKindRaw
+				&& $0.renderedTextFingerprint == anchor.renderedTextFingerprint
 		}
 	}
 
@@ -1245,6 +1350,10 @@ private extension WebViewController {
 			return
 		}
 		scrollView.bottomEdgeEffect.isHidden = hidden
+	}
+
+	func updateTopScrollEdgeEffectForFeatureAppearance() {
+		NetNewsWireFeatureTheme.updateTopScrollEdgeEffect(for: webView?.scrollView)
 	}
 
 	func configureContextMenuInteraction() {

@@ -99,16 +99,14 @@ final class MainTimelineCell: UICollectionViewCell {
 			backgroundConfig.cornerRadius = 0
 		}
 
+		NetNewsWireFeatureTheme.prepareContainedListBackground(&backgroundConfig)
+
 		if state.isSwiped {
 			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.subtleFill
 		} else if state.isSelected {
-			// When the split view is expanded, force the accent color so the selection stays
-			// blue even when the timeline isn't first responder (updated(for: state) would
-			// otherwise dim it to gray). When collapsed, keep the standard system selection
-			// color from updated(for: state).
-			if isInExpandedSplitView {
-				backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.tint
-			}
+			backgroundConfig.backgroundColor = isInExpandedSplitView
+				? NetNewsWireFeatureTheme.tint
+				: NetNewsWireFeatureTheme.subtleFill
 		} else {
 			backgroundConfig.backgroundColor = .clear
 		}
@@ -242,6 +240,7 @@ private extension MainTimelineCell {
 		summaryView.textColor = active ? NetNewsWireFeatureTheme.selectedText : (cellData.title.isEmpty ? NetNewsWireFeatureTheme.primaryText : NetNewsWireFeatureTheme.secondaryText)
 		dateView.textColor = active ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.secondaryText
 		feedNameView.textColor = active ? NetNewsWireFeatureTheme.selectedText : NetNewsWireFeatureTheme.secondaryText
+		topSeparator.backgroundColor = NetNewsWireFeatureTheme.separator.withAlphaComponent(0.1)
 	}
 
 	func updateIndicatorView(active: Bool) {

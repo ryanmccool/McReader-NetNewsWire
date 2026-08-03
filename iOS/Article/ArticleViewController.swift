@@ -215,6 +215,7 @@ final class ArticleViewController: UIViewController {
 		articleExtractorButton.buttonState = controller.articleExtractorButtonState
 
 		self.pageViewController.setViewControllers([controller], direction: .forward, animated: false, completion: nil)
+		updateTopScrollEdgeEffectForFeatureAppearance()
 		if AppDefaults.shared.logicalArticleFullscreenEnabled {
 			controller.hideBars()
 		}
@@ -232,6 +233,7 @@ final class ArticleViewController: UIViewController {
 
 	@objc private func featureAppearanceDidChange() {
 		applyFeatureNavigationAppearance()
+		updateTopScrollEdgeEffectForFeatureAppearance()
 	}
 
 	private func applyFeatureNavigationAppearance() {
@@ -239,21 +241,27 @@ final class ArticleViewController: UIViewController {
 		navigationItem.standardAppearance = appearance
 		navigationItem.scrollEdgeAppearance = appearance
 		navigationItem.compactAppearance = appearance
+		navigationController?.navigationBar.standardAppearance = appearance
+		navigationController?.navigationBar.scrollEdgeAppearance = appearance
+		navigationController?.navigationBar.compactAppearance = appearance
 	}
 
+
+	private func updateTopScrollEdgeEffectForFeatureAppearance() {
+		NetNewsWireFeatureTheme.updateTopScrollEdgeEffect(
+			for: pageViewController.scrollViewInsidePageControl
+		)
+	}
 	static func featureNavigationAppearance() -> UINavigationBarAppearance {
-		let appearance = UINavigationBarAppearance()
-		appearance.configureWithDefaultBackground()
-		if NetNewsWireFeatureTheme.appearance != nil {
-			appearance.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
-			appearance.shadowColor = NetNewsWireFeatureTheme.separator
-			appearance.titleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
-			appearance.largeTitleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
-		}
-		return appearance
+		NetNewsWireFeatureTheme.navigationBarAppearance(
+			background: NetNewsWireFeatureTheme.appearance == nil
+				? nil
+				: NetNewsWireFeatureTheme.background
+		)
 	}
 
 	override func viewWillAppear(_ animated: Bool) {
+		applyFeatureNavigationAppearance()
 		let hideToolbars = AppDefaults.shared.logicalArticleFullscreenEnabled
 		if hideToolbars {
 			currentWebViewController?.hideBars()

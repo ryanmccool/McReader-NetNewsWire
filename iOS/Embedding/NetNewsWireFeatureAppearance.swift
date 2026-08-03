@@ -150,6 +150,31 @@ extension Notification.Name {
 		return appearance.tint.uiColor.withAlphaComponent(0.14)
 	}
 
+	static func prepareContainedListBackground(_ configuration: inout UIBackgroundConfiguration) {
+		guard appearance != nil else { return }
+		configuration.backgroundColor = .clear
+		configuration.visualEffect = nil
+	}
+
+	static func navigationBarAppearance(background: UIColor?) -> UINavigationBarAppearance {
+		let appearance = UINavigationBarAppearance()
+		guard let background else {
+			appearance.configureWithDefaultBackground()
+			return appearance
+		}
+		appearance.configureWithOpaqueBackground()
+		appearance.backgroundColor = background
+		appearance.shadowColor = separator
+		appearance.titleTextAttributes = [.foregroundColor: primaryText]
+		appearance.largeTitleTextAttributes = [.foregroundColor: primaryText]
+		return appearance
+	}
+
+	static func updateTopScrollEdgeEffect(for scrollView: UIScrollView?) {
+		guard #available(iOS 26, *) else { return }
+		scrollView?.topEdgeEffect.isHidden = appearance != nil
+	}
+
 	static var articleCSSOverride: String {
 		guard let appearance else { return "" }
 		let colorScheme = appearance.style == .dark ? "dark" : "light"

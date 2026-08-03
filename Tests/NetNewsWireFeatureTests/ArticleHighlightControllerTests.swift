@@ -33,6 +33,22 @@ final class ArticleHighlightControllerTests: XCTestCase {
 		))
 	}
 
+	func testInsertionGateRejectsDuplicateManualAndAutomaticSelections() {
+		let key = ArticleHighlightInsertionKey(
+			articleKey: "article", renditionKindRaw: "v1:feed-body",
+			selectedText: "Selection", startOffset: 10, endOffset: 19,
+			renderedTextFingerprint: "sha256:selection"
+		)
+		let gate = ArticleHighlightInsertionGate()
+
+		XCTAssertTrue(gate.reserve(key))
+		XCTAssertFalse(gate.reserve(key))
+
+		gate.release(key)
+
+		XCTAssertTrue(gate.reserve(key))
+	}
+
 	func testEachRenderInvalidationAdvancesGenerationAndRejectsPreviousState() {
 		let lifecycle = ArticleHighlightLifecycle()
 		let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())

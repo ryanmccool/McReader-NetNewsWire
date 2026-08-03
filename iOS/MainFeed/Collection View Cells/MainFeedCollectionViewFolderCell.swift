@@ -146,9 +146,7 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 		} else {
 			backgroundConfig = UIBackgroundConfiguration.listGroupedCell().updated(for: state)
 		}
-		if NetNewsWireFeatureTheme.appearance != nil {
-			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.secondaryBackground
-		}
+		NetNewsWireFeatureTheme.prepareContainedListBackground(&backgroundConfig)
 
 		switch (state.isHighlighted || state.isSelected || state.isFocused, traitCollection.userInterfaceIdiom) {
 		case (true, .pad):
@@ -157,6 +155,9 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 			folderTitle.font = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .semibold)
 			unreadCountLabel.textColor = NetNewsWireFeatureTheme.tint
 			unreadCountLabel.font = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .body).pointSize, weight: .semibold)
+		case (true, .phone):
+			backgroundConfig.backgroundColor = NetNewsWireFeatureTheme.subtleFill
+			fallthrough
 		default:
 			folderTitle.textColor = NetNewsWireFeatureTheme.primaryText
 			faviconView.tintColor = NetNewsWireFeatureTheme.tint

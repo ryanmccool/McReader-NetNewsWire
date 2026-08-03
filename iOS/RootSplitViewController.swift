@@ -74,10 +74,17 @@ final class RootSplitViewController: UISplitViewController {
 		}
 		if let navigationController = viewController as? UINavigationController {
 			let navigationBar = navigationController.navigationBar
+			let navigationBackground = navigationController.viewControllers.contains {
+				$0 is ArticleViewController
+			}
+				? NetNewsWireFeatureTheme.background
+				: NetNewsWireFeatureTheme.secondaryBackground
+			let appearance = NetNewsWireFeatureTheme.navigationBarAppearance(
+				background: navigationBackground
+			)
+			navigationBar.scrollEdgeAppearance = appearance
+			navigationBar.compactAppearance = appearance
 			navigationBar.tintColor = NetNewsWireFeatureTheme.tint
-			navigationBar.barTintColor = NetNewsWireFeatureTheme.secondaryBackground
-			navigationBar.titleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
-			navigationBar.largeTitleTextAttributes = [.foregroundColor: NetNewsWireFeatureTheme.primaryText]
 
 			if let toolbar = navigationController.toolbar {
 				let standardAppearance = themedToolbarAppearance(toolbar.standardAppearance)

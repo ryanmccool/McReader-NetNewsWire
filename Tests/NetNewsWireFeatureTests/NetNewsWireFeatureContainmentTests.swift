@@ -161,6 +161,68 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 		XCTAssertEqual(NetNewsWireFeatureTheme.interfaceStyle, .light)
 	}
 
+	func testTimelineAppearanceUsesSemanticSurface() {
+		let originalAppearance = NetNewsWireFeatureTheme.appearance
+		defer { NetNewsWireFeatureTheme.update(originalAppearance) }
+		let background = NetNewsWireFeatureColor(red: 0.2, green: 0.3, blue: 0.4)
+		NetNewsWireFeatureTheme.update(makeAppearance(style: .dark, background: background))
+		let collectionView = UICollectionView(
+			frame: .zero,
+			collectionViewLayout: UICollectionViewFlowLayout()
+		)
+
+		MainTimelineFeatureAppearance.apply(to: collectionView)
+
+		XCTAssertEqual(collectionView.backgroundColor, NetNewsWireFeatureTheme.secondaryBackground)
+
+		NetNewsWireFeatureTheme.update(nil)
+		MainTimelineFeatureAppearance.apply(to: collectionView)
+
+		XCTAssertEqual(collectionView.backgroundColor, .systemBackground)
+	}
+
+	func testContainedInactiveListBackgroundIsTransparent() {
+		let originalAppearance = NetNewsWireFeatureTheme.appearance
+		defer { NetNewsWireFeatureTheme.update(originalAppearance) }
+		NetNewsWireFeatureTheme.update(
+			makeAppearance(
+				style: .dark,
+				background: NetNewsWireFeatureColor(red: 0.2, green: 0.3, blue: 0.4)
+			)
+		)
+		var configuration = UIBackgroundConfiguration.listCell()
+		configuration.backgroundColor = .systemRed
+		configuration.visualEffect = UIBlurEffect(style: .systemMaterial)
+
+		NetNewsWireFeatureTheme.prepareContainedListBackground(&configuration)
+
+		XCTAssertEqual(configuration.backgroundColor, .clear)
+		XCTAssertNil(configuration.visualEffect)
+	}
+
+	func testTimelineControllerRefreshesSurfaceAfterAppearanceChange() {
+		let originalAppearance = NetNewsWireFeatureTheme.appearance
+		defer { NetNewsWireFeatureTheme.update(originalAppearance) }
+		let controller = MainTimelineModernViewController()
+		controller.view = UIView()
+		let collectionView = UICollectionView(
+			frame: .zero,
+			collectionViewLayout: UICollectionViewFlowLayout()
+		)
+		controller.collectionView = collectionView
+
+		NetNewsWireFeatureTheme.update(
+			makeAppearance(
+				style: .dark,
+				background: NetNewsWireFeatureColor(red: 0.2, green: 0.3, blue: 0.4)
+			)
+		)
+		controller.featureAppearanceDidChange()
+
+		XCTAssertEqual(collectionView.backgroundColor, NetNewsWireFeatureTheme.secondaryBackground)
+	}
+
+
 
 	func testAppearanceRefreshPreservesMainFeedRefreshControl() throws {
 		let originalAppearance = NetNewsWireFeatureTheme.appearance
@@ -197,11 +259,12 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 			background: NetNewsWireFeatureColor(red: 0.2, green: 0.3, blue: 0.4)
 		)
 		NetNewsWireFeatureTheme.update(containedAppearance)
-		let containedBackground = UIColor(red: 0.3, green: 0.4, blue: 0.5, alpha: 1)
+		let containedBackground = UIColor(red: 0.2, green: 0.3, blue: 0.4, alpha: 1)
 		XCTAssertEqual(
 			ArticleViewController.featureNavigationAppearance().backgroundColor,
 			containedBackground
 		)
+		XCTAssertNil(ArticleViewController.featureNavigationAppearance().backgroundEffect)
 
 		NetNewsWireFeatureTheme.update(nil)
 		XCTAssertNotEqual(
