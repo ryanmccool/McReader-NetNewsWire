@@ -1,4 +1,5 @@
 import UIKit
+@preconcurrency import WebKit
 
 /// An immutable color value used at the NetNewsWire embedding boundary.
 public struct NetNewsWireFeatureColor: Equatable, Sendable {
@@ -173,6 +174,14 @@ extension Notification.Name {
 	static func updateTopScrollEdgeEffect(for scrollView: UIScrollView?) {
 		guard #available(iOS 26, *) else { return }
 		scrollView?.topEdgeEffect.isHidden = appearance != nil
+	}
+
+	static func applyArticleDetailBackground(to views: UIView?...) {
+		let background = appearance == nil ? UIColor.systemBackground : self.background
+		for view in views {
+			view?.backgroundColor = background
+			(view as? WKWebView)?.underPageBackgroundColor = background
+		}
 	}
 
 	static var articleCSSOverride: String {

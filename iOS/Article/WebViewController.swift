@@ -309,6 +309,7 @@ final class WebViewController: UIViewController {
 	}
 
 	@objc func currentArticleThemeDidChangeNotification(_ note: Notification) {
+		applyFeatureAppearance()
 		loadWebView()
 	}
 
@@ -825,6 +826,19 @@ private struct ArticleHighlightAnchor {
 
 private extension WebViewController {
 
+	func applyFeatureAppearance() {
+		applyFeatureAppearance(to: webView)
+	}
+
+	func applyFeatureAppearance(to webView: PreloadedWebView?) {
+		NetNewsWireFeatureTheme.applyArticleDetailBackground(
+			to: view,
+			webView,
+			webView?.scrollView
+		)
+		webView?.isOpaque = NetNewsWireFeatureTheme.appearance == nil
+	}
+
 	func loadWebView(replaceExistingWebView: Bool = false) {
 		guard isViewLoaded else { return }
 
@@ -880,6 +894,8 @@ private extension WebViewController {
 	}
 
 	func renderPage(_ webView: PreloadedWebView?) {
+		applyFeatureAppearance(to: webView)
+
 		guard let webView = webView else { return }
 
 		let theme = ArticleThemesManager.shared.currentTheme

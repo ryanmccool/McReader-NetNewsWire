@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+@preconcurrency import WebKit
 @testable import NetNewsWireFeature
 
 @MainActor
@@ -277,6 +278,74 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 			ArticleViewController.featureNavigationAppearance().backgroundColor,
 			containedBackground
 		)
+	}
+
+	func testArticleDetailCanvasesUseFeatureBackground() {
+		let originalAppearance = NetNewsWireFeatureTheme.appearance
+		defer { NetNewsWireFeatureTheme.update(originalAppearance) }
+		let background = UIColor(red: 0.2, green: 0.3, blue: 0.4, alpha: 1)
+		func assertRGBA(
+			_ color: UIColor?,
+			red expectedRed: CGFloat,
+			green expectedGreen: CGFloat,
+			blue expectedBlue: CGFloat
+		) {
+			guard let color else {
+				XCTFail("Expected an under-page background color")
+				return
+			}
+			var red: CGFloat = 0
+			var green: CGFloat = 0
+			var blue: CGFloat = 0
+			var alpha: CGFloat = 0
+			XCTAssertTrue(color.getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+			XCTAssertEqual(red, expectedRed, accuracy: 0.01)
+			XCTAssertEqual(green, expectedGreen, accuracy: 0.01)
+			XCTAssertEqual(blue, expectedBlue, accuracy: 0.01)
+			XCTAssertEqual(alpha, 1, accuracy: 0.01)
+		}
+
+		NetNewsWireFeatureTheme.update(
+			makeAppearance(
+				style: .dark,
+				background: NetNewsWireFeatureColor(red: 0.2, green: 0.3, blue: 0.4)
+			)
+		)
+		let articleCanvas = UIView()
+		let webCanvas = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+
+		NetNewsWireFeatureTheme.applyArticleDetailBackground(to: articleCanvas, webCanvas)
+
+		XCTAssertEqual(articleCanvas.backgroundColor, background)
+		XCTAssertEqual(webCanvas.backgroundColor, background)
+		assertRGBA(webCanvas.underPageBackgroundColor, red: 0.2, green: 0.3, blue: 0.4)
+
+		NetNewsWireFeatureTheme.update(nil)
+		NetNewsWireFeatureTheme.applyArticleDetailBackground(to: articleCanvas, webCanvas)
+
+		XCTAssertEqual(articleCanvas.backgroundColor, .systemBackground)
+		XCTAssertEqual(webCanvas.backgroundColor, .systemBackground)
+		assertRGBA(webCanvas.underPageBackgroundColor, red: 1, green: 1, blue: 1)
+	}
+
+	func testContainedNavigationBarUsesStandardSemanticBackground() {
+		let originalAppearance = NetNewsWireFeatureTheme.appearance
+		defer { NetNewsWireFeatureTheme.update(originalAppearance) }
+		let background = UIColor(red: 0.3, green: 0.4, blue: 0.5, alpha: 1)
+		NetNewsWireFeatureTheme.update(
+			makeAppearance(
+				style: .dark,
+				background: NetNewsWireFeatureColor(red: 0.2, green: 0.3, blue: 0.4)
+			)
+		)
+		let root = RootSplitViewController()
+		let navigationController = UINavigationController(rootViewController: UIViewController())
+		navigationController.loadViewIfNeeded()
+
+		root.applyFeatureAppearance(to: navigationController)
+
+		XCTAssertEqual(navigationController.navigationBar.standardAppearance.backgroundColor, background)
+		XCTAssertNil(navigationController.navigationBar.standardAppearance.backgroundEffect)
 	}
 
 	func testArticleSearchBarRestoresStandaloneDefaults() {

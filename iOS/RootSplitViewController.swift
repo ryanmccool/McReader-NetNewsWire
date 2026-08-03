@@ -82,6 +82,7 @@ final class RootSplitViewController: UISplitViewController {
 			let appearance = NetNewsWireFeatureTheme.navigationBarAppearance(
 				background: navigationBackground
 			)
+			navigationBar.standardAppearance = appearance
 			navigationBar.scrollEdgeAppearance = appearance
 			navigationBar.compactAppearance = appearance
 			navigationBar.tintColor = NetNewsWireFeatureTheme.tint

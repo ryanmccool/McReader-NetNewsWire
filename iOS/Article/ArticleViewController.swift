@@ -144,6 +144,8 @@ final class ArticleViewController: UIViewController {
 			name: .netNewsWireFeatureAppearanceDidChange,
 			object: nil
 		)
+		applyFeatureAppearance()
+
 
 		applyFeatureNavigationAppearance()
 
@@ -215,6 +217,8 @@ final class ArticleViewController: UIViewController {
 		articleExtractorButton.buttonState = controller.articleExtractorButtonState
 
 		self.pageViewController.setViewControllers([controller], direction: .forward, animated: false, completion: nil)
+		applyFeatureAppearance()
+
 		updateTopScrollEdgeEffectForFeatureAppearance()
 		if AppDefaults.shared.logicalArticleFullscreenEnabled {
 			controller.hideBars()
@@ -232,8 +236,17 @@ final class ArticleViewController: UIViewController {
 	}
 
 	@objc private func featureAppearanceDidChange() {
+		applyFeatureAppearance()
 		applyFeatureNavigationAppearance()
 		updateTopScrollEdgeEffectForFeatureAppearance()
+	}
+
+	private func applyFeatureAppearance() {
+		NetNewsWireFeatureTheme.applyArticleDetailBackground(
+			to: view,
+			pageViewController?.view,
+			pageViewController?.scrollViewInsidePageControl
+		)
 	}
 
 	private func applyFeatureNavigationAppearance() {
