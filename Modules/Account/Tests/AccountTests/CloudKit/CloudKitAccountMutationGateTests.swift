@@ -163,6 +163,146 @@ import XCTest
 		XCTAssertNil(gate.activeKind)
 	}
 
+	func testMarkRunsLocalMutationDuringRefresh() async throws {
+		let gate = CloudKitAccountMutationGate()
+		let refreshStarted = expectation(description: "refresh started")
+		let releaseRefresh = AsyncStream.makeStream(of: Void.self)
+		var localMutationRan = false
+
+		let refresh = Task {
+			try await gate.withMutation(kind: .refresh) {
+				refreshStarted.fulfill()
+				for await _ in releaseRefresh.stream {
+					break
+				}
+			}
+		}
+
+		await fulfillment(of: [refreshStarted])
+		try await CloudKitAccountDelegate.performMarkArticlesMutation(
+			gate: gate,
+			localMutation: {
+				try await gate.withLocalArticleStatusMutation {
+					XCTAssertEqual(gate.activeKind, .refresh)
+					localMutationRan = true
+					return false
+				}
+			},
+			flush: {}
+		)
+
+		XCTAssertTrue(localMutationRan)
+		XCTAssertEqual(gate.activeKind, .refresh)
+		releaseRefresh.continuation.yield()
+		releaseRefresh.continuation.finish()
+		try await refresh.value
+	}
+
+	func testLocalStatusMutationRejectsStructuralOperation() async throws {
+		let gate = CloudKitAccountMutationGate()
+		let resetStarted = expectation(description: "reset started")
+		let releaseReset = AsyncStream.makeStream(of: Void.self)
+
+		let reset = Task {
+			try await gate.withMutation(kind: .reset) {
+				resetStarted.fulfill()
+				for await _ in releaseReset.stream {
+					break
+				}
+			}
+		}
+
+		await fulfillment(of: [resetStarted])
+		do {
+			try await gate.withLocalArticleStatusMutation {}
+			XCTFail("Expected local status mutation to reject an active reset")
+		} catch AccountError.operationInProgress {
+			// Expected.
+		}
+
+		releaseReset.continuation.yield()
+		releaseReset.continuation.finish()
+		try await reset.value
+	}
+
+	func testStructuralMutationRejectsActiveArticleStatusLane() async throws {
+		let gate = CloudKitAccountMutationGate()
+		let statusStarted = expectation(description: "status mutation started")
+		let releaseStatus = AsyncStream.makeStream(of: Void.self)
+
+		let status = Task {
+			await gate.withArticleStatusMutation {
+				statusStarted.fulfill()
+				for await _ in releaseStatus.stream {
+					break
+				}
+			}
+		}
+
+		await fulfillment(of: [statusStarted])
+		do {
+			try await gate.withMutation(kind: .reset) {}
+			XCTFail("Expected reset to reject an active article-status mutation")
+		} catch AccountError.operationInProgress {
+			// Expected.
+		}
+
+		releaseStatus.continuation.yield()
+		releaseStatus.continuation.finish()
+		await status.value
+	}
+
+	func testArticleStatusLaneSerializesThreeOperations() async {
+		let gate = CloudKitAccountMutationGate()
+		let firstStarted = expectation(description: "first status mutation started")
+		let secondStarted = expectation(description: "second status mutation started")
+		let thirdStarted = expectation(description: "third status mutation started")
+		let releaseFirst = AsyncStream.makeStream(of: Void.self)
+		let releaseSecond = AsyncStream.makeStream(of: Void.self)
+		var completionOrder = [Int]()
+
+		let first = Task {
+			await gate.withArticleStatusMutation {
+				firstStarted.fulfill()
+				for await _ in releaseFirst.stream {
+					break
+				}
+				completionOrder.append(1)
+			}
+		}
+		await fulfillment(of: [firstStarted])
+
+		let second = Task {
+			await gate.withArticleStatusMutation {
+				secondStarted.fulfill()
+				for await _ in releaseSecond.stream {
+					break
+				}
+				completionOrder.append(2)
+			}
+		}
+		let third = Task {
+			await gate.withArticleStatusMutation {
+				thirdStarted.fulfill()
+				completionOrder.append(3)
+			}
+		}
+		await Task.yield()
+
+		releaseFirst.continuation.yield()
+		releaseFirst.continuation.finish()
+		await fulfillment(of: [secondStarted])
+		XCTAssertEqual(completionOrder, [1])
+
+		releaseSecond.continuation.yield()
+		releaseSecond.continuation.finish()
+		await fulfillment(of: [thirdStarted])
+		await first.value
+		await second.value
+		await third.value
+		XCTAssertEqual(completionOrder, [1, 2, 3])
+	}
+
 	func testMarkReturnsBeforeSuspendedFlushCompletesAndFlushOwnsGate() async throws {
 		let gate = CloudKitAccountMutationGate()
 		let flushStarted = expectation(description: "flush started")

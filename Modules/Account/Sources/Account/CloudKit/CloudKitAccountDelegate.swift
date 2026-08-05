@@ -875,7 +875,9 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		try await Self.performMarkArticlesMutation(
 			gate: mutationGate,
 			localMutation: {
-				await self.markArticlesImpl(articleIDs: articleIDs, statusKey: statusKey, flag: flag)
+				try await self.mutationGate.withLocalArticleStatusMutation {
+					await self.markArticlesImpl(articleIDs: articleIDs, statusKey: statusKey, flag: flag)
+				}
 			},
 			flush: {
 				guard let account = self.account else { return }
@@ -889,9 +891,10 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		localMutation: () async throws -> Bool,
 		flush: @escaping () async throws -> Void
 	) async throws {
-		let shouldFlush = try await gate.withMutation(kind: .articleStatus) {
-			try await localMutation()
-		}
+		// Local status changes are serialized with inbound CloudKit status application
+		// while remaining available during a refresh. Pending sync-database records
+		// prevent the inbound merge from overwriting the selected state.
+		let shouldFlush = try await localMutation()
 		guard shouldFlush else { return }
 		Task {
 			try? await gate.withMutation(kind: .articleStatus) {
@@ -934,7 +937,13 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 		}
 
 		accountZone.delegate = CloudKitAcountZoneDelegate(account: account, articlesZone: articlesZone)
-		articlesZone.delegate = CloudKitArticlesZoneDelegate(account: account, database: syncDatabase, articlesZone: articlesZone, syncErrorHandler: syncErrorHandler)
+		articlesZone.delegate = CloudKitArticlesZoneDelegate(
+			account: account,
+			database: syncDatabase,
+			articlesZone: articlesZone,
+			mutationGate: mutationGate,
+			syncErrorHandler: syncErrorHandler
+		)
 
 		let accountID = account.accountID
 		let accountDisplayName = account.nameForDisplay

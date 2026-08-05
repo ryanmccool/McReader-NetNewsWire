@@ -24,6 +24,7 @@ final class CloudKitArticlesZoneDelegate: CloudKitZoneDelegate {
 	weak var account: Account?
 	var syncDatabase: SyncDatabase
 	weak var articlesZone: CloudKitArticlesZone?
+	let mutationGate: CloudKitAccountMutationGate
 	let syncErrorHandler: CloudKitSyncErrorHandler?
 
 	/// Number of records changed in the most recent sync.
@@ -36,10 +37,17 @@ final class CloudKitArticlesZoneDelegate: CloudKitZoneDelegate {
 	private(set) var accumulatedChangedCount = 0
 	private(set) var accumulatedDeletedCount = 0
 
-	init(account: Account, database: SyncDatabase, articlesZone: CloudKitArticlesZone, syncErrorHandler: CloudKitSyncErrorHandler?) {
+	init(
+		account: Account,
+		database: SyncDatabase,
+		articlesZone: CloudKitArticlesZone,
+		mutationGate: CloudKitAccountMutationGate,
+		syncErrorHandler: CloudKitSyncErrorHandler?
+	) {
 		self.account = account
 		self.syncDatabase = database
 		self.articlesZone = articlesZone
+		self.mutationGate = mutationGate
 		self.syncErrorHandler = syncErrorHandler
 	}
 
@@ -48,19 +56,23 @@ final class CloudKitArticlesZoneDelegate: CloudKitZoneDelegate {
 		accumulatedDeletedCount = 0
 	}
 
-	func cloudKitDidModify(changed: [CKRecord], deleted: [CloudKitRecordKey]) async throws {
+	@MainActor func cloudKitDidModify(changed: [CKRecord], deleted: [CloudKitRecordKey]) async throws {
 		lastChangedCount = changed.count
 		lastDeletedCount = deleted.count
 		accumulatedChangedCount += changed.count
 		accumulatedDeletedCount += deleted.count
 
-		let pendingReadStatusArticleIDs = await syncDatabase.selectPendingReadStatusArticleIDs() ?? Set<String>()
-		let pendingStarredStatusArticleIDs = await syncDatabase.selectPendingStarredStatusArticleIDs() ?? Set<String>()
+		await mutationGate.withArticleStatusMutation {
+			let pendingReadStatusArticleIDs = await syncDatabase.selectPendingReadStatusArticleIDs() ?? Set<String>()
+			let pendingStarredStatusArticleIDs = await syncDatabase.selectPendingStarredStatusArticleIDs() ?? Set<String>()
 
-		await delete(recordKeys: deleted, pendingStarredStatusArticleIDs: pendingStarredStatusArticleIDs)
-		await update(records: changed,
-					 pendingReadStatusArticleIDs: pendingReadStatusArticleIDs,
-					 pendingStarredStatusArticleIDs: pendingStarredStatusArticleIDs)
+			await delete(recordKeys: deleted, pendingStarredStatusArticleIDs: pendingStarredStatusArticleIDs)
+			await update(
+				records: changed,
+				pendingReadStatusArticleIDs: pendingReadStatusArticleIDs,
+				pendingStarredStatusArticleIDs: pendingStarredStatusArticleIDs
+			)
+		}
 	}
 }
 
