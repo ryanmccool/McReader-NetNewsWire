@@ -35,6 +35,7 @@ final class ArticleViewController: UIViewController {
 	private var pageViewController: UIPageViewController!
 	private var isPageTransitionInProgress = false
 	private var pendingSetViewController: WebViewController?
+	private var markdownShareGeneration: UInt64 = 0
 
 	private var currentWebViewController: WebViewController? {
 		return pageViewController?.viewControllers?.first as? WebViewController
@@ -706,7 +707,10 @@ extension ArticleViewController {
 			let shareMarkdown = UIAction(title: titles.shareMarkdown, image: UIImage(systemName: "doc.text")) { [weak self] _ in
 				self?.shareArticleAsMarkdown()
 			}
-			shareActions.append(shareMarkdown)
+			let shareFullArticleMarkdown = UIAction(title: titles.shareMarkdownArticle, image: UIImage(systemName: "doc.richtext")) { [weak self] _ in
+				self?.shareArticleAsMarkdown(includeRenderedArticle: true)
+			}
+			shareActions.append(contentsOf: [shareMarkdown, shareFullArticleMarkdown])
 		}
 		let shareSection = UIMenu(title: "", options: .displayInline, children: shareActions)
 		let publishingSection = UIMenu(
@@ -761,27 +765,48 @@ private extension ArticleViewController {
 		}
 	}
 
-	func shareArticleAsMarkdown() {
+	func shareArticleAsMarkdown(includeRenderedArticle: Bool = false) {
 		guard let webViewController = currentWebViewController,
 			let article = webViewController.article,
 			let baseCapture = publishingCapture(article: article, selectedText: nil) else {
 			return
 		}
 		let articleID = article.articleID
+		markdownShareGeneration &+= 1
+		let requestGeneration = markdownShareGeneration
+		let renderGeneration = includeRenderedArticle ? webViewController.currentRenderGeneration : nil
 
 		Task { @MainActor [weak self] in
 			guard let self else { return }
+			guard markdownShareGeneration == requestGeneration,
+				currentWebViewController === webViewController,
+				webViewController.article?.articleID == articleID else { return }
 			let (records, positions) = await webViewController.highlightRecordsForPosting()
 			let capture = NetNewsWireMarkdownSharing.capture(
 				base: baseCapture,
 				renderedHighlights: records,
 				resolvedPositions: positions
 			)
+			var finalCapture = capture
+			if includeRenderedArticle {
+				guard let renderGeneration,
+					let rendered = await webViewController.renderedArticleContainer(generation: renderGeneration) else {
+					guard currentWebViewController === webViewController,
+						webViewController.article?.articleID == articleID,
+						markdownShareGeneration == requestGeneration,
+						webViewController.isRenderComplete else { return }
+					publishingActions.reportMarkdownFailure()
+					return
+				}
+				finalCapture.renderedArticleHTML = rendered.html
+				finalCapture.renderedArticleBaseURL = rendered.baseURL
+			}
 			guard currentWebViewController === webViewController,
-				webViewController.article?.articleID == articleID else {
+				webViewController.article?.articleID == articleID,
+				markdownShareGeneration == requestGeneration else {
 				return
 			}
-			publishingActions.shareMarkdown(capture)
+			publishingActions.shareMarkdown(finalCapture)
 		}
 	}
 

@@ -23,7 +23,7 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(capture.creator, "Author")
 		XCTAssertEqual(capture.preferredURL, url)
 		XCTAssertEqual(Set(Mirror(reflecting: capture).children.compactMap(\.label)), [
-			"selectedText", "title", "creator", "preferredURL"
+			"selectedText", "title", "creator", "preferredURL", "renderedArticleHTML", "renderedArticleBaseURL"
 		])
 		assertSendable(capture)
 	}
@@ -143,6 +143,7 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(titles.captureSelection, "Capture Selection|Command")
 		XCTAssertEqual(titles.postHighlights, "Post Highlights...|Command")
 		XCTAssertEqual(titles.shareMarkdown, "Share as Markdown...|Command")
+		XCTAssertEqual(titles.shareMarkdownArticle, "Share Full Article as Markdown...|Command")
 	}
 
 	func testArticleMenuKeepsSharingInItsOwnLeadingSectionAndPostLabelsWhole() throws {
@@ -157,12 +158,34 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(sections.count, 2)
 		XCTAssertEqual(
 			sections[0].children.compactMap { ($0 as? UIAction)?.title },
-			["Share", "Share as Markdown..."]
+			["Share", "Share as Markdown...", "Share Full Article as Markdown..."]
 		)
 		let publishingTitles = sections[1].children.compactMap { ($0 as? UIAction)?.title }
 		XCTAssertTrue(publishingTitles.contains("Post Quote..."))
 		XCTAssertTrue(publishingTitles.contains("Post Link..."))
 		XCTAssertTrue(publishingTitles.contains("Post Note..."))
+	}
+
+	func testRichCaptureCarriesRenderedArticleAndBaseURLThroughShareCallback() throws {
+		let baseURL = try XCTUnwrap(URL(string: "https://example.com/article"))
+		let capture = NetNewsWirePublishingCapture(
+			selectedText: "highlight",
+			title: "Article",
+			creator: nil,
+			preferredURL: baseURL,
+			renderedArticleHTML: "<article><p>Rendered</p></article>",
+			renderedArticleBaseURL: baseURL
+		)
+		var received: NetNewsWirePublishingCapture?
+		let actions = NetNewsWirePublishingActions(
+			send: { _, _ in },
+			shareMarkdown: { received = $0 }
+		)
+
+		actions.shareMarkdown(capture)
+
+		XCTAssertEqual(received?.renderedArticleHTML, capture.renderedArticleHTML)
+		XCTAssertEqual(received?.renderedArticleBaseURL, baseURL)
 	}
 
 	func testHighlightCaptureFreshLoadsAndUsesResolvedPostingOrder() async throws {

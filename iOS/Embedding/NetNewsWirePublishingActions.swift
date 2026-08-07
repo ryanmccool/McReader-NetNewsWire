@@ -5,12 +5,23 @@ public struct NetNewsWirePublishingCapture: Equatable, Sendable {
 	public var title: String
 	public var creator: String?
 	public var preferredURL: URL
+	public var renderedArticleHTML: String?
+	public var renderedArticleBaseURL: URL?
 
-	public init(selectedText: String?, title: String, creator: String?, preferredURL: URL) {
+	public init(
+		selectedText: String?,
+		title: String,
+		creator: String?,
+		preferredURL: URL,
+		renderedArticleHTML: String? = nil,
+		renderedArticleBaseURL: URL? = nil
+	) {
 		self.selectedText = selectedText
 		self.title = title
 		self.creator = creator
 		self.preferredURL = preferredURL
+		self.renderedArticleHTML = renderedArticleHTML
+		self.renderedArticleBaseURL = renderedArticleBaseURL
 	}
 }
 
@@ -29,22 +40,26 @@ public enum NetNewsWirePublishingIntent: Equatable, Sendable {
 public struct NetNewsWirePublishingActions {
 	public var send: (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void
 	public var shareMarkdown: (NetNewsWirePublishingCapture) -> Void
+	public var reportMarkdownFailure: () -> Void
 	let isEnabled: Bool
 	let isMarkdownSharingEnabled: Bool
 
 	public init(send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void) {
 		self.send = send
 		self.shareMarkdown = { _ in }
+		self.reportMarkdownFailure = {}
 		self.isEnabled = true
 		self.isMarkdownSharingEnabled = false
 	}
 
 	public init(
 		send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void,
-		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void
+		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void,
+		reportMarkdownFailure: @escaping () -> Void = {}
 	) {
 		self.send = send
 		self.shareMarkdown = shareMarkdown
+		self.reportMarkdownFailure = reportMarkdownFailure
 		self.isEnabled = true
 		self.isMarkdownSharingEnabled = true
 	}
@@ -52,11 +67,13 @@ public struct NetNewsWirePublishingActions {
 	private init(
 		send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void,
 		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void,
+		reportMarkdownFailure: @escaping () -> Void,
 		isEnabled: Bool,
 		isMarkdownSharingEnabled: Bool
 	) {
 		self.send = send
 		self.shareMarkdown = shareMarkdown
+		self.reportMarkdownFailure = reportMarkdownFailure
 		self.isEnabled = isEnabled
 		self.isMarkdownSharingEnabled = isMarkdownSharingEnabled
 	}
@@ -64,6 +81,7 @@ public struct NetNewsWirePublishingActions {
 	public static let disabled = NetNewsWirePublishingActions(
 		send: { _, _ in },
 		shareMarkdown: { _ in },
+		reportMarkdownFailure: {},
 		isEnabled: false,
 		isMarkdownSharingEnabled: false
 	)
@@ -78,6 +96,7 @@ struct NetNewsWirePublishingMenuText {
 		let captureSelection: String
 		let postHighlights: String
 		let shareMarkdown: String
+		let shareMarkdownArticle: String
 	}
 
 	static func accessibilityLabel(
@@ -97,7 +116,8 @@ struct NetNewsWirePublishingMenuText {
 			postNote: localize("Post Note...", "Command"),
 			captureSelection: localize("Capture Selection", "Command"),
 			postHighlights: localize("Post Highlights...", "Command"),
-			shareMarkdown: localize("Share as Markdown...", "Command")
+			shareMarkdown: localize("Share as Markdown...", "Command"),
+			shareMarkdownArticle: localize("Share Full Article as Markdown...", "Command")
 		)
 	}
 }

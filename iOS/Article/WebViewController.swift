@@ -204,6 +204,8 @@ final class WebViewController: UIViewController {
 	private let highlightInsertionGate = ArticleHighlightInsertionGate()
 	private var highlightRecords = [UUID: NetNewsWireHighlightRecord]()
 	private weak var highlightNavigation: WKNavigation?
+	private var articleRenderGeneration: UInt64 = 0
+	private var completedArticleRenderGeneration: UInt64?
 	private var highlightRenderTask: Task<Void, Never>?
 	private var highlightMutationTask: Task<Void, Never>?
 
@@ -365,6 +367,31 @@ final class WebViewController: UIViewController {
 		guard let value = try? await webView?.evaluateJavaScript("window.getSelection().toString()"),
 			let text = value as? String else { return nil }
 		return Self.normalizedSelectedPlainText(text)
+	}
+
+	/// Captures only the rendered article container, along with the base URL used by the
+	/// document at render time. Callers must perform their article/web-view identity checks.
+	var currentRenderGeneration: UInt64? { articleRenderGeneration == 0 ? nil : articleRenderGeneration }
+
+	func acceptsRender(generation: UInt64) -> Bool {
+		guard let webView, let state = highlightLifecycle.currentState else { return false }
+		return articleRenderGeneration == generation && state.generation == generation && highlightLifecycle.accepts(webView: webView, state: state)
+	}
+
+	var isRenderComplete: Bool { completedArticleRenderGeneration == articleRenderGeneration }
+
+	func renderedArticleContainer(generation: UInt64) async -> (html: String, baseURL: URL)? {
+		guard let webView, acceptsRender(generation: generation), isRenderComplete,
+			let value = try? await webView.evaluateJavaScript("(() => { const article = document.querySelector('article'); return article ? { html: article.outerHTML, baseURL: document.baseURI } : null; })()"),
+			let result = value as? [String: Any],
+			let html = result["html"] as? String,
+			let baseString = result["baseURL"] as? String,
+			let baseURL = URL(string: baseString),
+			acceptsRender(generation: generation),
+			!html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+			return nil
+		}
+		return (html, baseURL)
 	}
 
 	func highlightRecordsForPosting() async -> ([NetNewsWireHighlightRecord], [UUID: Int]) {
@@ -593,6 +620,10 @@ extension WebViewController: UIContextMenuInteractionDelegate {
 extension WebViewController: WKNavigationDelegate {
 
 	func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+		if let webView = webView as? PreloadedWebView,
+			self.webView === webView, navigation === highlightNavigation {
+			completedArticleRenderGeneration = articleRenderGeneration
+		}
 		if let webView = webView as? PreloadedWebView,
 			self.webView === webView, navigation === highlightNavigation,
 			let state = highlightLifecycle.currentState,
@@ -936,6 +967,8 @@ private extension WebViewController {
 //		print("article.html written to \(fileURL.path)")
 
 		WebViewConfiguration.addContentBlockingRules(to: webView)
+		articleRenderGeneration &+= 1
+		completedArticleRenderGeneration = nil
 		let articleKey = ArticleHighlightIdentity.articleKey(feedURL: article?.feed?.url, uniqueID: article?.uniqueID)
 		let rendition: ArticleHighlightRenderState.Rendition = isShowingExtractedArticle ? .readerView : .feedBody
 		invalidateHighlightRender(in: webView, articleKey: articleKey, rendition: rendition)
