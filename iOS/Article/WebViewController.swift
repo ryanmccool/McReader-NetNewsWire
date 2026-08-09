@@ -405,6 +405,16 @@ final class WebViewController: UIViewController {
 		return (records, highlightPositions(from: value))
 	}
 
+	func highlightPostingSnapshot() async -> ArticleHighlightPostingSnapshot? {
+		guard let webView, let state = highlightLifecycle.currentState,
+			highlightLifecycle.accepts(webView: webView, state: state),
+			let value = try? await webView.evaluateJavaScript("window.nnwHighlights.richTextForPosting()"),
+			highlightLifecycle.accepts(webView: webView, state: state) else {
+			return nil
+		}
+		return ArticleHighlightPostingSnapshot.validated(from: value, expectedState: state)
+	}
+
 	static func normalizedSelectedPlainText(_ text: String) -> String? {
 		let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 		return trimmed.isEmpty ? nil : trimmed

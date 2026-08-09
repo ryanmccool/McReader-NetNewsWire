@@ -834,7 +834,8 @@ private extension ArticleViewController {
 			guard let self,
 				let capture = await self.highlightPublishingCapture(
 					webViewController: webViewController,
-					articleKey: articleKey
+					articleKey: articleKey,
+					includeRichText: true
 				) else {
 				return
 			}
@@ -844,7 +845,8 @@ private extension ArticleViewController {
 
 	func highlightPublishingCapture(
 		webViewController: WebViewController,
-		articleKey: String
+		articleKey: String,
+		includeRichText: Bool = false
 	) async -> NetNewsWirePublishingCapture? {
 		guard currentWebViewController === webViewController,
 			let article = webViewController.article,
@@ -862,7 +864,10 @@ private extension ArticleViewController {
 			resolvedPositions: {
 				let (_, positions) = await webViewController.highlightRecordsForPosting()
 				return positions
-			}
+			},
+			resolvedPostingSnapshotProvider: includeRichText ? {
+				await webViewController.highlightPostingSnapshot()
+			} : nil
 		)
 		guard currentWebViewController === webViewController,
 			self.articleKey(for: webViewController.article) == articleKey else {

@@ -43,6 +43,23 @@ public struct NetNewsWireHighlightRecord: Identifiable, Equatable, Sendable {
 	}
 }
 
+/// Rich markup resolved from the currently rendered article for one posting attempt.
+/// This is deliberately separate from `NetNewsWireHighlightRecord`: it is never
+/// persisted or sent through the highlight store.
+public struct NetNewsWireHighlightRichText: Equatable, Sendable {
+	public let id: UUID
+	public let selectedText: String
+	public let html: String?
+	public let baseURL: URL?
+
+	public init(id: UUID, selectedText: String, html: String?, baseURL: URL?) {
+		self.id = id
+		self.selectedText = selectedText
+		self.html = html
+		self.baseURL = baseURL
+	}
+}
+
 public enum NetNewsWireHighlightActionError: Error, Equatable, Sendable {
 	case unavailable
 }

@@ -762,6 +762,61 @@
 		return state.resolved.slice().sort((left, right) => left.startOffset - right.startOffset || left.id.localeCompare(right.id));
 	}
 
+	function richTextForPosting() {
+		const render = captureRender();
+		if (!renderIsCurrent(render) || !render.root) {
+			return null;
+		}
+		const richText = state.resolved.map(position => {
+			if (!renderIsCurrent(render)) {
+				return null;
+			}
+			const mark = Array.from(render.root.querySelectorAll(markSelector)).find(
+				element => element.dataset.nnwHighlightId === position.id
+			);
+			if (!mark) {
+				return null;
+			}
+			const selectedText = normalize(mark.textContent);
+			const selected = mark.cloneNode(true);
+			const selectedContent = document.createElement("div");
+			while (selected.firstChild) {
+				selectedContent.appendChild(selected.firstChild);
+			}
+			let enclosingLink = null;
+			for (let ancestor = mark.parentElement; ancestor && ancestor !== render.root; ancestor = ancestor.parentElement) {
+				if (ancestor.tagName.toLowerCase() === "a") {
+					enclosingLink = ancestor;
+					break;
+				}
+			}
+			let html;
+			if (enclosingLink) {
+				const link = enclosingLink.cloneNode(false);
+				while (selectedContent.firstChild) {
+					link.appendChild(selectedContent.firstChild);
+				}
+				html = link.outerHTML;
+			} else {
+				html = selectedContent.innerHTML;
+			}
+			const baseURL = document.baseURI;
+			return selectedText && typeof html === "string" && typeof baseURL === "string"
+				? { id: position.id, selectedText, html, baseURL }
+				: null;
+		}).filter(Boolean);
+		if (!renderIsCurrent(render)) {
+			return null;
+		}
+		return {
+			generation: render.generation,
+			articleKey: render.articleKey,
+			rendition: render.rendition,
+			positions: positions(),
+			richText
+		};
+	}
+
 	window.nnwHighlights = Object.freeze({
 		prepare,
 		selectionState,
@@ -770,6 +825,7 @@
 		restore,
 		remove,
 		clear,
-		positions
+		positions,
+		richTextForPosting
 	});
 })();

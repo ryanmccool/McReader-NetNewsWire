@@ -23,7 +23,7 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertEqual(capture.creator, "Author")
 		XCTAssertEqual(capture.preferredURL, url)
 		XCTAssertEqual(Set(Mirror(reflecting: capture).children.compactMap(\.label)), [
-			"selectedText", "title", "creator", "preferredURL", "renderedArticleHTML", "renderedArticleBaseURL"
+			"selectedText", "title", "creator", "preferredURL", "renderedArticleHTML", "renderedArticleBaseURL", "highlightRichText"
 		])
 		assertSendable(capture)
 	}
@@ -273,6 +273,75 @@ final class NetNewsWirePublishingActionsTests: XCTestCase {
 		XCTAssertNil(blankCapture)
 		XCTAssertNil(missingURLCapture)
 		XCTAssertNil(invalidURLCapture)
+	}
+
+	func testHighlightCaptureFallsBackToPlainTextWhenPostingSnapshotIsUnavailable() async {
+		let record = makeRecord(selectedText: "Plain excerpt", preferredURL: URL(string: "https://example.com/article"))
+		let capture = await NetNewsWireHighlightPublishing.capture(
+			articleKey: "article-key",
+			currentTitle: "Title",
+			currentCreator: nil,
+			currentPreferredURL: record.preferredURL,
+			load: { _ in [record] },
+			resolvedPositions: {
+				XCTFail("The coherent posting snapshot should replace separate position resolution.")
+				return [:]
+			},
+			resolvedPostingSnapshotProvider: { nil }
+		)
+
+		XCTAssertEqual(capture?.selectedText, "Plain excerpt")
+		XCTAssertTrue(capture?.highlightRichText.isEmpty == true)
+	}
+
+	func testPostingSnapshotRejectsGenerationArticleAndRenditionMismatchesWithPlainFallback() async throws {
+		let expectedState = ArticleHighlightRenderState(
+			generation: 7,
+			articleKey: "article-key",
+			rendition: .feedBody
+		)
+		let response: [String: Any] = [
+			"generation": NSNumber(value: expectedState.generation),
+			"articleKey": expectedState.articleKey,
+			"rendition": expectedState.rendition.rawValue,
+			"positions": [],
+			"richText": []
+		]
+		var wrongGeneration = response
+		wrongGeneration["generation"] = NSNumber(value: expectedState.generation + 1)
+		var wrongArticle = response
+		wrongArticle["articleKey"] = "other-article"
+		var wrongRendition = response
+		wrongRendition["rendition"] = ArticleHighlightRenderState.Rendition.readerView.rawValue
+
+		for (mismatch, mismatchedResponse) in [
+			("generation", wrongGeneration),
+			("article key", wrongArticle),
+			("rendition", wrongRendition)
+		] {
+			let snapshot = ArticleHighlightPostingSnapshot.validated(
+				from: mismatchedResponse,
+				expectedState: expectedState
+			)
+			XCTAssertNil(snapshot, "Mismatched \(mismatch) should be rejected.")
+
+			let record = makeRecord(
+				selectedText: "Plain excerpt",
+				preferredURL: URL(string: "https://example.com/article")
+			)
+			let capture = await NetNewsWireHighlightPublishing.capture(
+				articleKey: "article-key",
+				currentTitle: "Title",
+				currentCreator: nil,
+				currentPreferredURL: record.preferredURL,
+				load: { _ in [record] },
+				resolvedPositions: { [:] },
+				resolvedPostingSnapshotProvider: { snapshot }
+			)
+
+			XCTAssertEqual(capture?.selectedText, "Plain excerpt")
+			XCTAssertTrue(capture?.highlightRichText.isEmpty == true)
+		}
 	}
 
 	func testResolvedHighlightActionRejectsNewArticleBeforeLoadAndFreshLoadsValidTap() async throws {

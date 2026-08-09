@@ -7,6 +7,9 @@ public struct NetNewsWirePublishingCapture: Equatable, Sendable {
 	public var preferredURL: URL
 	public var renderedArticleHTML: String?
 	public var renderedArticleBaseURL: URL?
+	/// Transient rich fragments for a Post Highlights action. The host converts these
+	/// to safe Markdown before creating its persisted publishing capture.
+	public var highlightRichText: [NetNewsWireHighlightRichText]
 
 	public init(
 		selectedText: String?,
@@ -14,7 +17,8 @@ public struct NetNewsWirePublishingCapture: Equatable, Sendable {
 		creator: String?,
 		preferredURL: URL,
 		renderedArticleHTML: String? = nil,
-		renderedArticleBaseURL: URL? = nil
+		renderedArticleBaseURL: URL? = nil,
+		highlightRichText: [NetNewsWireHighlightRichText] = []
 	) {
 		self.selectedText = selectedText
 		self.title = title
@@ -22,6 +26,7 @@ public struct NetNewsWirePublishingCapture: Equatable, Sendable {
 		self.preferredURL = preferredURL
 		self.renderedArticleHTML = renderedArticleHTML
 		self.renderedArticleBaseURL = renderedArticleBaseURL
+		self.highlightRichText = highlightRichText
 	}
 }
 
@@ -145,13 +150,27 @@ enum NetNewsWireHighlightPublishing {
 		currentCreator: String?,
 		currentPreferredURL: URL?,
 		load: (String) async throws -> [NetNewsWireHighlightRecord],
-		resolvedPositions: () async -> [UUID: Int]
+		resolvedPositions: () async -> [UUID: Int],
+		resolvedRichTextProvider: (() async -> [UUID: NetNewsWireHighlightRichText])? = nil,
+		resolvedPostingSnapshotProvider: (() async -> ArticleHighlightPostingSnapshot?)? = nil
 	) async -> NetNewsWirePublishingCapture? {
-		guard let records = try? await load(articleKey),
-			let quotation = ArticleHighlightPosting.quotation(
-				records: records,
-				resolvedOffsets: await resolvedPositions()
-			) else {
+		guard let records = try? await load(articleKey) else {
+			return nil
+		}
+		let resolvedOffsets: [UUID: Int]
+		let resolvedRichText: [UUID: NetNewsWireHighlightRichText]
+		if let resolvedPostingSnapshotProvider {
+			let snapshot = await resolvedPostingSnapshotProvider()
+			resolvedOffsets = snapshot?.resolvedOffsets ?? [:]
+			resolvedRichText = snapshot?.resolvedRichText ?? [:]
+		} else {
+			resolvedOffsets = await resolvedPositions()
+			resolvedRichText = await resolvedRichTextProvider?() ?? [:]
+		}
+		guard let quotation = ArticleHighlightPosting.quotation(
+			records: records,
+			resolvedOffsets: resolvedOffsets
+		) else {
 			return nil
 		}
 
@@ -166,7 +185,14 @@ enum NetNewsWireHighlightPublishing {
 			selectedText: quotation,
 			title: title,
 			creator: creator,
-			preferredURL: preferredURL
+			preferredURL: preferredURL,
+			highlightRichText: resolvedRichText.isEmpty
+				? []
+				: ArticleHighlightPosting.richText(
+					records: records,
+					resolvedOffsets: resolvedOffsets,
+					resolvedRichText: resolvedRichText
+				)
 		)
 	}
 

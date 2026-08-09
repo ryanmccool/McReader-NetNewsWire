@@ -117,6 +117,32 @@ final class ArticleHighlightModelTests: XCTestCase {
 		))
 	}
 
+	func testRichTextUsesPostingOrderAndRetainsPlainFallbackForUnresolvedFragments() throws {
+		let firstID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+		let secondID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+		let records = [
+			makeRecord(id: secondID, selectedText: "Second", createdAt: Date(timeIntervalSince1970: 20)),
+			makeRecord(id: firstID, selectedText: "First", createdAt: Date(timeIntervalSince1970: 30))
+		]
+		let rich = NetNewsWireHighlightRichText(
+			id: firstID,
+			selectedText: "First",
+			html: "First <a href=\"/first\">link</a>",
+			baseURL: URL(string: "https://example.com/article")
+		)
+
+		let fragments = ArticleHighlightPosting.richText(
+			records: records,
+			resolvedOffsets: [firstID: 5, secondID: 10],
+			resolvedRichText: [firstID: rich]
+		)
+
+		XCTAssertEqual(fragments.map(\.id), [firstID, secondID])
+		XCTAssertEqual(fragments.map(\.selectedText), ["First", "Second"])
+		XCTAssertEqual(fragments.first?.html, rich.html)
+		XCTAssertNil(fragments.last?.html)
+	}
+
 	func testRenderStateAcceptsOnlyMatchingGenerationArticleAndRendition() {
 		let state = ArticleHighlightRenderState(
 			generation: 7,

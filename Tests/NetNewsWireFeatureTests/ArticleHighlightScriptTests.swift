@@ -223,6 +223,66 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(positions.compactMap { $0["startOffset"] as? Int }, [0, 9])
 	}
 
+	func testRichTextForPostingCapturesInlineMarkupAndRenderedBaseURL() async throws {
+		try await loadArticle(
+			#"<p>First <a href="/next">linked</a> highlight</p>"#,
+			baseURL: URL(string: "https://example.com/posts/current")
+		)
+		let highlight = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "First linked highlight",
+			start: 0
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
+		let snapshot = try await objectResult("window.nnwHighlights.richTextForPosting()")
+		let rich = try XCTUnwrap(snapshot["richText"] as? [[String: Any]])
+
+		XCTAssertEqual(restored.count, 1)
+		XCTAssertEqual(snapshot["generation"] as? Int, 42)
+		XCTAssertEqual(snapshot["articleKey"] as? String, "article-key")
+		XCTAssertEqual(snapshot["rendition"] as? String, "v1:feed-body")
+		XCTAssertEqual((snapshot["positions"] as? [[String: Any]])?.first?["id"] as? String, highlight["id"] as? String)
+		XCTAssertEqual(rich.first?["id"] as? String, highlight["id"] as? String)
+		XCTAssertEqual(rich.first?["selectedText"] as? String, "First linked highlight")
+		XCTAssertTrue((rich.first?["html"] as? String)?.contains("href=\"/next\"") == true)
+		XCTAssertEqual(rich.first?["baseURL"] as? String, "https://example.com/posts/current")
+	}
+
+	func testRichTextForPostingKeepsWholeAndPartialEnclosingLinksWithoutSiblings() async throws {
+		try await loadArticle(
+			#"<p><a href="/whole">whole link</a> <a href="/partial">before selected after</a></p>"#,
+			baseURL: URL(string: "https://example.com/posts/current")
+		)
+		let whole = record(
+			id: "00000000-0000-0000-0000-000000000001",
+			selectedText: "whole link",
+			start: 0
+		)
+		let partial = record(
+			id: "00000000-0000-0000-0000-000000000002",
+			selectedText: "selected",
+			start: 18
+		)
+
+		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([whole, partial])))")
+		let snapshot = try await objectResult("window.nnwHighlights.richTextForPosting()")
+		let rich = try XCTUnwrap(snapshot["richText"] as? [[String: Any]])
+		let fragments: [String: String] = Dictionary(uniqueKeysWithValues: rich.compactMap { item in
+			guard let id = item["id"] as? String, let html = item["html"] as? String else { return nil }
+			return (id, html)
+		})
+		let wholeID = try XCTUnwrap(whole["id"] as? String)
+		let partialID = try XCTUnwrap(partial["id"] as? String)
+
+		XCTAssertEqual(restored.count, 2)
+		XCTAssertTrue(fragments[wholeID]?.contains("href=\"/whole\"") == true)
+		XCTAssertTrue(fragments[partialID]?.contains("href=\"/partial\"") == true)
+		XCTAssertTrue(fragments[partialID]?.contains("selected") == true)
+		XCTAssertFalse(fragments[partialID]?.contains("before") == true)
+		XCTAssertFalse(fragments[partialID]?.contains("after") == true)
+	}
+
 	func testPrepareClearsResolvedStateOnlyWhenRenderIdentityChanges() async throws {
 		try await loadArticle(#"<p>alpha beta</p>"#)
 		let highlight = record(
@@ -439,7 +499,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(messageRecorder.messageCount(named: "highlightWasTapped"), 0)
 	}
 
-	private func loadArticle(_ body: String) async throws {
+	private func loadArticle(_ body: String, baseURL: URL? = nil) async throws {
 		let scriptURL = try XCTUnwrap(
 			Bundle.netNewsWireFeatureResources.url(forResource: "article_highlights", withExtension: "js")
 		)
@@ -459,7 +519,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		webView.navigationDelegate = navigationDelegate
 		let loaded = expectation(description: "HTML loaded")
 		navigationDelegate.didFinish = { loaded.fulfill() }
-		webView.loadHTMLString("<html><body><header>ignored metadata</header><div id=\"bodyContainer\" class=\"articleBody\">\(body)</div></body></html>", baseURL: nil)
+		webView.loadHTMLString("<html><body><header>ignored metadata</header><div id=\"bodyContainer\" class=\"articleBody\">\(body)</div></body></html>", baseURL: baseURL)
 		await fulfillment(of: [loaded], timeout: 20)
 		_ = try await valueResult(#"window.nnwHighlights.prepare(42, "v1:feed-body", "article-key")"#)
 	}
