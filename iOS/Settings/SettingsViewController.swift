@@ -40,7 +40,9 @@ final class SettingsViewController: UITableViewController {
 	private enum FeedsRow: Int {
 		case importSubscriptions = 0
 		case exportSubscriptions = 1
-		case addNetNewsWireNewsFeed = 2
+		case importStarredArticles = 2
+		case exportStarredArticles = 3
+		case addNetNewsWireNewsFeed = 4
 	}
 
 	private enum TimelineRow: Int {
@@ -68,6 +70,8 @@ final class SettingsViewController: UITableViewController {
 
 	private var opmlImportAccount: Account?
 	private var opmlImportInProgress = false
+	private var starredArchiveImportPickerActive = false
+	private var starredArchiveExportURL: URL?
 	private var cloudKitResetInProgress = false
 
 	@IBOutlet var timelineSortOrderSwitch: UISwitch!
@@ -191,9 +195,9 @@ final class SettingsViewController: UITableViewController {
 		case .feeds:
 			let defaultNumberOfRows = super.tableView(tableView, numberOfRowsInSection: section)
 			if AccountManager.shared.activeAccounts.isEmpty || AccountManager.shared.anyAccountHasNetNewsWireNewsSubscription() {
-				return defaultNumberOfRows - 1
+				return defaultNumberOfRows + 1
 			}
-			return defaultNumberOfRows
+			return defaultNumberOfRows + 2
 		case .articles:
 			// McReader owns the only article appearance in contained mode.
 			let rowCount = traitCollection.userInterfaceIdiom == .phone
@@ -257,6 +261,16 @@ final class SettingsViewController: UITableViewController {
 				acctCell.comboNameLabel?.text = account.nameForDisplay
 				cell = acctCell
 			}
+		case .feeds where indexPath.row == FeedsRow.importStarredArticles.rawValue:
+			cell = tableView.dequeueReusableCell(withIdentifier: "SettingsTableViewCell", for: indexPath)
+			cell.textLabel?.text = NNWLocalizedString("Import Starred Articles", comment: "Import starred articles settings row")
+			cell.accessoryType = .none
+		case .feeds where indexPath.row == FeedsRow.exportStarredArticles.rawValue:
+			cell = tableView.dequeueReusableCell(withIdentifier: "SettingsTableViewCell", for: indexPath)
+			cell.textLabel?.text = NNWLocalizedString("Export Starred Articles", comment: "Export starred articles settings row")
+			cell.accessoryType = .none
+		case .feeds where indexPath.row >= FeedsRow.addNetNewsWireNewsFeed.rawValue:
+			cell = super.tableView(tableView, cellForRowAt: IndexPath(row: indexPath.row - 2, section: indexPath.section))
 		case .articles where usesHostAppearance:
 			cell = super.tableView(
 				tableView,
@@ -311,6 +325,14 @@ final class SettingsViewController: UITableViewController {
 				if let sourceView = tableView.cellForRow(at: indexPath) {
 					let sourceRect = tableView.rectForRow(at: indexPath)
 					exportOPML(sourceView: sourceView, sourceRect: sourceRect)
+				}
+			case .importStarredArticles:
+				tableView.selectRow(at: nil, animated: true, scrollPosition: .none)
+				importStarredArticlesDocumentPicker()
+			case .exportStarredArticles:
+				tableView.selectRow(at: nil, animated: true, scrollPosition: .none)
+				if let sourceView = tableView.cellForRow(at: indexPath) {
+					exportStarredArticlesAccountPicker(sourceView: sourceView)
 				}
 			case .addNetNewsWireNewsFeed:
 				addFeed()
@@ -501,6 +523,17 @@ final class SettingsViewController: UITableViewController {
 extension SettingsViewController: UIDocumentPickerDelegate {
 
 	func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+		if starredArchiveExportURL != nil {
+			cleanupStarredArchiveExport()
+			return
+		}
+		if starredArchiveImportPickerActive, let url = urls.first {
+			starredArchiveImportPickerActive = false
+			controller.dismiss(animated: true) { [weak self] in
+				self?.prepareStarredArticleArchiveImport(from: url)
+			}
+			return
+		}
 		guard let account = opmlImportAccount, let url = urls.first else {
 			return
 		}
@@ -511,6 +544,8 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 	}
 
 	func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+		starredArchiveImportPickerActive = false
+		cleanupStarredArchiveExport()
 		opmlImportAccount = nil
 	}
 
@@ -542,6 +577,21 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 				comment: "OPML import was committed but has not converged locally"
 			)
 			message += "\n\n\(savedMessage)"
+		}
+		return message
+	}
+
+	static func starredArchiveImportResultMessage(_ result: StarredArticleArchiveImportResult) -> String {
+		let format = NNWLocalizedString(
+			"Added: %lld\nUpdated: %lld\nUnchanged: %lld\nRejected: %lld",
+			comment: "Starred article archive import result counts"
+		)
+		var message = String(format: format, result.added, result.updated, result.unchanged, result.rejected)
+		if result.upstreamSyncFailed {
+			message += "\n\n" + NNWLocalizedString(
+				"The articles were imported on this device, but the feed service could not be updated. Refresh the account to retry.",
+				comment: "Starred article provider sync failure guidance"
+			)
 		}
 		return message
 	}
@@ -739,6 +789,182 @@ private extension SettingsViewController {
 		addNavViewController.preferredContentSize = AddFeedViewController.preferredContentSizeForFormSheetDisplay
 
 		presentingParentController?.present(addNavViewController, animated: true)
+	}
+
+	func exportStarredArticlesAccountPicker(sourceView: UIView) {
+		let accounts = AccountManager.shared.sortedActiveAccounts
+		guard !accounts.isEmpty else {
+			presentError(title: NNWLocalizedString("Export Failed", comment: "Starred article export failure title"), message: NNWLocalizedString("You must have at least one active account.", comment: "Missing active account"))
+			return
+		}
+		let alert = UIAlertController(
+			title: NNWLocalizedString("Choose an account to export starred articles from", comment: "Starred article export account picker title"),
+			message: nil,
+			preferredStyle: .actionSheet
+		)
+		if let popoverController = alert.popoverPresentationController {
+			popoverController.sourceView = sourceView
+			popoverController.sourceRect = sourceView.bounds
+		}
+		for account in accounts {
+			alert.addAction(UIAlertAction(title: account.nameForDisplay, style: .default) { [weak self] _ in
+				self?.exportStarredArticles(from: account)
+			})
+		}
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
+		present(alert, animated: true)
+	}
+
+	func exportStarredArticles(from account: Account) {
+		let progressAlert = progressAlert(
+			title: NNWLocalizedString("Exporting Starred Articles…", comment: "Starred article export progress title")
+		)
+		present(progressAlert, animated: true)
+		Task { @MainActor [weak self] in
+			guard let self else { return }
+			do {
+				let archive = await account.makeStarredArticleArchive()
+				let accountName = account.nameForDisplay
+				let fileURL = try await Task.detached(priority: .userInitiated) {
+					let directory = FileManager.default.temporaryDirectory
+						.appendingPathComponent("NetNewsWire-Starred-Article-Exports", isDirectory: true)
+						.appendingPathComponent(UUID().uuidString, isDirectory: true)
+					try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+					let safeName = accountName.components(separatedBy: CharacterSet.alphanumerics.inverted)
+						.filter { !$0.isEmpty }.joined(separator: "-")
+					let fileURL = directory.appendingPathComponent("Starred-Articles-\(safeName.isEmpty ? "Account" : safeName).json")
+					try archive.encoded().write(to: fileURL, options: .atomic)
+					return fileURL
+				}.value
+				progressAlert.dismiss(animated: true) {
+					self.starredArchiveExportURL = fileURL
+					let picker = UIDocumentPickerViewController(forExporting: [fileURL])
+					picker.delegate = self
+					picker.modalPresentationStyle = .formSheet
+					self.present(picker, animated: true)
+				}
+			} catch {
+				progressAlert.dismiss(animated: true) {
+					self.presentError(
+						title: NNWLocalizedString("Export Failed", comment: "Starred article export failure title"),
+						message: NNWLocalizedString("The starred-article archive couldn’t be created. Try again.", comment: "Starred article export failure message")
+					)
+				}
+			}
+		}
+	}
+
+	func importStarredArticlesDocumentPicker() {
+		starredArchiveImportPickerActive = true
+		let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.json], asCopy: true)
+		picker.delegate = self
+		picker.modalPresentationStyle = .formSheet
+		present(picker, animated: true)
+	}
+
+	func prepareStarredArticleArchiveImport(from url: URL) {
+		let progressAlert = progressAlert(
+			title: NNWLocalizedString("Reading Starred Articles…", comment: "Starred article archive reading progress title")
+		)
+		present(progressAlert, animated: true)
+		Task { @MainActor [weak self] in
+			guard let self else { return }
+			do {
+				let archive = try await Task.detached(priority: .userInitiated) {
+					try StarredArticleArchive.decode(contentsOf: url)
+				}.value
+				progressAlert.dismiss(animated: true) {
+					self.importStarredArticlesAccountPicker(archive)
+				}
+			} catch {
+				progressAlert.dismiss(animated: true) {
+					self.presentError(
+						title: NNWLocalizedString("Import Failed", comment: "Import Failed"),
+						message: (error as? LocalizedError)?.errorDescription ?? NNWLocalizedString("The selected file isn’t a supported starred-article archive.", comment: "Invalid starred article archive message")
+					)
+				}
+			}
+		}
+	}
+
+	func importStarredArticlesAccountPicker(_ archive: StarredArticleArchive) {
+		guard !AccountManager.shared.sortedActiveAccounts.isEmpty else {
+			presentError(title: NNWLocalizedString("Import Failed", comment: "Import Failed"), message: NNWLocalizedString("You must have at least one active account.", comment: "Missing active account"))
+			return
+		}
+		let sourceName = archive.metadata.provider.accountType.displayName
+		let messageFormat = NNWLocalizedString(
+			"This archive came from %@. Matching service accounts will sync restored stars upstream; the local account keeps them on this device.",
+			comment: "Starred article import account picker explanation"
+		)
+		let alert = UIAlertController(
+			title: NNWLocalizedString("Choose an account to receive the starred articles", comment: "Starred article import account picker title"),
+			message: String(format: messageFormat, sourceName),
+			preferredStyle: .actionSheet
+		)
+		if let popoverController = alert.popoverPresentationController {
+			popoverController.sourceView = view
+			popoverController.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+		}
+		for account in AccountManager.shared.sortedActiveAccounts {
+			let action = UIAlertAction(title: account.nameForDisplay, style: .default) { [weak self] _ in
+				self?.importStarredArticles(archive, into: account)
+			}
+			action.isEnabled = account.canImportStarredArticles(from: archive) && !account.refreshInProgress
+			alert.addAction(action)
+		}
+		alert.addAction(UIAlertAction(title: NNWLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
+		present(alert, animated: true)
+	}
+
+	func importStarredArticles(_ archive: StarredArticleArchive, into account: Account) {
+		opmlImportInProgress = true
+		setOPMLImportPresentationLocked(true)
+		let progressAlert = progressAlert(
+			title: NNWLocalizedString("Importing Starred Articles…", comment: "Starred article import progress title")
+		)
+		present(progressAlert, animated: true)
+		Task { @MainActor [weak self] in
+			guard let self else { return }
+			do {
+				let result = try await account.importStarredArticles(from: archive)
+				finishStarredArticleImport(progressAlert: progressAlert, title: NNWLocalizedString("Import Complete", comment: "Import Complete"), message: Self.starredArchiveImportResultMessage(result))
+			} catch {
+				finishStarredArticleImport(
+					progressAlert: progressAlert,
+					title: NNWLocalizedString("Import Failed", comment: "Import Failed"),
+					message: (error as? LocalizedError)?.errorDescription ?? NNWLocalizedString("The starred articles couldn’t be imported. Try again.", comment: "Starred article import failure message")
+				)
+			}
+		}
+	}
+
+	func finishStarredArticleImport(progressAlert: UIAlertController, title: String, message: String) {
+		progressAlert.dismiss(animated: true) { [weak self] in
+			guard let self else { return }
+			opmlImportInProgress = false
+			setOPMLImportPresentationLocked(false)
+			activeResultPresenter()?.presentError(title: title, message: message)
+		}
+	}
+
+	func progressAlert(title: String) -> UIAlertController {
+		let alert = UIAlertController(title: title, message: "\n\n", preferredStyle: .alert)
+		let activityIndicator = UIActivityIndicatorView(style: .medium)
+		activityIndicator.translatesAutoresizingMaskIntoConstraints = false
+		activityIndicator.startAnimating()
+		alert.view.addSubview(activityIndicator)
+		NSLayoutConstraint.activate([
+			activityIndicator.centerXAnchor.constraint(equalTo: alert.view.centerXAnchor),
+			activityIndicator.bottomAnchor.constraint(equalTo: alert.view.bottomAnchor, constant: -20)
+		])
+		return alert
+	}
+
+	func cleanupStarredArchiveExport() {
+		guard let fileURL = starredArchiveExportURL else { return }
+		starredArchiveExportURL = nil
+		try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
 	}
 
 	func importOPML(sourceView: UIView, sourceRect: CGRect) {

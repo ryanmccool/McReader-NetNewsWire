@@ -196,20 +196,22 @@ extension Folder: OPMLRepresentable {
 		var s = "<outline text=\"\(escapedTitle)\" title=\"\(escapedTitle)\"\(attrExternalID)>\n"
 		s = s.prepending(tabCount: indentLevel)
 
-		var hasAtLeastOneChild = false
+		var children = ""
 
 		for feed in topLevelFeeds.sorted() {
-			s += feed.OPMLString(indentLevel: indentLevel + 1, allowCustomAttributes: allowCustomAttributes)
-			hasAtLeastOneChild = true
+			children += feed.OPMLString(indentLevel: indentLevel + 1, allowCustomAttributes: allowCustomAttributes)
 		}
 
-		if !hasAtLeastOneChild {
+		if children.isEmpty {
+			if !allowCustomAttributes, externalID == "netnewswire.starred-article-archive" {
+				return ""
+			}
 			s = "<outline text=\"\(escapedTitle)\" title=\"\(escapedTitle)\"\(attrExternalID)/>\n"
 			s = s.prepending(tabCount: indentLevel)
 			return s
 		}
 
-		s = s + String(repeating: "\t", count: indentLevel) + "</outline>\n"
+		s += children + String(repeating: "\t", count: indentLevel) + "</outline>\n"
 
 		return s
 	}
