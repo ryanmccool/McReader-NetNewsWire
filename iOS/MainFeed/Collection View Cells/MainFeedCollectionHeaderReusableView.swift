@@ -108,6 +108,7 @@ final class MainFeedCollectionHeaderReusableView: UICollectionReusableView {
 			backgroundColor = NetNewsWireFeatureTheme.groupedBackground
 		}
 		headerTitle.textColor = traitCollection.userInterfaceIdiom == .pad ? NetNewsWireFeatureTheme.tertiaryText : NetNewsWireFeatureTheme.primaryText
+		unreadCountLabel.textColor = NetNewsWireFeatureTheme.primaryText.withAlphaComponent(0.72)
 	}
 
 	@objc private func featureAppearanceDidChange() {

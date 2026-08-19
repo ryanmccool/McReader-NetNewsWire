@@ -108,7 +108,7 @@ final class MainFeedCollectionViewCell: UICollectionViewCell {
 			feedTitle.textColor = NetNewsWireFeatureTheme.primaryText
 			feedTitle.font = UIFont.preferredFont(forTextStyle: .body)
 			unreadCountLabel.font = UIFont.preferredFont(forTextStyle: .body)
-			unreadCountLabel.textColor = NetNewsWireFeatureTheme.secondaryText
+			unreadCountLabel.textColor = NetNewsWireFeatureTheme.primaryText.withAlphaComponent(0.72)
 			if traitCollection.userInterfaceIdiom == .phone {
 				if feedTitle.text == "All Unread" {
 					faviconView.tintColor = iconImage?.preferredColor ?? NetNewsWireFeatureTheme.secondaryTint

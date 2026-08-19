@@ -25,6 +25,8 @@ private let folderIdentifier = "Folder"
 private let containerReuseIdentifier = "Container"
 
 final class MainFeedCollectionViewController: UICollectionViewController, UndoableCommandRunner {
+	var usesContainedNavigationBar = false
+
 	@IBOutlet var filterButton: UIBarButtonItem!
 	@IBOutlet var addNewItemButton: UIBarButtonItem! {
 		didSet {
@@ -65,6 +67,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	private var isAnimating: Bool = false
 	private var isToolbarConfigured: Bool = false
 	private var usesSidebarAppearance: Bool = false
+	private let containedToolbarScrollClearance: CGFloat = 16
 
 	var dataSource: UICollectionViewDiffableDataSource<String, SidebarItemNode>!
 
@@ -86,6 +89,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			let settingsButtonIndex = 0
 			let button = UIBarButtonItem(image: Assets.Images.currentActivity, style: .plain, target: self, action: #selector(showCurrentActivity(_:)))
 			button.accessibilityLabel = NNWLocalizedString("Current Activity", comment: "Current Activity")
+			button.sharesBackground = false
 			toolbarItems?.insert(button, at: settingsButtonIndex + 1)
 			currentActivityButton = button
 			NotificationCenter.default.addObserver(self, selector: #selector(activityDidChange(_:)), name: .activityDidChange, object: nil)
@@ -119,8 +123,8 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 		applyFeatureNavigationAppearance()
 
 		if traitCollection.userInterfaceIdiom == .phone {
-			self.navigationController?.navigationBar.prefersLargeTitles = true
-			self.navigationItem.largeTitleDisplayMode = .always
+			self.navigationController?.navigationBar.prefersLargeTitles = !usesContainedNavigationBar
+			self.navigationItem.largeTitleDisplayMode = usesContainedNavigationBar ? .never : .always
 			DispatchQueue.main.async {
 				/// This sizes the navigation bar to large.
 				self.navigationController?.navigationBar.sizeToFit()
@@ -141,6 +145,26 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
 		self.deselectIfNeccessary()
+	}
+
+	override func viewSafeAreaInsetsDidChange() {
+		super.viewSafeAreaInsetsDidChange()
+		updateContainedScrollClearance()
+	}
+
+	func updateContainedNavigationBar(_ isContained: Bool) {
+		usesContainedNavigationBar = isContained
+		updateContainedScrollClearance()
+		guard traitCollection.userInterfaceIdiom == .phone else { return }
+		navigationController?.navigationBar.prefersLargeTitles = !isContained
+		navigationItem.largeTitleDisplayMode = isContained ? .never : .always
+		navigationController?.navigationBar.sizeToFit()
+	}
+
+	private func updateContainedScrollClearance() {
+		let clearance = usesContainedNavigationBar ? containedToolbarScrollClearance : 0
+		collectionView.contentInset.bottom = clearance
+		collectionView.verticalScrollIndicatorInsets.bottom = clearance
 	}
 
 	func deselectIfNeccessary() {

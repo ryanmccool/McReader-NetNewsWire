@@ -1,10 +1,12 @@
 import UIKit
 
+public typealias NetNewsWireLibraryExitAction = @MainActor @Sendable () -> Void
+
 @MainActor
 public protocol NetNewsWireFeatureHosting: AnyObject {
 	var viewController: UIViewController { get }
 	func updateAppearance(_ appearance: NetNewsWireFeatureAppearance?)
-	func updateLibraryExitAction(_ action: (@MainActor () -> Void)?)
+	func updateLibraryExitAction(_ action: NetNewsWireLibraryExitAction?)
 	func sceneWillEnterForeground()
 	func sceneDidEnterBackground()
 	func suspend()
@@ -114,7 +116,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 		NetNewsWireFeatureTheme.update(appearance)
 	}
 
-	public func updateLibraryExitAction(_ action: (@MainActor () -> Void)?) {
+	public func updateLibraryExitAction(_ action: NetNewsWireLibraryExitAction?) {
 		rootSplitViewController.coordinator.updateLibraryExitAction(action)
 	}
 

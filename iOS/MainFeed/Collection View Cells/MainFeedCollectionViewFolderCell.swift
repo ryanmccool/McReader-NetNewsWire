@@ -162,7 +162,7 @@ class MainFeedCollectionViewFolderCell: UICollectionViewCell {
 			folderTitle.textColor = NetNewsWireFeatureTheme.primaryText
 			faviconView.tintColor = NetNewsWireFeatureTheme.tint
 			folderTitle.font = UIFont.preferredFont(forTextStyle: .body)
-			unreadCountLabel.textColor = NetNewsWireFeatureTheme.secondaryText
+			unreadCountLabel.textColor = NetNewsWireFeatureTheme.primaryText.withAlphaComponent(0.72)
 			unreadCountLabel.font = UIFont.preferredFont(forTextStyle: .body)
 		}
 

@@ -365,7 +365,8 @@ struct SidebarItemNode: Hashable, Sendable {
 		}
 	}
 
-	func updateLibraryExitAction(_ action: (@MainActor () -> Void)?) {
+	func updateLibraryExitAction(_ action: NetNewsWireLibraryExitAction?) {
+		mainFeedCollectionViewController.updateContainedNavigationBar(action != nil)
 		guard let action else {
 			mainFeedCollectionViewController.navigationItem.leftBarButtonItem = nil
 			return
