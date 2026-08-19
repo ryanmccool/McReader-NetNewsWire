@@ -56,11 +56,11 @@ import XCTest
 	}
 
 	func testResetContainerValidationRejectsMcReaderLibraryContainer() {
-		XCTAssertEqual(CloudKitAccountContainerConfiguration.feedsContainerIdentifier, "iCloud.ryanmccool.McReader.Feeds")
+		XCTAssertEqual(CloudKitAccountContainerConfiguration.feedsContainerIdentifier, "iCloud.com.staticevolution.staticreader.feeds")
 		XCTAssertTrue(CloudKitAccountContainerConfiguration.isResetContainerIdentifier(CloudKitAccountContainerConfiguration.feedsContainerIdentifier))
-		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.ryanmccool.McReader"))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.com.staticevolution.staticreader"))
 		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.example.Other.Feeds"))
-		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.ryanmccool.McReader.Staging.Feeds"))
+		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier("iCloud.com.staticevolution.staticreader.staging.feeds"))
 		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetContainerIdentifier(nil))
 	}
 
@@ -81,7 +81,7 @@ import XCTest
 		))
 		XCTAssertFalse(CloudKitAccountContainerConfiguration.isResetAvailable(
 			isEmbedded: true,
-			containerIdentifier: "iCloud.ryanmccool.McReader"
+			containerIdentifier: "iCloud.com.staticevolution.staticreader"
 		))
 	}
 

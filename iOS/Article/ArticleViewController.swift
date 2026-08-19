@@ -54,7 +54,7 @@ final class ArticleViewController: UIViewController {
 	}()
 
 	weak var coordinator: SceneCoordinator!
-	var publishingActions = NetNewsWirePublishingActions.disabled
+	var markdownActions = NetNewsWireMarkdownActions.disabled
 	let highlightActions: NetNewsWireHighlightActions
 
 	required init?(coder: NSCoder) {
@@ -177,7 +177,7 @@ final class ArticleViewController: UIViewController {
 				actionBarButtonItem
 			]
 		}
-		configurePublishingMenu()
+		configureMarkdownMenu()
 
 		pageViewController = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: [:])
 		pageViewController.delegate = self
@@ -633,69 +633,9 @@ extension ArticleViewController: UIGestureRecognizerDelegate {
 }
 
 extension ArticleViewController {
-	func makePublishingMenu() -> UIMenu {
+	func makeMarkdownMenu() -> UIMenu {
 		let localize = { NNWLocalizedString($0, comment: $1) }
-		let titles = NetNewsWirePublishingMenuText.actionTitles(localize: localize)
-		let captureLink = UIAction(title: titles.captureLink) { [weak self] _ in
-			self?.sendLink(intent: .capture)
-		}
-		let postQuote = UIAction(title: titles.postQuote) { [weak self] _ in
-			self?.sendQuote()
-		}
-		let postLink = UIAction(title: titles.postLink) { [weak self] _ in
-			self?.sendLink(intent: .postAs(.blogmark))
-		}
-		let postNote = UIAction(title: titles.postNote) { [weak self] _ in
-			self?.sendLink(intent: .postAs(.note))
-		}
-		let selectionActions = UIDeferredMenuElement.uncached { [weak self] completion in
-			guard let self,
-				let webViewController = currentWebViewController,
-				let article = webViewController.article,
-				var capture = publishingCapture(article: article, selectedText: nil) else {
-				completion([])
-				return
-			}
-			let articleID = article.articleID
-
-			Task { @MainActor in
-				guard let selectedText = await webViewController.selectedPlainText(),
-					currentWebViewController === webViewController,
-					webViewController.article?.articleID == articleID else {
-					completion([])
-					return
-				}
-				capture.selectedText = selectedText
-				let captureSelection = UIAction(title: titles.captureSelection) { [weak self] _ in
-					self?.publishingActions.send(capture, .capture)
-				}
-				completion([captureSelection])
-			}
-		}
-		let highlightActions = UIDeferredMenuElement.uncached { [weak self] completion in
-			Task { @MainActor in
-				guard let self,
-					let webViewController = self.currentWebViewController,
-					let articleKey = self.articleKey(for: webViewController.article),
-					await self.highlightPublishingCapture(
-						webViewController: webViewController,
-						articleKey: articleKey
-					) != nil else {
-					completion([])
-					return
-				}
-				let postAction = NetNewsWireHighlightPostAction(
-					articleKey: articleKey,
-					webViewController: webViewController
-				)
-				let postHighlights = UIAction(title: titles.postHighlights) { [weak self] _ in
-					Task { @MainActor in
-						await self?.postHighlights(postAction)
-					}
-				}
-				completion([postHighlights])
-			}
-		}
+		let titles = NetNewsWireMarkdownMenuText.actionTitles(localize: localize)
 		let share = UIAction(
 			title: NNWLocalizedString("Share", comment: "Share button"),
 			image: Assets.Images.share
@@ -703,7 +643,7 @@ extension ArticleViewController {
 			self?.currentWebViewController?.showActivityDialog(popOverBarButtonItem: self?.actionBarButtonItem)
 		}
 		var shareActions: [UIMenuElement] = [share]
-		if publishingActions.isMarkdownSharingEnabled {
+		if markdownActions.isEnabled {
 			let shareMarkdown = UIAction(title: titles.shareMarkdown, image: UIImage(systemName: "doc.text")) { [weak self] _ in
 				self?.shareArticleAsMarkdown()
 			}
@@ -713,62 +653,30 @@ extension ArticleViewController {
 			shareActions.append(contentsOf: [shareMarkdown, shareFullArticleMarkdown])
 		}
 		let shareSection = UIMenu(title: "", options: .displayInline, children: shareActions)
-		let publishingSection = UIMenu(
-			title: "",
-			options: .displayInline,
-			children: [captureLink, postQuote, postLink, postNote, selectionActions, highlightActions]
-		)
-		return UIMenu(children: [shareSection, publishingSection])
+		return UIMenu(children: [shareSection])
 	}
 }
 
 // MARK: Private
 
 private extension ArticleViewController {
-	func configurePublishingMenu() {
+	func configureMarkdownMenu() {
 		let localize = { NNWLocalizedString($0, comment: $1) }
-		actionBarButtonItem.accessibilityLabel = NetNewsWirePublishingMenuText.accessibilityLabel(
-			actionsEnabled: publishingActions.isEnabled,
+		actionBarButtonItem.accessibilityLabel = NetNewsWireMarkdownMenuText.accessibilityLabel(
+			actionsEnabled: markdownActions.isEnabled,
 			existingLabel: actionBarButtonItem.accessibilityLabel,
 			localize: localize
 		)
-		guard publishingActions.isEnabled else { return }
-		actionBarButtonItem.menu = makePublishingMenu()
+		guard markdownActions.isEnabled else { return }
+		actionBarButtonItem.menu = makeMarkdownMenu()
 		actionBarButtonItem.target = nil
 		actionBarButtonItem.action = nil
-	}
-
-	func sendLink(intent: NetNewsWirePublishingIntent) {
-		guard let article = currentWebViewController?.article,
-			let capture = publishingCapture(article: article, selectedText: nil) else { return }
-		publishingActions.send(capture, intent)
-	}
-
-	func sendQuote() {
-		guard let webViewController = currentWebViewController,
-			let article = webViewController.article,
-			let baseCapture = publishingCapture(article: article, selectedText: nil) else {
-			return
-		}
-		let articleID = article.articleID
-
-		Task { @MainActor [weak self] in
-			let selectedText = await webViewController.selectedPlainText()
-			guard let self,
-				currentWebViewController === webViewController,
-				webViewController.article?.articleID == articleID else {
-				return
-			}
-			var capture = baseCapture
-			capture.selectedText = selectedText
-			publishingActions.send(capture, .postAs(.quotation))
-		}
 	}
 
 	func shareArticleAsMarkdown(includeRenderedArticle: Bool = false) {
 		guard let webViewController = currentWebViewController,
 			let article = webViewController.article,
-			let baseCapture = publishingCapture(article: article, selectedText: nil) else {
+			let baseCapture = markdownCapture(article: article, selectedText: nil) else {
 			return
 		}
 		let articleID = article.articleID
@@ -781,7 +689,7 @@ private extension ArticleViewController {
 			guard markdownShareGeneration == requestGeneration,
 				currentWebViewController === webViewController,
 				webViewController.article?.articleID == articleID else { return }
-			let (records, positions) = await webViewController.highlightRecordsForPosting()
+			let (records, positions) = await webViewController.highlightRecordsForMarkdown()
 			let capture = NetNewsWireMarkdownSharing.capture(
 				base: baseCapture,
 				renderedHighlights: records,
@@ -795,7 +703,7 @@ private extension ArticleViewController {
 						webViewController.article?.articleID == articleID,
 						markdownShareGeneration == requestGeneration,
 						webViewController.isRenderComplete else { return }
-					publishingActions.reportMarkdownFailure()
+					markdownActions.reportMarkdownFailure()
 					return
 				}
 				finalCapture.renderedArticleHTML = rendered.html
@@ -806,80 +714,19 @@ private extension ArticleViewController {
 				markdownShareGeneration == requestGeneration else {
 				return
 			}
-			publishingActions.shareMarkdown(finalCapture)
+			markdownActions.shareMarkdown(finalCapture)
 		}
 	}
 
-	func publishingCapture(article: Article?, selectedText: String?) -> NetNewsWirePublishingCapture? {
+	func markdownCapture(article: Article?, selectedText: String?) -> NetNewsWireMarkdownCapture? {
 		guard let article, let preferredURL = article.preferredURL else { return nil }
 		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
 		let creator = byline.isEmpty ? article.feed?.nameForDisplay : byline
-		return NetNewsWirePublishingCapture(
+		return NetNewsWireMarkdownCapture(
 			selectedText: selectedText,
 			title: article.title ?? "",
 			creator: creator,
 			preferredURL: preferredURL
-		)
-	}
-
-	func postHighlights(_ action: NetNewsWireHighlightPostAction) async {
-		guard let webViewController = currentWebViewController,
-			let articleKey = articleKey(for: webViewController.article) else {
-			return
-		}
-		await action.perform(
-			currentArticleKey: articleKey,
-			currentWebViewController: webViewController
-		) { [weak self] in
-			guard let self,
-				let capture = await self.highlightPublishingCapture(
-					webViewController: webViewController,
-					articleKey: articleKey,
-					includeRichText: true
-				) else {
-				return
-			}
-			self.publishingActions.send(capture, .postAs(.quotation))
-		}
-	}
-
-	func highlightPublishingCapture(
-		webViewController: WebViewController,
-		articleKey: String,
-		includeRichText: Bool = false
-	) async -> NetNewsWirePublishingCapture? {
-		guard currentWebViewController === webViewController,
-			let article = webViewController.article,
-			self.articleKey(for: article) == articleKey else {
-			return nil
-		}
-		let byline = article.byline().trimmingCharacters(in: .whitespacesAndNewlines)
-		let creator = byline.isEmpty ? article.feed?.nameForDisplay : byline
-		let capture = await NetNewsWireHighlightPublishing.capture(
-			articleKey: articleKey,
-			currentTitle: article.title ?? "",
-			currentCreator: creator,
-			currentPreferredURL: article.preferredURL,
-			load: highlightActions.load,
-			resolvedPositions: {
-				let (_, positions) = await webViewController.highlightRecordsForPosting()
-				return positions
-			},
-			resolvedPostingSnapshotProvider: includeRichText ? {
-				await webViewController.highlightPostingSnapshot()
-			} : nil
-		)
-		guard currentWebViewController === webViewController,
-			self.articleKey(for: webViewController.article) == articleKey else {
-			return nil
-		}
-		return capture
-	}
-
-	func articleKey(for article: Article?) -> String? {
-		ArticleHighlightIdentity.articleKey(
-			feedURL: article?.feed?.url,
-			uniqueID: article?.uniqueID
 		)
 	}
 

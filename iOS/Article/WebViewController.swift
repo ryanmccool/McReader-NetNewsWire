@@ -394,7 +394,7 @@ final class WebViewController: UIViewController {
 		return (html, baseURL)
 	}
 
-	func highlightRecordsForPosting() async -> ([NetNewsWireHighlightRecord], [UUID: Int]) {
+	func highlightRecordsForMarkdown() async -> ([NetNewsWireHighlightRecord], [UUID: Int]) {
 		let records = sortedHighlightRecords()
 		guard let webView, let state = highlightLifecycle.currentState,
 			highlightLifecycle.accepts(webView: webView, state: state),
@@ -405,14 +405,14 @@ final class WebViewController: UIViewController {
 		return (records, highlightPositions(from: value))
 	}
 
-	func highlightPostingSnapshot() async -> ArticleHighlightPostingSnapshot? {
+	func highlightMarkdownSnapshot() async -> ArticleHighlightMarkdownSnapshot? {
 		guard let webView, let state = highlightLifecycle.currentState,
 			highlightLifecycle.accepts(webView: webView, state: state),
-			let value = try? await webView.evaluateJavaScript("window.nnwHighlights.richTextForPosting()"),
+			let value = try? await webView.evaluateJavaScript("window.nnwHighlights.richTextForMarkdown()"),
 			highlightLifecycle.accepts(webView: webView, state: state) else {
 			return nil
 		}
-		return ArticleHighlightPostingSnapshot.validated(from: value, expectedState: state)
+		return ArticleHighlightMarkdownSnapshot.validated(from: value, expectedState: state)
 	}
 
 	static func normalizedSelectedPlainText(_ text: String) -> String? {

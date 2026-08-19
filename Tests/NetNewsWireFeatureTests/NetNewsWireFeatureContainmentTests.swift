@@ -56,31 +56,31 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 		XCTAssertIdentical(NetNewsWireSceneSetup.restorationActivity(activity, capabilities: .standalone), activity)
 	}
 
-	func testHostsKeepDistinctPublishingActions() throws {
-		var firstHostSendCount = 0
-		var secondHostSendCount = 0
+	func testHostsKeepDistinctMarkdownActions() throws {
+		var firstHostShareCount = 0
+		var secondHostShareCount = 0
 		let runtime = try NetNewsWireFeatureRuntime(
 			configuration: makeConfiguration(),
 			cloudKitContainerConfigurator: { _ in }
 		)
-		let firstHost = try runtime.makeHost(publishingActions: NetNewsWirePublishingActions { _, _ in
-			firstHostSendCount += 1
-		})
-		let secondHost = try runtime.makeHost(publishingActions: NetNewsWirePublishingActions { _, _ in
-			secondHostSendCount += 1
-		})
-		let capture = NetNewsWirePublishingCapture(
+		let firstHost = try runtime.makeHost(markdownActions: NetNewsWireMarkdownActions(shareMarkdown: { _ in
+			firstHostShareCount += 1
+		}))
+		let secondHost = try runtime.makeHost(markdownActions: NetNewsWireMarkdownActions(shareMarkdown: { _ in
+			secondHostShareCount += 1
+		}))
+		let capture = NetNewsWireMarkdownCapture(
 			selectedText: nil,
 			title: "Article",
 			creator: nil,
 			preferredURL: URL(string: "https://example.com/article")!
 		)
 
-		firstHost.publishingActions.send(capture, .capture)
-		secondHost.publishingActions.send(capture, .postAs(.note))
+		firstHost.markdownActions.shareMarkdown(capture)
+		secondHost.markdownActions.shareMarkdown(capture)
 
-		XCTAssertEqual(firstHostSendCount, 1)
-		XCTAssertEqual(secondHostSendCount, 1)
+		XCTAssertEqual(firstHostShareCount, 1)
+		XCTAssertEqual(secondHostShareCount, 1)
 	}
 
 	func testHostsKeepDistinctHighlightActions() async throws {
@@ -543,7 +543,7 @@ final class NetNewsWireFeatureContainmentTests: XCTestCase {
 			dataDirectoryURL: NetNewsWireFeatureTestEnvironment.values.dataDirectoryURL,
 			cacheDirectoryURL: NetNewsWireFeatureTestEnvironment.values.cacheDirectoryURL,
 			userDefaultsSuiteName: NetNewsWireFeatureTestEnvironment.suiteName,
-			cloudKitContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			cloudKitContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			resourceBundle: .netNewsWireFeatureResources,
 			capabilities: .containedReader
 		)

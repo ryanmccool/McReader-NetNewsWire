@@ -149,7 +149,7 @@ nonisolated func makeParsedItem(_ articleRecord: CKRecord) -> ParsedItem? {
 	}
 
 	guard let uniqueID = articleRecord[CloudKitArticlesZone.CloudKitArticle.Fields.uniqueID] as? String,
-		  let feedURL = articleRecord[CloudKitArticlesZone.CloudKitArticle.Fields.feedURL] as? String else {
+		  let feedURL = articleRecord[CloudKitArticlesZone.CloudKitArticle.Fields.webFeedURL] as? String else {
 		return nil
 	}
 

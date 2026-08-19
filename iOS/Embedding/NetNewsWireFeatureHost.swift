@@ -4,6 +4,7 @@ import UIKit
 public protocol NetNewsWireFeatureHosting: AnyObject {
 	var viewController: UIViewController { get }
 	func updateAppearance(_ appearance: NetNewsWireFeatureAppearance?)
+	func updateLibraryExitAction(_ action: (@MainActor () -> Void)?)
 	func sceneWillEnterForeground()
 	func sceneDidEnterBackground()
 	func suspend()
@@ -74,7 +75,7 @@ final class NetNewsWireFeatureSceneLifecycle {
 @MainActor
 public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 	public let viewController: UIViewController
-	let publishingActions: NetNewsWirePublishingActions
+	let markdownActions: NetNewsWireMarkdownActions
 	let highlightActions: NetNewsWireHighlightActions
 	private let lifecycle: NetNewsWireFeatureSceneLifecycle
 	private let rootSplitViewController: RootSplitViewController
@@ -82,7 +83,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 	internal init(
 		capabilities: NetNewsWireFeatureCapabilities,
 		globalMutationSeams: NetNewsWireHostGlobalMutationSeams,
-		publishingActions: NetNewsWirePublishingActions = .disabled,
+		markdownActions: NetNewsWireMarkdownActions = .disabled,
 		highlightActions: NetNewsWireHighlightActions = .disabled
 	) throws {
 		_ = AppDelegate.bootstrapEmbeddedIfNeeded(capabilities: capabilities, globalMutationSeams: globalMutationSeams)
@@ -92,7 +93,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 		}
 		self.rootSplitViewController = rootSplitViewController
 		self.viewController = rootSplitViewController
-		self.publishingActions = publishingActions
+		self.markdownActions = markdownActions
 		self.highlightActions = highlightActions
 		self.lifecycle = NetNewsWireFeatureSceneLifecycle(
 			resetFocus: { rootSplitViewController.coordinator.resetFocus() },
@@ -103,7 +104,7 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 			rootSplitViewController: rootSplitViewController,
 			stateRestorationActivity: nil,
 			capabilities: capabilities,
-			publishingActions: publishingActions,
+			markdownActions: markdownActions,
 			highlightActions: highlightActions
 		)
 		rootSplitViewController.applyFeatureAppearance()
@@ -111,6 +112,10 @@ public final class NetNewsWireFeatureHost: NetNewsWireFeatureHosting {
 
 	public func updateAppearance(_ appearance: NetNewsWireFeatureAppearance?) {
 		NetNewsWireFeatureTheme.update(appearance)
+	}
+
+	public func updateLibraryExitAction(_ action: (@MainActor () -> Void)?) {
+		rootSplitViewController.coordinator.updateLibraryExitAction(action)
 	}
 
 	public func sceneWillEnterForeground() {

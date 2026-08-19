@@ -1,13 +1,13 @@
 import Foundation
 
-struct ArticleHighlightPostingSnapshot {
+struct ArticleHighlightMarkdownSnapshot {
 	let resolvedOffsets: [UUID: Int]
 	let resolvedRichText: [UUID: NetNewsWireHighlightRichText]
 
 	static func validated(
 		from value: Any?,
 		expectedState: ArticleHighlightRenderState
-	) -> ArticleHighlightPostingSnapshot? {
+	) -> ArticleHighlightMarkdownSnapshot? {
 		guard let value = value as? [String: Any],
 			let generation = (value["generation"] as? NSNumber)?.uint64Value,
 			let articleKey = value["articleKey"] as? String,
@@ -19,7 +19,7 @@ struct ArticleHighlightPostingSnapshot {
 			let richText = value["richText"] as? [[String: Any]] else {
 			return nil
 		}
-		return ArticleHighlightPostingSnapshot(
+		return ArticleHighlightMarkdownSnapshot(
 			resolvedOffsets: Self.positions(from: positions),
 			resolvedRichText: Self.richText(from: richText)
 		)
@@ -52,7 +52,7 @@ struct ArticleHighlightPostingSnapshot {
 	}
 }
 
-enum ArticleHighlightPosting {
+enum ArticleHighlightMarkdown {
 	static func orderedRecords(
 		records: [NetNewsWireHighlightRecord],
 		resolvedOffsets: [UUID: Int]

@@ -18,7 +18,7 @@ import Account
 		rootSplitViewController: RootSplitViewController,
 		stateRestorationActivity: NSUserActivity?,
 		capabilities: NetNewsWireFeatureCapabilities,
-		publishingActions: NetNewsWirePublishingActions = .disabled,
+		markdownActions: NetNewsWireMarkdownActions = .disabled,
 		highlightActions: NetNewsWireHighlightActions = .disabled
 	) -> SceneCoordinator {
 		rootSplitViewController.presentsWithGesture = true
@@ -37,7 +37,7 @@ import Account
 		let coordinator = SceneCoordinator(
 			rootSplitViewController: rootSplitViewController,
 			capabilities: capabilities,
-			publishingActions: publishingActions,
+			markdownActions: markdownActions,
 			highlightActions: highlightActions
 		)
 		rootSplitViewController.coordinator = coordinator
@@ -67,7 +67,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 			rootSplitViewController: rootViewController,
 			stateRestorationActivity: session.stateRestorationActivity,
 			capabilities: .standalone,
-			publishingActions: .disabled,
+			markdownActions: .disabled,
 			highlightActions: NetNewsWireSceneSetup.standaloneHighlightActions
 		)
 

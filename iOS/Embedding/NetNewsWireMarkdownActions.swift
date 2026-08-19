@@ -1,14 +1,13 @@
 import Foundation
 
-public struct NetNewsWirePublishingCapture: Equatable, Sendable {
+public struct NetNewsWireMarkdownCapture: Equatable, Sendable {
 	public var selectedText: String?
 	public var title: String
 	public var creator: String?
 	public var preferredURL: URL
 	public var renderedArticleHTML: String?
 	public var renderedArticleBaseURL: URL?
-	/// Transient rich fragments for a Post Highlights action. The host converts these
-	/// to safe Markdown before creating its persisted publishing capture.
+	/// Transient rich fragments for a saved-highlight Markdown export.
 	public var highlightRichText: [NetNewsWireHighlightRichText]
 
 	public init(
@@ -30,76 +29,42 @@ public struct NetNewsWirePublishingCapture: Equatable, Sendable {
 	}
 }
 
-public enum NetNewsWirePublishingPostKind: Equatable, Sendable {
-	case quotation
-	case blogmark
-	case note
-}
-
-public enum NetNewsWirePublishingIntent: Equatable, Sendable {
-	case capture
-	case postAs(NetNewsWirePublishingPostKind)
-}
-
 @MainActor
-public struct NetNewsWirePublishingActions {
-	public var send: (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void
-	public var shareMarkdown: (NetNewsWirePublishingCapture) -> Void
+public struct NetNewsWireMarkdownActions {
+	public var shareMarkdown: (NetNewsWireMarkdownCapture) -> Void
 	public var reportMarkdownFailure: () -> Void
 	let isEnabled: Bool
-	let isMarkdownSharingEnabled: Bool
-
-	public init(send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void) {
-		self.send = send
-		self.shareMarkdown = { _ in }
-		self.reportMarkdownFailure = {}
-		self.isEnabled = true
-		self.isMarkdownSharingEnabled = false
-	}
 
 	public init(
-		send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void,
-		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void,
+		shareMarkdown: @escaping (NetNewsWireMarkdownCapture) -> Void,
 		reportMarkdownFailure: @escaping () -> Void = {}
 	) {
-		self.send = send
-		self.shareMarkdown = shareMarkdown
-		self.reportMarkdownFailure = reportMarkdownFailure
-		self.isEnabled = true
-		self.isMarkdownSharingEnabled = true
+		self.init(
+			shareMarkdown: shareMarkdown,
+			reportMarkdownFailure: reportMarkdownFailure,
+			isEnabled: true
+		)
 	}
 
 	private init(
-		send: @escaping (NetNewsWirePublishingCapture, NetNewsWirePublishingIntent) -> Void,
-		shareMarkdown: @escaping (NetNewsWirePublishingCapture) -> Void,
+		shareMarkdown: @escaping (NetNewsWireMarkdownCapture) -> Void,
 		reportMarkdownFailure: @escaping () -> Void,
-		isEnabled: Bool,
-		isMarkdownSharingEnabled: Bool
+		isEnabled: Bool
 	) {
-		self.send = send
 		self.shareMarkdown = shareMarkdown
 		self.reportMarkdownFailure = reportMarkdownFailure
 		self.isEnabled = isEnabled
-		self.isMarkdownSharingEnabled = isMarkdownSharingEnabled
 	}
 
-	public static let disabled = NetNewsWirePublishingActions(
-		send: { _, _ in },
+	public static let disabled = NetNewsWireMarkdownActions(
 		shareMarkdown: { _ in },
 		reportMarkdownFailure: {},
-		isEnabled: false,
-		isMarkdownSharingEnabled: false
+		isEnabled: false
 	)
 }
 
-struct NetNewsWirePublishingMenuText {
+struct NetNewsWireMarkdownMenuText {
 	struct ActionTitles {
-		let captureLink: String
-		let postQuote: String
-		let postLink: String
-		let postNote: String
-		let captureSelection: String
-		let postHighlights: String
 		let shareMarkdown: String
 		let shareMarkdownArticle: String
 	}
@@ -110,17 +75,11 @@ struct NetNewsWirePublishingMenuText {
 		localize: (String, String) -> String
 	) -> String? {
 		guard actionsEnabled else { return existingLabel }
-		return localize("Publishing actions", "Publishing actions accessibility label")
+		return localize("Markdown sharing", "Markdown sharing accessibility label")
 	}
 
 	static func actionTitles(localize: (String, String) -> String) -> ActionTitles {
 		ActionTitles(
-			captureLink: localize("Capture Link", "Command"),
-			postQuote: localize("Post Quote...", "Command"),
-			postLink: localize("Post Link...", "Command"),
-			postNote: localize("Post Note...", "Command"),
-			captureSelection: localize("Capture Selection", "Command"),
-			postHighlights: localize("Post Highlights...", "Command"),
 			shareMarkdown: localize("Share as Markdown...", "Command"),
 			shareMarkdownArticle: localize("Share Full Article as Markdown...", "Command")
 		)
@@ -129,12 +88,12 @@ struct NetNewsWirePublishingMenuText {
 
 enum NetNewsWireMarkdownSharing {
 	static func capture(
-		base: NetNewsWirePublishingCapture,
+		base: NetNewsWireMarkdownCapture,
 		renderedHighlights: [NetNewsWireHighlightRecord],
 		resolvedPositions: [UUID: Int]
-	) -> NetNewsWirePublishingCapture {
+	) -> NetNewsWireMarkdownCapture {
 		var capture = base
-		capture.selectedText = ArticleHighlightPosting.quotation(
+		capture.selectedText = ArticleHighlightMarkdown.quotation(
 			records: renderedHighlights,
 			resolvedOffsets: resolvedPositions
 		)
@@ -143,7 +102,7 @@ enum NetNewsWireMarkdownSharing {
 }
 
 @MainActor
-enum NetNewsWireHighlightPublishing {
+enum NetNewsWireHighlightMarkdown {
 	static func capture(
 		articleKey: String,
 		currentTitle: String,
@@ -152,22 +111,22 @@ enum NetNewsWireHighlightPublishing {
 		load: (String) async throws -> [NetNewsWireHighlightRecord],
 		resolvedPositions: () async -> [UUID: Int],
 		resolvedRichTextProvider: (() async -> [UUID: NetNewsWireHighlightRichText])? = nil,
-		resolvedPostingSnapshotProvider: (() async -> ArticleHighlightPostingSnapshot?)? = nil
-	) async -> NetNewsWirePublishingCapture? {
+		resolvedMarkdownSnapshotProvider: (() async -> ArticleHighlightMarkdownSnapshot?)? = nil
+	) async -> NetNewsWireMarkdownCapture? {
 		guard let records = try? await load(articleKey) else {
 			return nil
 		}
 		let resolvedOffsets: [UUID: Int]
 		let resolvedRichText: [UUID: NetNewsWireHighlightRichText]
-		if let resolvedPostingSnapshotProvider {
-			let snapshot = await resolvedPostingSnapshotProvider()
+		if let resolvedMarkdownSnapshotProvider {
+			let snapshot = await resolvedMarkdownSnapshotProvider()
 			resolvedOffsets = snapshot?.resolvedOffsets ?? [:]
 			resolvedRichText = snapshot?.resolvedRichText ?? [:]
 		} else {
 			resolvedOffsets = await resolvedPositions()
 			resolvedRichText = await resolvedRichTextProvider?() ?? [:]
 		}
-		guard let quotation = ArticleHighlightPosting.quotation(
+		guard let quotation = ArticleHighlightMarkdown.quotation(
 			records: records,
 			resolvedOffsets: resolvedOffsets
 		) else {
@@ -181,14 +140,14 @@ enum NetNewsWireHighlightPublishing {
 		}
 		let title = nonblank(currentTitle) ?? persistedMetadata.flatMap { nonblank($0.articleTitle) } ?? ""
 		let creator = nonblank(currentCreator) ?? persistedMetadata.flatMap { nonblank($0.creator) }
-		return NetNewsWirePublishingCapture(
+		return NetNewsWireMarkdownCapture(
 			selectedText: quotation,
 			title: title,
 			creator: creator,
 			preferredURL: preferredURL,
 			highlightRichText: resolvedRichText.isEmpty
 				? []
-				: ArticleHighlightPosting.richText(
+				: ArticleHighlightMarkdown.richText(
 					records: records,
 					resolvedOffsets: resolvedOffsets,
 					resolvedRichText: resolvedRichText
@@ -216,7 +175,7 @@ enum NetNewsWireHighlightPublishing {
 }
 
 @MainActor
-struct NetNewsWireHighlightPostAction {
+struct NetNewsWireHighlightMarkdownAction {
 	private let articleKey: String
 	private let webViewIdentifier: ObjectIdentifier
 
@@ -228,13 +187,13 @@ struct NetNewsWireHighlightPostAction {
 	func perform(
 		currentArticleKey: String?,
 		currentWebViewController: AnyObject?,
-		post: () async -> Void
+		share: () async -> Void
 	) async {
 		guard currentArticleKey == articleKey,
 			let currentWebViewController,
 			ObjectIdentifier(currentWebViewController) == webViewIdentifier else {
 			return
 		}
-		await post()
+		await share()
 	}
 }

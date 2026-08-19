@@ -66,7 +66,7 @@ final class ArticleHighlightModelTests: XCTestCase {
 			makeRecord(id: firstID, selectedText: "First", createdAt: Date(timeIntervalSince1970: 30))
 		]
 
-		let quotation = ArticleHighlightPosting.quotation(
+		let quotation = ArticleHighlightMarkdown.quotation(
 			records: records,
 			resolvedOffsets: [firstID: 5, secondID: 10]
 		)
@@ -85,11 +85,11 @@ final class ArticleHighlightModelTests: XCTestCase {
 		]
 
 		XCTAssertEqual(
-			ArticleHighlightPosting.quotation(records: records, resolvedOffsets: [:]),
+			ArticleHighlightMarkdown.quotation(records: records, resolvedOffsets: [:]),
 			"First\n\nSecond\n\nThird"
 		)
 		XCTAssertEqual(
-			ArticleHighlightPosting.quotation(
+			ArticleHighlightMarkdown.quotation(
 				records: records,
 				resolvedOffsets: [firstID: 4, secondID: 4, thirdID: 4]
 			),
@@ -108,16 +108,16 @@ final class ArticleHighlightModelTests: XCTestCase {
 		]
 
 		XCTAssertEqual(
-			ArticleHighlightPosting.quotation(records: records, resolvedOffsets: [:]),
+			ArticleHighlightMarkdown.quotation(records: records, resolvedOffsets: [:]),
 			"First selection\n\nSecond selection"
 		)
-		XCTAssertNil(ArticleHighlightPosting.quotation(
+		XCTAssertNil(ArticleHighlightMarkdown.quotation(
 			records: [makeRecord(selectedText: " \n\t ")],
 			resolvedOffsets: [:]
 		))
 	}
 
-	func testRichTextUsesPostingOrderAndRetainsPlainFallbackForUnresolvedFragments() throws {
+	func testRichTextUsesMarkdownOrderAndRetainsPlainFallbackForUnresolvedFragments() throws {
 		let firstID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
 		let secondID = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
 		let records = [
@@ -131,7 +131,7 @@ final class ArticleHighlightModelTests: XCTestCase {
 			baseURL: URL(string: "https://example.com/article")
 		)
 
-		let fragments = ArticleHighlightPosting.richText(
+		let fragments = ArticleHighlightMarkdown.richText(
 			records: records,
 			resolvedOffsets: [firstID: 5, secondID: 10],
 			resolvedRichText: [firstID: rich]

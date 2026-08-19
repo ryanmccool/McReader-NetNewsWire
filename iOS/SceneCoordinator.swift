@@ -308,7 +308,7 @@ struct SidebarItemNode: Hashable, Sendable {
 	init(
 		rootSplitViewController: RootSplitViewController,
 		capabilities: NetNewsWireFeatureCapabilities,
-		publishingActions: NetNewsWirePublishingActions,
+		markdownActions: NetNewsWireMarkdownActions,
 		highlightActions: NetNewsWireHighlightActions
 	) {
 		self.rootSplitViewController = rootSplitViewController
@@ -336,7 +336,7 @@ struct SidebarItemNode: Hashable, Sendable {
 
 		self.articleViewController = rootSplitViewController.viewController(for: .secondary) as? ArticleViewController
 		self.articleViewController?.coordinator = self
-		self.articleViewController?.publishingActions = publishingActions
+		self.articleViewController?.markdownActions = markdownActions
 		self.articleViewController?.navigationController?.delegate = self
 
 		for sectionNode in treeController.rootNode.childNodes {
@@ -363,6 +363,25 @@ struct SidebarItemNode: Hashable, Sendable {
 				self?.userDefaultsDidChange()
 			}
 		}
+	}
+
+	func updateLibraryExitAction(_ action: (@MainActor () -> Void)?) {
+		guard let action else {
+			mainFeedCollectionViewController.navigationItem.leftBarButtonItem = nil
+			return
+		}
+
+		let exitAction = UIAction(
+			title: NNWLocalizedString("Library", comment: "Back button returning to the containing library"),
+			image: UIImage(systemName: "chevron.left")
+		) { _ in
+			MainActor.assumeIsolated {
+				action()
+			}
+		}
+		let exitItem = UIBarButtonItem(primaryAction: exitAction)
+		exitItem.accessibilityIdentifier = "feeds.exit"
+		mainFeedCollectionViewController.navigationItem.leftBarButtonItem = exitItem
 	}
 
 	func restoreWindowState(activity: NSUserActivity?) {

@@ -84,7 +84,7 @@ final class CloudKitArticlesZone: CloudKitZone {
 		static let recordType = "Article"
 		struct Fields {
 			static let articleStatus = "articleStatus"
-			static let feedURL = "webFeedURLString"
+			static let webFeedURL = "webFeedURL"
 			static let uniqueID = "uniqueID"
 			static let title = "title"
 			static let contentHTML = "contentHTML"
@@ -748,7 +748,7 @@ private extension CloudKitArticlesZone {
 
 		let articleStatusRecordID = CKRecord.ID(recordName: statusID(article.articleID), zoneID: zoneID)
 		record[CloudKitArticle.Fields.articleStatus] = CKRecord.Reference(recordID: articleStatusRecordID, action: .deleteSelf)
-		record[CloudKitArticle.Fields.feedURL] = article.feed?.url
+		record[CloudKitArticle.Fields.webFeedURL] = article.feed?.url
 		record[CloudKitArticle.Fields.uniqueID] = article.uniqueID
 		record[CloudKitArticle.Fields.title] = article.title
 		record[CloudKitArticle.Fields.contentHTML] = article.contentHTML

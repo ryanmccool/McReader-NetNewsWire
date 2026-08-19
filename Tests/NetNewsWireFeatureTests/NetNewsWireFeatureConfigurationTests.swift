@@ -6,7 +6,7 @@ import XCTest
 enum NetNewsWireFeatureTestEnvironment {
 	static let rootURL = FileManager.default.temporaryDirectory
 		.appendingPathComponent("NetNewsWireFeatureTests", isDirectory: true)
-	static let suiteName = "ryanmccool.McReader.Feeds.NetNewsWire.tests.\(UUID().uuidString)"
+	static let suiteName = "com.staticevolution.staticreader.feeds.netnewswire.tests.\(UUID().uuidString)"
 
 	static var values: NetNewsWireEnvironmentValues {
 		NetNewsWireEnvironmentValues(
@@ -14,7 +14,7 @@ enum NetNewsWireFeatureTestEnvironment {
 			dataDirectoryURL: rootURL.appendingPathComponent("Application Support", isDirectory: true),
 			cacheDirectoryURL: rootURL.appendingPathComponent("Caches", isDirectory: true),
 			userDefaultsSuiteName: suiteName,
-			cloudKitContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			cloudKitContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			resourceBundle: .netNewsWireFeatureResources
 		)
 	}
@@ -33,7 +33,7 @@ final class NetNewsWireFeatureConfigurationTests: XCTestCase {
 	}
 
 	func testRejectsNonICloudContainerIdentifier() {
-		XCTAssertThrowsError(try makeConfiguration(cloudKitContainerIdentifier: "ryanmccool.McReader.Feeds")) { error in
+		XCTAssertThrowsError(try makeConfiguration(cloudKitContainerIdentifier: "com.staticevolution.staticreader.feeds")) { error in
 			XCTAssertEqual(error as? NetNewsWireFeatureConfigurationError, .invalidCloudKitContainerIdentifier)
 		}
 	}
@@ -112,7 +112,7 @@ final class NetNewsWireFeatureConfigurationTests: XCTestCase {
 		_ = try makeRuntime(configuration: makeConfiguration())
 
 		XCTAssertThrowsError(try makeRuntime(configuration: makeConfiguration(
-			userDefaultsSuiteName: "ryanmccool.McReader.OtherNetNewsWireTests"
+			userDefaultsSuiteName: "com.staticevolution.staticreader.other.netnewswire.tests"
 		))) { error in
 			XCTAssertEqual(error as? NetNewsWireFeatureConfigurationError, .alreadyConfigured)
 		}
@@ -143,7 +143,7 @@ final class NetNewsWireFeatureConfigurationTests: XCTestCase {
 		dataDirectoryURL: URL = NetNewsWireFeatureTestEnvironment.values.dataDirectoryURL,
 		cacheDirectoryURL: URL = NetNewsWireFeatureTestEnvironment.values.cacheDirectoryURL,
 		userDefaultsSuiteName: String = NetNewsWireFeatureTestEnvironment.suiteName,
-		cloudKitContainerIdentifier: String = "iCloud.ryanmccool.McReader.Feeds",
+		cloudKitContainerIdentifier: String = "iCloud.com.staticevolution.staticreader.feeds",
 		resourceBundle: Bundle = .netNewsWireFeatureResources,
 		capabilities: NetNewsWireFeatureCapabilities = .containedReader
 	) throws -> NetNewsWireFeatureConfiguration {

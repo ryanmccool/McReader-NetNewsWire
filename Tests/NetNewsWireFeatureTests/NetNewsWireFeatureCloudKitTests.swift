@@ -26,7 +26,7 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 			cloudKitContainerConfigurator: { receivedIdentifiers.append($0) }
 		)
 
-		XCTAssertEqual(receivedIdentifiers, ["iCloud.ryanmccool.McReader.Feeds"])
+		XCTAssertEqual(receivedIdentifiers, ["iCloud.com.staticevolution.staticreader.feeds"])
 	}
 
 	func testContainedRuntimeEnablesResetForExactConfiguredFeedsContainer() throws {
@@ -60,8 +60,8 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		let conflictingConfiguration = try NetNewsWireFeatureConfiguration(
 			dataDirectoryURL: NetNewsWireFeatureTestEnvironment.values.dataDirectoryURL,
 			cacheDirectoryURL: NetNewsWireFeatureTestEnvironment.values.cacheDirectoryURL,
-			userDefaultsSuiteName: "ryanmccool.McReader.ConflictingFeedsTests",
-			cloudKitContainerIdentifier: "iCloud.ryanmccool.McReader.ConflictingFeeds",
+			userDefaultsSuiteName: "com.staticevolution.staticreader.conflicting.feeds.tests",
+			cloudKitContainerIdentifier: "iCloud.com.staticevolution.staticreader.conflicting.feeds",
 			resourceBundle: .netNewsWireFeatureResources,
 			capabilities: .containedReader
 		)
@@ -261,7 +261,7 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 			"folders",
 			"articles",
 			"read/starred state",
-			"close McReader build 157 or older on every device before resetting",
+			"close Static Reader build 157 or older on every device before resetting",
 			"do not reopen it"
 		] {
 			XCTAssertTrue(message.localizedCaseInsensitiveContains(expectedText), "Missing \(expectedText) in: \(message)")
@@ -271,11 +271,11 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 	func testSettingsProgressMessagesKeepContainedReaderOpen() {
 		XCTAssertEqual(
 			SettingsViewController.opmlImportProgressMessage(),
-			"Keep McReader/Feeds open until the import finishes."
+			"Keep Static Reader Feeds open until the import finishes."
 		)
 		XCTAssertEqual(
 			SettingsViewController.cloudKitResetProgressMessage(),
-			"This may take a few minutes. Keep McReader/Feeds open."
+			"This may take a few minutes. Keep Static Reader Feeds open."
 		)
 	}
 
@@ -337,21 +337,21 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		let otherZoneID = CKRecordZone.ID(zoneName: "Other", ownerName: CKCurrentUserDefaultName)
 
 		XCTAssertTrue(CloudKitRemoteNotificationResult.handles(
-			notificationContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			notificationContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			notificationZoneID: expectedZoneID,
-			expectedContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			expectedContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			expectedZoneID: expectedZoneID
 		))
 		XCTAssertFalse(CloudKitRemoteNotificationResult.handles(
-			notificationContainerIdentifier: "iCloud.ryanmccool.McReader",
+			notificationContainerIdentifier: "iCloud.com.staticevolution.staticreader",
 			notificationZoneID: expectedZoneID,
-			expectedContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			expectedContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			expectedZoneID: expectedZoneID
 		))
 		XCTAssertFalse(CloudKitRemoteNotificationResult.handles(
-			notificationContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			notificationContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			notificationZoneID: otherZoneID,
-			expectedContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			expectedContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			expectedZoneID: expectedZoneID
 		))
 	}
@@ -368,8 +368,14 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 		XCTAssertEqual(CloudKitRemoteNotificationResult.changes.merging(.noChanges), .changes)
 	}
 
-	func testArticleUsesReplacementStringFeedURLField() {
-		XCTAssertEqual(CloudKitArticlesZone.CloudKitArticle.Fields.feedURL, "webFeedURLString")
+	func testArticleUsesCanonicalStringWebFeedURLField() {
+		let zoneID = CKRecordZone.ID(zoneName: "Articles", ownerName: CKCurrentUserDefaultName)
+		let record = CKRecord(recordType: CloudKitArticlesZone.CloudKitArticle.recordType, recordID: CKRecord.ID(recordName: "article", zoneID: zoneID))
+		record[CloudKitArticlesZone.CloudKitArticle.Fields.uniqueID] = "unique"
+		record[CloudKitArticlesZone.CloudKitArticle.Fields.webFeedURL] = "https://example.com/feed"
+
+		XCTAssertEqual(CloudKitArticlesZone.CloudKitArticle.Fields.webFeedURL, "webFeedURL")
+		XCTAssertEqual(record[CloudKitArticlesZone.CloudKitArticle.Fields.webFeedURL] as? String, "https://example.com/feed")
 	}
 
 	func testFetchCallbackStateSnapshotsMutationsBeforeResultProcessing() {
@@ -414,7 +420,7 @@ final class NetNewsWireFeatureCloudKitTests: XCTestCase {
 			dataDirectoryURL: NetNewsWireFeatureTestEnvironment.values.dataDirectoryURL,
 			cacheDirectoryURL: NetNewsWireFeatureTestEnvironment.values.cacheDirectoryURL,
 			userDefaultsSuiteName: NetNewsWireFeatureTestEnvironment.suiteName,
-			cloudKitContainerIdentifier: "iCloud.ryanmccool.McReader.Feeds",
+			cloudKitContainerIdentifier: "iCloud.com.staticevolution.staticreader.feeds",
 			resourceBundle: .netNewsWireFeatureResources,
 			capabilities: .containedReader
 		)

@@ -762,7 +762,7 @@
 		return state.resolved.slice().sort((left, right) => left.startOffset - right.startOffset || left.id.localeCompare(right.id));
 	}
 
-	function richTextForPosting() {
+	function richTextForMarkdown() {
 		const render = captureRender();
 		if (!renderIsCurrent(render) || !render.root) {
 			return null;
@@ -826,6 +826,6 @@
 		remove,
 		clear,
 		positions,
-		richTextForPosting
+		richTextForMarkdown
 	});
 })();

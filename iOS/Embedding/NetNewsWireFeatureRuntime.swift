@@ -30,26 +30,26 @@ public final class NetNewsWireFeatureRuntime {
 	}
 
 	public func makeHost(
-		publishingActions: NetNewsWirePublishingActions = .disabled,
+		markdownActions: NetNewsWireMarkdownActions = .disabled,
 		highlightActions: NetNewsWireHighlightActions = .disabled
 	) throws -> NetNewsWireFeatureHost {
 		try NetNewsWireFeatureHost(
 			capabilities: configuration.capabilities,
 			globalMutationSeams: .live,
-			publishingActions: publishingActions,
+			markdownActions: markdownActions,
 			highlightActions: highlightActions
 		)
 	}
 
 	func makeHost(
 		globalMutationSeams: NetNewsWireHostGlobalMutationSeams,
-		publishingActions: NetNewsWirePublishingActions = .disabled,
+		markdownActions: NetNewsWireMarkdownActions = .disabled,
 		highlightActions: NetNewsWireHighlightActions = .disabled
 	) throws -> NetNewsWireFeatureHost {
 		try NetNewsWireFeatureHost(
 			capabilities: configuration.capabilities,
 			globalMutationSeams: globalMutationSeams,
-			publishingActions: publishingActions,
+			markdownActions: markdownActions,
 			highlightActions: highlightActions
 		)
 	}

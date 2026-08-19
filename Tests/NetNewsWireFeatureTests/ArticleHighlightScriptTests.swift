@@ -223,7 +223,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(positions.compactMap { $0["startOffset"] as? Int }, [0, 9])
 	}
 
-	func testRichTextForPostingCapturesInlineMarkupAndRenderedBaseURL() async throws {
+	func testRichTextForMarkdownCapturesInlineMarkupAndRenderedBaseURL() async throws {
 		try await loadArticle(
 			#"<p>First <a href="/next">linked</a> highlight</p>"#,
 			baseURL: URL(string: "https://example.com/posts/current")
@@ -235,7 +235,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		)
 
 		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([highlight])))")
-		let snapshot = try await objectResult("window.nnwHighlights.richTextForPosting()")
+		let snapshot = try await objectResult("window.nnwHighlights.richTextForMarkdown()")
 		let rich = try XCTUnwrap(snapshot["richText"] as? [[String: Any]])
 
 		XCTAssertEqual(restored.count, 1)
@@ -249,7 +249,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		XCTAssertEqual(rich.first?["baseURL"] as? String, "https://example.com/posts/current")
 	}
 
-	func testRichTextForPostingKeepsWholeAndPartialEnclosingLinksWithoutSiblings() async throws {
+	func testRichTextForMarkdownKeepsWholeAndPartialEnclosingLinksWithoutSiblings() async throws {
 		try await loadArticle(
 			#"<p><a href="/whole">whole link</a> <a href="/partial">before selected after</a></p>"#,
 			baseURL: URL(string: "https://example.com/posts/current")
@@ -266,7 +266,7 @@ final class ArticleHighlightScriptTests: XCTestCase {
 		)
 
 		let restored = try await arrayResult("window.nnwHighlights.restore(\(json([whole, partial])))")
-		let snapshot = try await objectResult("window.nnwHighlights.richTextForPosting()")
+		let snapshot = try await objectResult("window.nnwHighlights.richTextForMarkdown()")
 		let rich = try XCTUnwrap(snapshot["richText"] as? [[String: Any]])
 		let fragments: [String: String] = Dictionary(uniqueKeysWithValues: rich.compactMap { item in
 			guard let id = item["id"] as? String, let html = item["html"] as? String else { return nil }

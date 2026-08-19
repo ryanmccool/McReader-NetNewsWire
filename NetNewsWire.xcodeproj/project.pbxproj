@@ -16,7 +16,7 @@
 		03A300010000000000000014 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureCloudKitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000015 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureCloudKitTests.swift */; };
 		03A300010000000000000016 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000017 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureLifecycleTests.swift */; };
 		03A300010000000000000018 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureContainmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000019 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureContainmentTests.swift */; };
-		03A30001000000000000001A /* Tests/NetNewsWireFeatureTests/NetNewsWirePublishingActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A30001000000000000001B /* Tests/NetNewsWireFeatureTests/NetNewsWirePublishingActionsTests.swift */; };
+		03A30001000000000000001A /* Tests/NetNewsWireFeatureTests/NetNewsWireMarkdownActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A30001000000000000001B /* Tests/NetNewsWireFeatureTests/NetNewsWireMarkdownActionsTests.swift */; };
 		03A30001000000000000001C /* Tests/NetNewsWireFeatureTests/NetNewsWireHighlightActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A30001000000000000001D /* Tests/NetNewsWireFeatureTests/NetNewsWireHighlightActionsTests.swift */; };
 		03A30001000000000000001E /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A30001000000000000001F /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift */; };
 		03A300010000000000000020 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000021 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift */; };
@@ -360,7 +360,7 @@
 		03A300010000000000000015 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureCloudKitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/NetNewsWireFeatureCloudKitTests.swift; sourceTree = SOURCE_ROOT; };
 		03A300010000000000000017 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/NetNewsWireFeatureLifecycleTests.swift; sourceTree = SOURCE_ROOT; };
 		03A300010000000000000019 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureContainmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/NetNewsWireFeatureContainmentTests.swift; sourceTree = SOURCE_ROOT; };
-		03A30001000000000000001B /* Tests/NetNewsWireFeatureTests/NetNewsWirePublishingActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/NetNewsWirePublishingActionsTests.swift; sourceTree = SOURCE_ROOT; };
+		03A30001000000000000001B /* Tests/NetNewsWireFeatureTests/NetNewsWireMarkdownActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/NetNewsWireMarkdownActionsTests.swift; sourceTree = SOURCE_ROOT; };
 		03A30001000000000000001D /* Tests/NetNewsWireFeatureTests/NetNewsWireHighlightActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/NetNewsWireHighlightActionsTests.swift; sourceTree = SOURCE_ROOT; };
 		03A30001000000000000001F /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift; sourceTree = SOURCE_ROOT; };
 		03A300010000000000000021 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift; sourceTree = SOURCE_ROOT; };
@@ -800,7 +800,7 @@
 			children = (
 				03A300010000000000000003 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureConfigurationTests.swift */,
 				03A300010000000000000019 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureContainmentTests.swift */,
-				03A30001000000000000001B /* Tests/NetNewsWireFeatureTests/NetNewsWirePublishingActionsTests.swift */,
+				03A30001000000000000001B /* Tests/NetNewsWireFeatureTests/NetNewsWireMarkdownActionsTests.swift */,
 				03A30001000000000000001D /* Tests/NetNewsWireFeatureTests/NetNewsWireHighlightActionsTests.swift */,
 				03A30001000000000000001F /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift */,
 				03A300010000000000000021 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift */,
@@ -1558,7 +1558,7 @@
 				03A300010000000000000014 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureCloudKitTests.swift in Sources */,
 				03A300010000000000000016 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureLifecycleTests.swift in Sources */,
 				03A300010000000000000018 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureContainmentTests.swift in Sources */,
-				03A30001000000000000001A /* Tests/NetNewsWireFeatureTests/NetNewsWirePublishingActionsTests.swift in Sources */,
+				03A30001000000000000001A /* Tests/NetNewsWireFeatureTests/NetNewsWireMarkdownActionsTests.swift in Sources */,
 				03A30001000000000000001C /* Tests/NetNewsWireFeatureTests/NetNewsWireHighlightActionsTests.swift in Sources */,
 				03A30001000000000000001E /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift in Sources */,
 				03A300010000000000000020 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift in Sources */,

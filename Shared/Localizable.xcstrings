@@ -181,12 +181,6 @@
     "Canceled." : {
       "comment" : "Scan status text when canceled"
     },
-    "Capture Link" : {
-      "comment" : "Command"
-    },
-    "Capture Selection" : {
-      "comment" : "Command"
-    },
     "Choose a location for the exported OPML file." : {
       "comment" : "Export OPML"
     },
@@ -567,7 +561,7 @@
     "Invalid username/password combination." : {
       "comment" : "Credentials Error"
     },
-    "Keep McReader/Feeds open until the import finishes." : {
+    "Keep Static Reader Feeds open until the import finishes." : {
       "comment" : "OPML import progress message"
     },
     "Keyboard Shortcuts" : {
@@ -605,6 +599,9 @@
     },
     "Manually" : {
       "comment" : "Manually"
+    },
+    "Markdown sharing" : {
+      "comment" : "Markdown sharing accessibility label"
     },
     "Mark Above as Read" : {
       "comment" : "Command"
@@ -795,26 +792,11 @@
     "Permanently delete all synchronized data for the “%@” account? This cannot be undone." : {
       "comment" : "Final iCloud feed reset confirmation naming the account"
     },
-    "Post Highlights..." : {
-      "comment" : "Command"
-    },
-    "Post Link..." : {
-      "comment" : "Command"
-    },
-    "Post Note..." : {
-      "comment" : "Command"
-    },
-    "Post Quote..." : {
-      "comment" : "Command"
-    },
     "Previous Article" : {
       "comment" : "Previous Article"
     },
     "Processing - Reader View" : {
       "comment" : "Processing - Reader View"
-    },
-    "Publishing actions" : {
-      "comment" : "Publishing actions accessibility label"
     },
     "Read" : {
       "comment" : "Read row label"
@@ -944,6 +926,12 @@
     },
     "Share" : {
       "comment" : "Share button"
+    },
+    "Share Full Article as Markdown..." : {
+      "comment" : "Command"
+    },
+    "Share as Markdown..." : {
+      "comment" : "Command"
     },
     "Share Stats" : {
       "comment" : "Share stats menu item"
@@ -1084,13 +1072,13 @@
     "There is already an account of this type with that username created." : {
       "comment" : "Duplicate Error"
     },
-    "This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Close McReader build 157 or older on every device before resetting, and do not reopen it because an old build may restore deleted data." : {
+    "This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Close Static Reader build 157 or older on every device before resetting, and do not reopen it because an old build may restore deleted data." : {
       "comment" : "First iCloud feed reset confirmation warning"
     },
     "This device cannot send emails." : {
       "comment" : "This device cannot send emails."
     },
-    "This may take a few minutes. Keep McReader/Feeds open." : {
+    "This may take a few minutes. Keep Static Reader Feeds open." : {
       "comment" : "iCloud feed reset progress message"
     },
     "This may take several minutes." : {

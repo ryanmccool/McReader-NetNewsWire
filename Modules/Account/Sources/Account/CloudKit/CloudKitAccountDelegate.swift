@@ -89,7 +89,7 @@ public func cloudKitAccountUserVisibleError(_ error: Error) -> Error {
 }
 
 @MainActor public enum CloudKitAccountContainerConfiguration {
-	public static let feedsContainerIdentifier = "iCloud.ryanmccool.McReader.Feeds"
+	public static let feedsContainerIdentifier = "iCloud.com.staticevolution.staticreader.feeds"
 	private static var configuredContainer: CKContainer?
 
 	public static func configure(identifier: String) throws {

@@ -569,21 +569,21 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 
 	static func cloudKitResetWarningMessage() -> String {
 		NNWLocalizedString(
-			"This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Close McReader build 157 or older on every device before resetting, and do not reopen it because an old build may restore deleted data.",
+			"This deletes all iCloud feed subscriptions, folders, synchronized articles, and read/starred state from every device. Close Static Reader build 157 or older on every device before resetting, and do not reopen it because an old build may restore deleted data.",
 			comment: "First iCloud feed reset confirmation warning"
 		)
 	}
 
 	static func opmlImportProgressMessage() -> String {
 		NNWLocalizedString(
-			"Keep McReader/Feeds open until the import finishes.",
+			"Keep Static Reader Feeds open until the import finishes.",
 			comment: "OPML import progress message"
 		)
 	}
 
 	static func cloudKitResetProgressMessage() -> String {
 		NNWLocalizedString(
-			"This may take a few minutes. Keep McReader/Feeds open.",
+			"This may take a few minutes. Keep Static Reader Feeds open.",
 			comment: "iCloud feed reset progress message"
 		)
 	}
