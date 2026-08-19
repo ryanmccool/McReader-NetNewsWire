@@ -21,6 +21,7 @@
 		03A30001000000000000001E /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A30001000000000000001F /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift */; };
 		03A300010000000000000020 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000021 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift */; };
 		03A300010000000000000022 /* Tests/NetNewsWireFeatureTests/ArticleHighlightControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000023 /* Tests/NetNewsWireFeatureTests/ArticleHighlightControllerTests.swift */; };
+		03A300010000000000000024 /* Tests/NetNewsWireFeatureTests/StarredArticleArchiveSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A300010000000000000025 /* Tests/NetNewsWireFeatureTests/StarredArticleArchiveSettingsTests.swift */; };
 		17192ADA2567B3D500AAEACA /* RSSparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 17192AD92567B3D500AAEACA /* RSSparkle */; };
 		176814002564BB2D00D98635 /* NetNewsWire iOS Widget Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 176813F32564BB2C00D98635 /* NetNewsWire iOS Widget Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		179C39EA26F76B0500D4E741 /* Zip in Frameworks */ = {isa = PBXBuildFile; productRef = 179C39E926F76B0500D4E741 /* Zip */; };
@@ -365,6 +366,7 @@
 		03A30001000000000000001F /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift; sourceTree = SOURCE_ROOT; };
 		03A300010000000000000021 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift; sourceTree = SOURCE_ROOT; };
 		03A300010000000000000023 /* Tests/NetNewsWireFeatureTests/ArticleHighlightControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/ArticleHighlightControllerTests.swift; sourceTree = SOURCE_ROOT; };
+		03A300010000000000000025 /* Tests/NetNewsWireFeatureTests/StarredArticleArchiveSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/NetNewsWireFeatureTests/StarredArticleArchiveSettingsTests.swift; sourceTree = SOURCE_ROOT; };
 		0BA40665441CA62669920BA5 /* NetNewsWireFeature.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = NetNewsWireFeature.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		176813F32564BB2C00D98635 /* NetNewsWire iOS Widget Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "NetNewsWire iOS Widget Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		510C415C24E5CDE3008226FD /* NetNewsWire Share Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "NetNewsWire Share Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -805,6 +807,7 @@
 				03A30001000000000000001F /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift */,
 				03A300010000000000000021 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift */,
 				03A300010000000000000023 /* Tests/NetNewsWireFeatureTests/ArticleHighlightControllerTests.swift */,
+				03A300010000000000000025 /* Tests/NetNewsWireFeatureTests/StarredArticleArchiveSettingsTests.swift */,
 				03A300010000000000000015 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureCloudKitTests.swift */,
 				03A300010000000000000017 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureLifecycleTests.swift */,
 				03A300010000000000000013 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureResourceTests.swift */,
@@ -1563,6 +1566,7 @@
 				03A30001000000000000001E /* Tests/NetNewsWireFeatureTests/ArticleHighlightModelTests.swift in Sources */,
 				03A300010000000000000020 /* Tests/NetNewsWireFeatureTests/ArticleHighlightScriptTests.swift in Sources */,
 				03A300010000000000000022 /* Tests/NetNewsWireFeatureTests/ArticleHighlightControllerTests.swift in Sources */,
+				03A300010000000000000024 /* Tests/NetNewsWireFeatureTests/StarredArticleArchiveSettingsTests.swift in Sources */,
 				03A300010000000000000012 /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureResourceTests.swift in Sources */,
 				03A30001000000000000000F /* Tests/NetNewsWireFeatureTests/NetNewsWireFeatureStorageTests.swift in Sources */,
 			);
